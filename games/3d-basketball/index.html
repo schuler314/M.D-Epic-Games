@@ -127,6 +127,75 @@
         }
         .p1-controls { border-left: 4px solid #3b82f6; padding-left: 10px; }
         .p2-controls { border-left: 4px solid #ef4444; padding-left: 10px; }
+        
+        /* Mobile Touch Controls */
+        .touch-container {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            padding: 0 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            z-index: 20;
+            pointer-events: none;
+        }
+        #touch-controls-p1 { bottom: 30px; }
+        #touch-controls-p2 { top: 30px; transform: rotate(180deg); }
+        
+        .dpad {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            pointer-events: auto;
+        }
+        .touch-btn {
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            user-select: none;
+            touch-action: none;
+            color: rgba(255,255,255,0.8);
+        }
+        .touch-btn:active { background: rgba(255, 255, 255, 0.4); }
+        .touch-btn.up { top: 0; left: 50%; transform: translateX(-50%); }
+        .touch-btn.down { bottom: 0; left: 50%; transform: translateX(-50%); }
+        .touch-btn.left { left: 0; top: 50%; transform: translateY(-50%); }
+        .touch-btn.right { right: 0; top: 50%; transform: translateY(-50%); }
+        
+        .action-btn {
+            width: 90px;
+            height: 90px;
+            background: rgba(249, 115, 22, 0.5);
+            border: 3px solid #f97316;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            user-select: none;
+            pointer-events: auto;
+            touch-action: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .action-btn:active { background: rgba(249, 115, 22, 0.8); transform: scale(0.95); }
+
+        /* Portrait Orientation Warning */
+        #portrait-warning { display: none; }
+        @media (orientation: portrait) {
+            #portrait-warning.mobile-active {
+                display: flex !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -155,7 +224,14 @@
             HOOPS JAM 3D
         </h1>
         
-        <div class="controls-grid mt-6">
+        <div class="flex gap-4 mt-4 mb-2 flex-wrap justify-center">
+            <button id="btn-keyboard" class="bg-blue-600 text-white px-6 py-2 rounded-full border-2 border-white font-bold opacity-100 transition-opacity" onclick="setDevice('keyboard')">💻 Keyboard</button>
+            <button id="btn-gamepad" class="bg-gray-600 text-white px-6 py-2 rounded-full border-2 border-transparent font-bold opacity-50 transition-opacity" onclick="setDevice('gamepad')">🎮 Gamepad</button>
+            <button id="btn-mobile" class="bg-gray-600 text-white px-6 py-2 rounded-full border-2 border-transparent font-bold opacity-50 transition-opacity" onclick="setDevice('mobile')">📱 Mobile / Tablet (Touch)</button>
+        </div>
+        
+        <!-- Keyboard Instructions -->
+        <div id="inst-keyboard" class="controls-grid mt-4">
             <div class="p1-controls">
                 <h3 class="text-2xl text-blue-400 mb-2 uppercase font-black italic">Player 1 (Blue)</h3>
                 <p><strong>Move:</strong> W, A, S, D</p>
@@ -166,15 +242,71 @@
                 <p><strong>Move:</strong> Arrow Keys</p>
                 <p><strong>Shoot / Dunk:</strong> Tap ENTER</p>
             </div>
+            <div class="col-span-2 text-gray-300 text-sm text-center">
+                <strong>Pro Tip:</strong> Just tap the shoot button! Your player will automatically release the ball at the perfect apex of their jump. Run into the opponent to attempt a steal.
+            </div>
         </div>
-        <div class="text-gray-300 text-sm mb-6 text-center max-w-lg">
-            <strong>Pro Tip:</strong> Just tap the shoot button! Your player will automatically release the ball at the perfect apex of their jump. Run into the opponent to attempt a steal.
+
+        <!-- Gamepad Instructions -->
+        <div id="inst-gamepad" class="controls-grid mt-4 hidden">
+            <div class="p1-controls">
+                <h3 class="text-2xl text-blue-400 mb-2 uppercase font-black italic">Player 1 (Blue)</h3>
+                <p><strong>Move:</strong> D-Pad / Left Stick</p>
+                <p><strong>Shoot / Dunk:</strong> Tap 'A' or 'X'</p>
+            </div>
+            <div class="p2-controls">
+                <h3 class="text-2xl text-red-400 mb-2 uppercase font-black italic">Player 2 (Red)</h3>
+                <p><strong>Move:</strong> D-Pad / Left Stick (2nd Pad)</p>
+                <p><strong>Shoot / Dunk:</strong> Tap 'A' or 'X'</p>
+            </div>
+            <div class="col-span-2 text-gray-300 text-sm text-center">
+                <strong>Pro Tip:</strong> Plug in any standard Gamepad (Logitech F310, Xbox, DualShock). Just tap the shoot button to shoot!
+            </div>
+        </div>
+
+        <!-- Mobile Instructions -->
+        <div id="inst-mobile" class="controls-grid mt-4 hidden">
+            <div class="col-span-2 border-l-4 border-orange-500 pl-4">
+                <h3 class="text-2xl text-orange-400 mb-2 uppercase font-black italic">Touch Controls</h3>
+                <p>Use the <strong>Virtual D-Pad</strong> to move your player.</p>
+                <p>Tap the <strong>ACTION Button</strong> to Shoot or Dunk.</p>
+                <p class="mt-2 text-gray-300 text-sm"><strong>Pro Tip:</strong> Playing 2-Player mode on a tablet will spawn a second set of controls at the top of the screen so two players can sit across from each other!</p>
+            </div>
         </div>
         
-        <div class="flex gap-4">
+        <div class="flex gap-4 mt-6">
             <button class="btn" onclick="startGame(1)">1 P VS CPU</button>
-            <button class="btn" style="background: linear-gradient(to bottom, #3b82f6, #1d4ed8); border-color: #93c5fd; box-shadow: 0 6px 0 #1e3a8a, 0 15px 20px rgba(0,0,0,0.4);" onclick="startGame(2)">2 PLAYERS</button>
+            <button id="btn-2p" class="btn" style="background: linear-gradient(to bottom, #3b82f6, #1d4ed8); border-color: #93c5fd; box-shadow: 0 6px 0 #1e3a8a, 0 15px 20px rgba(0,0,0,0.4);" onclick="startGame(2)">2 PLAYERS</button>
         </div>
+    </div>
+
+    <!-- Portrait Orientation Warning -->
+    <div id="portrait-warning" class="screen z-50 flex-col text-center px-6 hidden">
+        <div class="text-6xl mb-4">🔄</div>
+        <h2 class="text-4xl font-black mb-4 text-orange-500">ROTATE DEVICE</h2>
+        <p class="text-xl text-gray-300">Please turn your device horizontally (landscape mode) to play the game with a wider view.</p>
+    </div>
+
+    <!-- Virtual Touch Controls P1 -->
+    <div id="touch-controls-p1" class="touch-container hidden">
+        <div class="dpad">
+            <div class="touch-btn up" id="t-up">▲</div>
+            <div class="touch-btn down" id="t-down">▼</div>
+            <div class="touch-btn left" id="t-left">◀</div>
+            <div class="touch-btn right" id="t-right">▶</div>
+        </div>
+        <div class="action-btn" id="t-action">JUMP</div>
+    </div>
+
+    <!-- Virtual Touch Controls P2 -->
+    <div id="touch-controls-p2" class="touch-container hidden">
+        <div class="dpad">
+            <div class="touch-btn up" id="t2-up">▲</div>
+            <div class="touch-btn down" id="t2-down">▼</div>
+            <div class="touch-btn left" id="t2-left">◀</div>
+            <div class="touch-btn right" id="t2-right">▶</div>
+        </div>
+        <div class="action-btn" style="background: rgba(239, 68, 68, 0.5); border-color: #ef4444;" id="t2-action">JUMP</div>
     </div>
 
     <!-- Pause Screen -->
@@ -270,10 +402,15 @@
         time: 180,
         timerInt: null,
         isResetting: false,
+        isMobile: false, // Tracks device mode
         scores: { p1: 0, p2: 0 },
         keys: {
             p1: { up: false, down: false, left: false, right: false, action: false },
             p2: { up: false, down: false, left: false, right: false, action: false }
+        },
+        gpKeys: {
+            p1: { up: false, down: false, left: false, right: false, action_handled: false },
+            p2: { up: false, down: false, left: false, right: false, action_handled: false }
         }
     };
 
@@ -510,6 +647,92 @@
         if (e.code === 'Enter') Game.keys.p2.action = false;
     });
 
+    /** --- TOUCH CONTROLS BINDING --- */
+    function bindTouchBtn(btnId, keyName, playerNum = 1) {
+        const el = document.getElementById(btnId);
+        if (!el) return;
+        el.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (Game.state !== STATE.PLAYING) return;
+            
+            let pKeys = playerNum === 1 ? Game.keys.p1 : Game.keys.p2;
+            pKeys[keyName] = true;
+            
+            if (keyName === 'action' && !pKeys.action_handled) {
+                pKeys.action_handled = true;
+                handleJumpAction(playerNum === 1 ? p1 : p2);
+            }
+        }, { passive: false });
+        
+        el.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            let pKeys = playerNum === 1 ? Game.keys.p1 : Game.keys.p2;
+            pKeys[keyName] = false;
+            if (keyName === 'action') pKeys.action_handled = false;
+        }, { passive: false });
+    }
+
+    // Bind P1 Touch
+    bindTouchBtn('t-up', 'up', 1);
+    bindTouchBtn('t-down', 'down', 1);
+    bindTouchBtn('t-left', 'left', 1);
+    bindTouchBtn('t-right', 'right', 1);
+    bindTouchBtn('t-action', 'action', 1);
+
+    // Bind P2 Touch
+    bindTouchBtn('t2-up', 'up', 2);
+    bindTouchBtn('t2-down', 'down', 2);
+    bindTouchBtn('t2-left', 'left', 2);
+    bindTouchBtn('t2-right', 'right', 2);
+    bindTouchBtn('t2-action', 'action', 2);
+
+    /** --- UI DEVICE TOGGLE --- */
+    window.setDevice = function(type) {
+        Game.isMobile = (type === 'mobile');
+        
+        const btnKeyboard = document.getElementById('btn-keyboard');
+        const btnGamepad = document.getElementById('btn-gamepad');
+        const btnMobile = document.getElementById('btn-mobile');
+        
+        const instKeyboard = document.getElementById('inst-keyboard');
+        const instGamepad = document.getElementById('inst-gamepad');
+        const instMobile = document.getElementById('inst-mobile');
+        
+        const portraitWarning = document.getElementById('portrait-warning');
+
+        // Reset Styles
+        [btnKeyboard, btnGamepad, btnMobile].forEach(btn => {
+            btn.classList.replace('bg-blue-600', 'bg-gray-600');
+            btn.classList.replace('border-white', 'border-transparent');
+            btn.classList.replace('opacity-100', 'opacity-50');
+        });
+        
+        instKeyboard.classList.add('hidden');
+        instGamepad.classList.add('hidden');
+        instMobile.classList.add('hidden');
+
+        // Activate Selection
+        if (type === 'keyboard') {
+            btnKeyboard.classList.replace('bg-gray-600', 'bg-blue-600');
+            btnKeyboard.classList.replace('border-transparent', 'border-white');
+            btnKeyboard.classList.replace('opacity-50', 'opacity-100');
+            instKeyboard.classList.remove('hidden');
+            portraitWarning.classList.remove('mobile-active');
+        } else if (type === 'gamepad') {
+            btnGamepad.classList.replace('bg-gray-600', 'bg-blue-600');
+            btnGamepad.classList.replace('border-transparent', 'border-white');
+            btnGamepad.classList.replace('opacity-50', 'opacity-100');
+            instGamepad.classList.remove('hidden');
+            portraitWarning.classList.remove('mobile-active');
+        } else if (type === 'mobile') {
+            btnMobile.classList.replace('bg-gray-600', 'bg-blue-600');
+            btnMobile.classList.replace('border-transparent', 'border-white');
+            btnMobile.classList.replace('opacity-50', 'opacity-100');
+            instMobile.classList.remove('hidden');
+            portraitWarning.classList.add('mobile-active');
+        }
+    }
+
     /** --- CORE LOGIC --- */
     function resetPositions(scorer = null, turnoverTo = null) {
         ball.owner = null;
@@ -694,16 +917,62 @@
         }
     }
 
-    function processPlayerInput(player, keys) {
+    function processPlayerInput(player, keys, gpKeys) {
         if (!player.isJumping) {
             player.vel.x = 0; player.vel.z = 0;
-            if (keys.left) player.vel.x = -player.speed;
-            if (keys.right) player.vel.x = player.speed;
-            if (keys.up) player.vel.z = -player.speed;
-            if (keys.down) player.vel.z = player.speed;
+            if (keys.left || gpKeys.left) player.vel.x = -player.speed;
+            if (keys.right || gpKeys.right) player.vel.x = player.speed;
+            if (keys.up || gpKeys.up) player.vel.z = -player.speed;
+            if (keys.down || gpKeys.down) player.vel.z = player.speed;
             
             if (player.vel.x !== 0 && player.vel.z !== 0) {
                 player.vel.x *= 0.707; player.vel.z *= 0.707;
+            }
+        }
+    }
+
+    function pollGamepads() {
+        if (Game.isMobile) return;
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        if (!gamepads) return;
+
+        // Player 1 (Gamepad 0)
+        const gp1 = gamepads[0];
+        if (gp1) {
+            const deadzone = 0.2;
+            Game.gpKeys.p1.up = gp1.axes[1] < -deadzone || gp1.buttons[12]?.pressed;
+            Game.gpKeys.p1.down = gp1.axes[1] > deadzone || gp1.buttons[13]?.pressed;
+            Game.gpKeys.p1.left = gp1.axes[0] < -deadzone || gp1.buttons[14]?.pressed;
+            Game.gpKeys.p1.right = gp1.axes[0] > deadzone || gp1.buttons[15]?.pressed;
+
+            let gp1Action = gp1.buttons[0]?.pressed || gp1.buttons[2]?.pressed; // A or X button
+            if (gp1Action) {
+                if (!Game.gpKeys.p1.action_handled && Game.state === STATE.PLAYING) {
+                    Game.gpKeys.p1.action_handled = true;
+                    handleJumpAction(p1);
+                }
+            } else {
+                Game.gpKeys.p1.action_handled = false;
+            }
+        }
+
+        // Player 2 (Gamepad 1)
+        const gp2 = gamepads[1];
+        if (gp2 && Game.mode === 2) {
+            const deadzone = 0.2;
+            Game.gpKeys.p2.up = gp2.axes[1] < -deadzone || gp2.buttons[12]?.pressed;
+            Game.gpKeys.p2.down = gp2.axes[1] > deadzone || gp2.buttons[13]?.pressed;
+            Game.gpKeys.p2.left = gp2.axes[0] < -deadzone || gp2.buttons[14]?.pressed;
+            Game.gpKeys.p2.right = gp2.axes[0] > deadzone || gp2.buttons[15]?.pressed;
+
+            let gp2Action = gp2.buttons[0]?.pressed || gp2.buttons[2]?.pressed;
+            if (gp2Action) {
+                if (!Game.gpKeys.p2.action_handled && Game.state === STATE.PLAYING) {
+                    Game.gpKeys.p2.action_handled = true;
+                    handleJumpAction(p2);
+                }
+            } else {
+                Game.gpKeys.p2.action_handled = false;
             }
         }
     }
@@ -721,9 +990,10 @@
         if (Game.state === STATE.PLAYING) {
             
             // 1. Inputs
-            processPlayerInput(p1, Game.keys.p1);
+            pollGamepads();
+            processPlayerInput(p1, Game.keys.p1, Game.gpKeys.p1);
             if (Game.mode === 2) {
-                processPlayerInput(p2, Game.keys.p2);
+                processPlayerInput(p2, Game.keys.p2, Game.gpKeys.p2);
             } else {
                 updateAI(dt);
             }
@@ -917,9 +1187,22 @@
         Game.time = 180;
         Game.scores = {p1: 0, p2: 0};
         
+        // Reset inputs
+        Game.keys.p1 = { up: false, down: false, left: false, right: false, action: false };
+        Game.keys.p2 = { up: false, down: false, left: false, right: false, action: false };
+        Game.gpKeys.p1.action_handled = false;
+        Game.gpKeys.p2.action_handled = false;
+        
         document.getElementById('home-screen').classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
+        
+        if (Game.isMobile) {
+            document.getElementById('touch-controls-p1').classList.remove('hidden');
+            if (Game.mode === 2) {
+                document.getElementById('touch-controls-p2').classList.remove('hidden');
+            }
+        }
         
         document.getElementById('p2-name').innerText = mode === 2 ? "PLAYER 2" : "CPU";
         
@@ -940,6 +1223,8 @@
         AudioSys.playBuzzer();
         
         document.getElementById('hud').classList.add('hidden');
+        document.getElementById('touch-controls-p1').classList.add('hidden');
+        document.getElementById('touch-controls-p2').classList.add('hidden');
         document.getElementById('game-over-screen').classList.remove('hidden');
         
         const title = document.getElementById('go-title');
@@ -956,6 +1241,8 @@
         Game.state = STATE.HOME;
         document.getElementById('game-over-screen').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
+        document.getElementById('touch-controls-p1').classList.add('hidden');
+        document.getElementById('touch-controls-p2').classList.add('hidden');
         document.getElementById('home-screen').classList.remove('hidden');
         document.getElementById('hud').classList.add('hidden');
         if (Game.timerInt) clearInterval(Game.timerInt);
@@ -966,6 +1253,8 @@
             Game.state = STATE.PAUSED;
             clearInterval(Game.timerInt);
             document.getElementById('pause-screen').classList.remove('hidden');
+            document.getElementById('touch-controls-p1').classList.add('hidden');
+            document.getElementById('touch-controls-p2').classList.add('hidden');
         }
     });
 
@@ -973,6 +1262,10 @@
         if (Game.state === STATE.PAUSED) {
             Game.state = STATE.PLAYING;
             document.getElementById('pause-screen').classList.add('hidden');
+            if (Game.isMobile) {
+                document.getElementById('touch-controls-p1').classList.remove('hidden');
+                if (Game.mode === 2) document.getElementById('touch-controls-p2').classList.remove('hidden');
+            }
             Game.timerInt = setInterval(timerTick, 1000);
         }
     };
