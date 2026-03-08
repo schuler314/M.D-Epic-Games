@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gravity Switch 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background: #050508; font-family: 'Orbitron', sans-serif; touch-action: none; user-select: none; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; }
+        canvas { width: 100vw; height: 100vh; display: block; }
+        
+        .ui-layer { position: absolute; inset: 0; pointer-events: none; display: flex; flex-col; justify-content: center; align-items: center; z-index: 10; }
+        .panel { background: rgba(10, 10, 20, 0.85); backdrop-filter: blur(10px); border: 2px solid #0ff; border-radius: 1rem; padding: 2rem; pointer-events: auto; box-shadow: 0 0 30px rgba(0, 255, 255, 0.2); max-width: 90vw; text-align: center; }
+        .hidden { display: none !important; }
+        
+        button { cursor: pointer; transition: all 0.2s; font-family: 'Orbitron', sans-serif; }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 15px currentColor; }
+        button:active { transform: scale(0.95); }
+        
+        .glow-text-cyan { text-shadow: 0 0 10px #0ff, 0 0 20px #0ff; color: white; }
+        .glow-text-pink { text-shadow: 0 0 10px #f0f, 0 0 20px #f0f; color: white; }
+        
+        #portrait-warning { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; padding: 2rem; }
+        @media screen and (orientation: portrait) { .mobile-mode #portrait-warning { display: flex; } }
+    </style>
+</head>
+<body>
+
+<div id="game-container"></div>
+
+<!-- Portrait Warning for Mobile -->
+<div id="portrait-warning">
+    <svg class="w-24 h-24 mb-6 text-cyan-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+    <h2 class="text-3xl font-bold mb-4 glow-text-cyan">Rotate Device</h2>
+    <p class="text-lg text-gray-300">Please use horizontal (landscape) orientation for a wider screen to play.</p>
+</div>
+
+<!-- Main UI -->
+<div id="ui-main" class="ui-layer">
+    <div class="panel flex flex-col items-center">
+        <h1 class="text-5xl md:text-7xl font-black mb-2 glow-text-cyan">GRAVITY</h1>
+        <h1 class="text-4xl md:text-6xl font-black mb-8 glow-text-pink">SWITCH 3D</h1>
+        
+        <div class="flex gap-4 mb-6 flex-wrap justify-center">
+            <button onclick="setDevice('desktop')" id="btn-desktop" class="px-6 py-2 border-2 border-cyan-500 text-cyan-500 rounded hover:bg-cyan-500 hover:text-white">Desktop</button>
+            <button onclick="setDevice('gamepad')" id="btn-gamepad" class="px-6 py-2 border-2 border-purple-500 text-purple-500 rounded hover:bg-purple-500 hover:text-white">Gamepad</button>
+            <button onclick="setDevice('mobile')" id="btn-mobile" class="px-6 py-2 border-2 border-pink-500 text-pink-500 rounded hover:bg-pink-500 hover:text-white">Mobile/Tablet</button>
+        </div>
+
+        <div id="player-select" class="hidden flex gap-4 mb-8 w-full justify-center">
+            <button onclick="startGame(1)" class="px-8 py-4 bg-cyan-600 text-white font-bold rounded text-xl flex-1 border border-cyan-300">1 PLAYER</button>
+            <button onclick="startGame(2)" class="px-8 py-4 bg-pink-600 text-white font-bold rounded text-xl flex-1 border border-pink-300">2 PLAYERS</button>
+        </div>
+
+        <div class="flex gap-4 w-full">
+            <button onclick="showInstructions()" class="px-4 py-2 bg-gray-700 text-white rounded flex-1">How to Play</button>
+            <button onclick="showHighScores()" class="px-4 py-2 bg-gray-700 text-white rounded flex-1">High Scores</button>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions UI -->
+<div id="ui-instructions" class="ui-layer hidden">
+    <div class="panel max-w-2xl">
+        <h2 class="text-3xl font-bold mb-4 glow-text-cyan">INSTRUCTIONS</h2>
+        <div id="inst-text" class="text-left text-gray-200 space-y-4 mb-6 text-lg">
+            <!-- Populated dynamically based on device -->
+        </div>
+        <h3 class="text-xl text-yellow-400 mt-4 mb-2">Powerups:</h3>
+        <div class="flex gap-4 justify-center mb-6">
+            <div class="text-green-400">♦ Speed Boost (Break Walls)</div>
+            <div class="text-blue-400">♦ Shield (Absorb 1 Hit)</div>
+        </div>
+        <button onclick="showMain()" class="px-8 py-3 bg-cyan-600 text-white font-bold rounded">BACK</button>
+    </div>
+</div>
+
+<!-- High Scores UI -->
+<div id="ui-scores" class="ui-layer hidden">
+    <div class="panel w-96">
+        <h2 class="text-3xl font-bold mb-4 glow-text-cyan">HIGH SCORES</h2>
+        <p class="text-xs text-gray-400 mb-4">Saved locally to your device drive.</p>
+        <div id="score-list" class="space-y-2 mb-6 text-left">
+            Loading...
+        </div>
+        <button onclick="showMain()" class="px-8 py-3 bg-cyan-600 text-white font-bold rounded">BACK</button>
+    </div>
+</div>
+
+<!-- Pause Menu -->
+<div id="ui-pause" class="ui-layer hidden">
+    <div class="panel">
+        <h2 class="text-4xl font-bold mb-6 glow-text-cyan">PAUSED</h2>
+        <div class="flex flex-col gap-4">
+            <button onclick="resumeGame()" class="px-8 py-3 bg-green-600 text-white font-bold rounded text-xl">RESUME</button>
+            <button onclick="quitGame()" class="px-8 py-3 bg-red-600 text-white font-bold rounded text-xl">QUIT TO MENU</button>
+        </div>
+    </div>
+</div>
+
+<!-- Game Over -->
+<div id="ui-gameover" class="ui-layer hidden">
+    <div class="panel">
+        <h2 class="text-5xl font-bold mb-2 glow-text-pink">SYSTEM FAILURE</h2>
+        <p class="text-2xl text-white mb-6">Score: <span id="final-score" class="font-bold text-cyan-300">0</span></p>
+        <div class="flex gap-4 justify-center">
+            <button onclick="startGame(window.lastPlayerCount)" class="px-8 py-3 bg-cyan-600 text-white font-bold rounded text-xl">RESTART</button>
+            <button onclick="quitGame()" class="px-8 py-3 bg-gray-600 text-white font-bold rounded text-xl">MENU</button>
+        </div>
+    </div>
+</div>
+
+<!-- Level Transition Notification -->
+<div id="ui-transition" class="ui-layer hidden bg-black/80 backdrop-blur-md flex flex-col items-center justify-center z-50">
+    <h2 class="text-6xl md:text-8xl font-black text-white glow-text-cyan mb-6 text-center" id="transition-title">SECTOR CLEARED</h2>
+    <p class="text-2xl md:text-4xl text-pink-400 font-bold animate-pulse tracking-widest">INITIATING NEXT JUMP...</p>
+</div>
+
+<!-- HUD -->
+<div id="ui-hud" class="absolute top-0 left-0 w-full p-4 pointer-events-none hidden flex justify-between items-start z-10">
+    <div class="flex flex-col gap-1">
+        <div class="text-3xl font-black glow-text-cyan drop-shadow-md">SCORE: <span id="hud-score">0</span></div>
+        <div class="text-xl font-bold text-white drop-shadow-md">LEVEL: <span id="hud-level">1</span></div>
+        <div class="text-xl font-bold drop-shadow-md" id="hud-lives"></div>
+    </div>
+    <button onclick="pauseGame()" class="pointer-events-auto w-12 h-12 bg-black/50 border-2 border-cyan-500 rounded text-cyan-500 text-2xl flex items-center justify-center hover:bg-cyan-900">||</button>
+</div>
+
+<!-- Mobile Touch Zones -->
+<div id="touch-zones" class="absolute inset-0 z-0 hidden">
+    <div id="touch-left" class="absolute top-0 left-0 w-1/2 h-full"></div>
+    <div id="touch-right" class="absolute top-0 right-0 w-1/2 h-full"></div>
+</div>
+
+<script>
+    // ==========================================
+    // AUDIO SYNTHESIZER
+    // ==========================================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const sfx = {
+        playTone: (freq, type, duration, vol=0.1, slideFreq=null) => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            if(slideFreq) {
+                osc.frequency.exponentialRampToValueAtTime(slideFreq, audioCtx.currentTime + duration);
+            }
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        },
+        flip1: () => sfx.playTone(300, 'sine', 0.15, 0.1, 600),
+        flip2: () => sfx.playTone(600, 'sine', 0.15, 0.1, 300),
+        crash: () => {
+            sfx.playTone(100, 'sawtooth', 0.5, 0.2, 20);
+            sfx.playTone(150, 'square', 0.3, 0.2, 10);
+        },
+        powerup: () => {
+            sfx.playTone(400, 'square', 0.1, 0.1);
+            setTimeout(() => sfx.playTone(600, 'square', 0.1, 0.1), 100);
+            setTimeout(() => sfx.playTone(800, 'square', 0.2, 0.1), 200);
+        },
+        shieldBreak: () => sfx.playTone(800, 'sawtooth', 0.2, 0.1, 200)
+    };
+
+    // ==========================================
+    // LOCAL STORAGE (IndexedDB Wrapper)
+    // ==========================================
+    const DB_NAME = 'GravitySwitchDB';
+    const STORE_NAME = 'highscores';
+    let db;
+
+    const initDB = () => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            }
+        };
+        request.onsuccess = (e) => db = e.target.result;
+    };
+    initDB();
+
+    const saveScore = (score) => {
+        if (!db || score <= 0) return;
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).add({ score: Math.floor(score), date: new Date().toLocaleDateString() });
+    };
+
+    const loadScores = (callback) => {
+        if (!db) return callback([]);
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => {
+            let scores = req.result.sort((a, b) => b.score - a.score).slice(0, 5);
+            callback(scores);
+        };
+    };
+
+    // ==========================================
+    // UI & STATE MANAGEMENT
+    // ==========================================
+    let deviceMode = 'desktop'; // desktop or mobile
+    let gameState = 'menu'; // menu, playing, paused, gameover
+    window.lastPlayerCount = 1;
+
+    function hideAllUI() {
+        document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+    }
+
+    function setDevice(mode) {
+        deviceMode = mode;
+        document.getElementById('btn-desktop').className = mode === 'desktop' ? 'px-6 py-2 border-2 border-cyan-500 bg-cyan-500 text-white rounded' : 'px-6 py-2 border-2 border-cyan-500 text-cyan-500 rounded hover:bg-cyan-500 hover:text-white';
+        document.getElementById('btn-gamepad').className = mode === 'gamepad' ? 'px-6 py-2 border-2 border-purple-500 bg-purple-500 text-white rounded' : 'px-6 py-2 border-2 border-purple-500 text-purple-500 rounded hover:bg-purple-500 hover:text-white';
+        document.getElementById('btn-mobile').className = mode === 'mobile' ? 'px-6 py-2 border-2 border-pink-500 bg-pink-500 text-white rounded' : 'px-6 py-2 border-2 border-pink-500 text-pink-500 rounded hover:bg-pink-500 hover:text-white';
+        
+        document.getElementById('player-select').classList.remove('hidden');
+        document.body.className = mode === 'mobile' ? 'mobile-mode' : '';
+    }
+
+    function showMain() {
+        hideAllUI();
+        document.getElementById('ui-main').classList.remove('hidden');
+        gameState = 'menu';
+    }
+
+    function showInstructions() {
+        hideAllUI();
+        document.getElementById('ui-instructions').classList.remove('hidden');
+        const text = document.getElementById('inst-text');
+        if (deviceMode === 'desktop') {
+            text.innerHTML = `
+                <p><strong>Goal:</strong> Survive the endless futuristic trench. Avoid hitting the sides of platforms.</p>
+                <p><strong>1 Player:</strong> Press <kbd>SPACE</kbd> or <kbd>W</kbd> to flip gravity.</p>
+                <p><strong>2 Players:</strong><br/>
+                Player 1 (Orange): <kbd>SPACE</kbd> / <kbd>W</kbd><br/>
+                Player 2 (Green): <kbd>ENTER</kbd> / <kbd>UP Arrow</kbd></p>
+                <p>Camera dynamically zooms out if players separate!</p>
+            `;
+        } else if (deviceMode === 'gamepad') {
+            text.innerHTML = `
+                <p><strong>Goal:</strong> Survive the endless futuristic trench.</p>
+                <p><strong>1 Player:</strong> Press <kbd>A Button</kbd> to flip gravity.</p>
+                <p><strong>2 Players:</strong><br/>
+                Player 1 (Orange): <kbd>A Button</kbd> on Controller 1<br/>
+                Player 2 (Green): <kbd>A Button</kbd> on Controller 2</p>
+                <p>Make sure controllers are active.</p>
+            `;
+        } else {
+            text.innerHTML = `
+                <p><strong>Goal:</strong> Survive the endless futuristic trench.</p>
+                <p><strong>Ensure device is rotated horizontally (Landscape).</strong></p>
+                <p><strong>1 Player:</strong> Tap anywhere on the screen to flip gravity.</p>
+                <p><strong>2 Players:</strong><br/>
+                Player 1 (Orange): Tap <strong>LEFT</strong> half of screen.<br/>
+                Player 2 (Green): Tap <strong>RIGHT</strong> half of screen.</p>
+            `;
+        }
+    }
+
+    function showHighScores() {
+        hideAllUI();
+        document.getElementById('ui-scores').classList.remove('hidden');
+        const list = document.getElementById('score-list');
+        list.innerHTML = 'Loading...';
+        loadScores((scores) => {
+            if(scores.length === 0) {
+                list.innerHTML = '<p class="text-gray-400">No high scores yet.</p>';
+                return;
+            }
+            list.innerHTML = scores.map((s, i) => 
+                `<div class="flex justify-between border-b border-gray-700 py-2">
+                    <span class="text-cyan-400">#${i+1}</span>
+                    <span class="text-white font-bold">${s.score}</span>
+                    <span class="text-gray-500 text-sm">${s.date}</span>
+                </div>`
+            ).join('');
+        });
+    }
+
+    function pauseGame() {
+        if(gameState !== 'playing') return;
+        gameState = 'paused';
+        document.getElementById('ui-hud').classList.add('hidden');
+        document.getElementById('ui-pause').classList.remove('hidden');
+        document.getElementById('touch-zones').classList.add('hidden');
+    }
+
+    function resumeGame() {
+        gameState = 'playing';
+        hideAllUI();
+        document.getElementById('ui-hud').classList.remove('hidden');
+        if(deviceMode === 'mobile') document.getElementById('touch-zones').classList.remove('hidden');
+    }
+
+    function quitGame() {
+        if(score > 0) saveScore(score);
+        cleanWorld();
+        showMain();
+    }
+
+    // ==========================================
+    // THREE.JS ENGINE SETUP
+    // ==========================================
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050508, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('game-container').appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+    
+    // Grids
+    const gridHelperTop = new THREE.GridHelper(2000, 100, 0x00ffff, 0x004444);
+    gridHelperTop.position.y = 10;
+    scene.add(gridHelperTop);
+    
+    const gridHelperBottom = new THREE.GridHelper(2000, 100, 0xff00ff, 0x440044);
+    gridHelperBottom.position.y = -10;
+    scene.add(gridHelperBottom);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ==========================================
+    // GAME ENTITIES & LOGIC
+    // ==========================================
+    const WORLD_BASE_SPEED = 35; // Increased starting difficulty
+    const GRAVITY_FORCE = 80;
+    const FLOOR_Y = -4; // Increased trench gap width
+    const CEIL_Y = 4;
+    const PLATFORM_THICKNESS = 2;
+
+    let score = 0;
+    let currentLevel = 1;
+    let worldSpeed = WORLD_BASE_SPEED;
+    let players = [];
+    let platforms = [];
+    let powerups = [];
+    let enemies = [];
+    let particles = [];
+    let nextSpawnX = -10;
+    
+    // Materials
+    const matBottom = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x008888, wireframe: false });
+    const matTop = new THREE.MeshStandardMaterial({ color: 0xff00ff, emissive: 0x880088, wireframe: false });
+    const matShield = new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.5, wireframe: true });
+    const matSuperstar = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.6, wireframe: true });
+    
+    // Geometries
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const sphereGeo = new THREE.SphereGeometry(0.8, 16, 16);
+    const gemGeo = new THREE.OctahedronGeometry(0.6);
+    
+    // Humanoid Materials - Changed to bright matte white to prevent blending into the background
+    const suitMat = new THREE.MeshStandardMaterial({color: 0xffffff, metalness: 0.1, roughness: 0.8}); 
+
+    // Enemy generator
+    function createEnemyMesh() {
+        let group = new THREE.Group();
+        // Metallic core
+        let core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.9, roughness: 0.1}));
+        // Glowing red energy cage
+        let aura = new THREE.Mesh(new THREE.IcosahedronGeometry(0.65, 0), new THREE.MeshBasicMaterial({color: 0xff0000, wireframe: true, transparent: true, opacity: 0.6}));
+        // Pulsing light
+        let light = new THREE.PointLight(0xff0000, 2, 8);
+        group.add(core); 
+        group.add(aura); 
+        group.add(light);
+        return group;
+    }
+
+    function updateHUDLives() {
+        if(players.length > 0) {
+            let html = players.map(p => {
+                let color = p.id === 1 ? '#ff8800' : '#00ffaa';
+                return `<span style="color:${color}">P${p.id}: ${p.lives}</span>`;
+            }).join('<span class="text-gray-500 mx-2">|</span>');
+            document.getElementById('hud-lives').innerHTML = html;
+        }
+    }
+
+    class Player {
+        constructor(id, color, startY) {
+            this.id = id;
+            this.alive = true;
+            this.lives = 3;
+            
+            this.mesh = new THREE.Group();
+            this.mesh.position.set(0, startY, id === 1 ? -1 : 1);
+            scene.add(this.mesh);
+            
+            this.bootMat = new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: 1.0}); // Glowing boots/visor
+            
+            // Torso
+            this.body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 0.25), suitMat);
+            this.mesh.add(this.body);
+
+            // Head & Visor
+            this.headGroup = new THREE.Group();
+            this.headGroup.position.y = 0.45;
+            this.head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), suitMat);
+            this.visor = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.1, 0.22), this.bootMat);
+            this.visor.position.set(0.08, 0, 0); // Pointing forward
+            this.headGroup.add(this.head);
+            this.headGroup.add(this.visor);
+            this.mesh.add(this.headGroup);
+
+            // Arms (Swinging)
+            this.armL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.45), suitMat);
+            this.armL.position.set(0, 0.1, -0.2);
+            this.mesh.add(this.armL);
+            this.armR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.45), suitMat);
+            this.armR.position.set(0, 0.1, 0.2);
+            this.mesh.add(this.armR);
+
+            // Legs Group (to rotate around hip)
+            this.legL = new THREE.Group();
+            this.legL.position.set(0, -0.3, -0.1);
+            let upperLegL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35), suitMat);
+            upperLegL.position.y = -0.15;
+            this.legL.add(upperLegL);
+            let bootVisL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.2), this.bootMat);
+            bootVisL.position.set(0.05, -0.4, 0); 
+            this.legL.add(bootVisL);
+            this.mesh.add(this.legL);
+
+            // Leg R
+            this.legR = new THREE.Group();
+            this.legR.position.set(0, -0.3, 0.1);
+            let upperLegR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35), suitMat);
+            upperLegR.position.y = -0.15;
+            this.legR.add(upperLegR);
+            let bootVisR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.2), this.bootMat);
+            bootVisR.position.set(0.05, -0.4, 0);
+            this.legR.add(bootVisR);
+            this.mesh.add(this.legR);
+            
+            // Powerup visuals
+            this.shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 16), matShield);
+            this.shieldMesh.visible = false;
+            this.mesh.add(this.shieldMesh);
+
+            this.superstarMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 1), matSuperstar);
+            this.superstarMesh.visible = false;
+            this.mesh.add(this.superstarMesh);
+            
+            this.light = new THREE.PointLight(color, 1.5, 10);
+            this.mesh.add(this.light);
+
+            this.vy = 0;
+            this.gravityDir = startY < 0 ? -1 : 1; 
+            this.w = 1; this.h = 1.2; this.d = 1;
+            this.grounded = false;
+            this.runTime = 0;
+            
+            this.hasShield = false;
+            this.shieldTimer = 0; // For temporary respawn invincibility
+            this.boostTimer = 0;
+            this.superstarTimer = 0;
+            this.colorHex = color;
+            this.baseColor = new THREE.Color(color);
+        }
+
+        flip() {
+            if(!this.alive || !this.grounded) return; 
+            this.gravityDir *= -1;
+            this.vy = this.gravityDir > 0 ? 15 : -15; 
+            this.grounded = false;
+            sfx[this.gravityDir > 0 ? 'flip1' : 'flip2']();
+            createBurst(this.mesh.position, this.colorHex);
+        }
+
+        takeDamage(hitPos, isEnemy) {
+            if (this.superstarTimer > 0) {
+                // Invincible! Smash it.
+                createBurst(hitPos, 0xffffff, 20);
+                sfx.shieldBreak(); // Use break sound for smashing
+                return true; // Indicates we smashed it
+            } else if (this.shieldTimer > 0 || this.hasShield || this.boostTimer > 0) {
+                // Protected by shield/boost
+                if (!this.shieldTimer && !this.boostTimer) this.hasShield = false; // Only consume perm shield
+                createBurst(this.mesh.position, 0x00aaff, 30);
+                sfx.shieldBreak();
+                this.vy = this.gravityDir > 0 ? 15 : -15; // Bounce over
+                this.mesh.position.x -= 1; 
+                return true;
+            } else {
+                // Take Damage
+                if (this.lives > 1) {
+                    this.lives--;
+                    updateHUDLives();
+                    this.shieldTimer = 3.0; // 3 seconds invincibility
+                    sfx.crash();
+                    createBurst(this.mesh.position, this.colorHex, 20);
+                    this.vy = this.gravityDir > 0 ? 15 : -15; // Bounce over obstacle
+                    this.mesh.position.x -= 1; 
+                    return true;
+                } else {
+                    this.lives = 0;
+                    updateHUDLives();
+                    this.die();
+                    return false;
+                }
+            }
+        }
+
+        update(dt) {
+            if(!this.alive) return;
+
+            // Timers
+            if(this.boostTimer > 0) {
+                this.boostTimer -= dt;
+                createTrail(this.mesh.position, 0x00ff00);
+            }
+            if(this.shieldTimer > 0) this.shieldTimer -= dt;
+            if(this.superstarTimer > 0) {
+                this.superstarTimer -= dt;
+                // Rainbow color effect
+                let hue = (Date.now() % 1000) / 1000;
+                this.bootMat.color.setHSL(hue, 1.0, 0.5);
+                this.light.color.setHSL(hue, 1.0, 0.5);
+                createTrail(this.mesh.position, this.bootMat.color.getHex());
+            } else {
+                this.bootMat.color.copy(this.baseColor);
+                this.light.color.copy(this.baseColor);
+            }
+            
+            this.shieldMesh.visible = this.hasShield || this.shieldTimer > 0 || this.boostTimer > 0;
+            if(this.shieldMesh.visible) this.shieldMesh.rotation.y += dt * 2;
+
+            this.superstarMesh.visible = this.superstarTimer > 0;
+            if(this.superstarMesh.visible) {
+                this.superstarMesh.rotation.x += dt * 3;
+                this.superstarMesh.rotation.y += dt * 3;
+            }
+
+            // X movement
+            let currentSpeed = worldSpeed * (this.boostTimer > 0 ? 1.5 : 1.0);
+            this.mesh.position.x += currentSpeed * dt;
+
+            // Score Multiplier (Double points during speed mode)
+            let multiplier = (this.boostTimer > 0) ? 2 : 1;
+            score += (worldSpeed / 10) * dt * multiplier;
+
+            // Y movement (Physics)
+            this.vy += GRAVITY_FORCE * this.gravityDir * dt;
+            if (this.vy > 30) this.vy = 30;
+            if (this.vy < -30) this.vy = -30;
+            
+            let prevY = this.mesh.position.y;
+            this.mesh.position.y += this.vy * dt;
+
+            // Collision Detection - Walls
+            let hitWall = false;
+            this.grounded = false;
+            
+            for(let p of platforms) {
+                if (this.mesh.position.x + 0.3 > p.minX && this.mesh.position.x - 0.3 < p.maxX &&
+                    this.mesh.position.y + 0.6 > p.minY && this.mesh.position.y - 0.6 < p.maxY) {
+                    
+                    let fromAbove = prevY - 0.6 >= p.maxY - 0.3;
+                    let fromBelow = prevY + 0.6 <= p.minY + 0.3;
+                    
+                    if (fromAbove && this.vy < 0) { 
+                        this.mesh.position.y = p.maxY + 0.6;
+                        this.vy = 0;
+                        this.grounded = true;
+                    } else if (fromBelow && this.vy > 0) { 
+                        this.mesh.position.y = p.minY - 0.6;
+                        this.vy = 0;
+                        this.grounded = true;
+                    } else { 
+                        hitWall = true;
+                        this.mesh.position.x = p.minX - 0.31; 
+                    }
+                }
+            }
+
+            // Collision Detection - Enemies
+            for(let i=enemies.length-1; i>=0; i--) {
+                let en = enemies[i];
+                if (this.mesh.position.distanceTo(en.mesh.position) < 1.0) {
+                    let smashed = this.takeDamage(en.mesh.position, true);
+                    if (smashed || this.superstarTimer > 0) {
+                        scene.remove(en.mesh);
+                        enemies.splice(i, 1);
+                    }
+                }
+            }
+            
+            // Animation Logic
+            if (!this.grounded) {
+                this.mesh.rotation.x += 10 * dt * (this.gravityDir > 0 ? -1 : 1);
+                this.legL.rotation.z = 0; this.legR.rotation.z = 0;
+                this.armL.rotation.z = 0; this.armR.rotation.z = 0;
+            } else {
+                this.mesh.rotation.x = 0;
+                this.mesh.rotation.z = this.gravityDir === 1 ? Math.PI : 0;
+                this.runTime += dt * currentSpeed * 0.8;
+                
+                // Running cycle
+                this.legL.rotation.z = Math.sin(this.runTime) * 1.0;
+                this.legR.rotation.z = Math.sin(this.runTime + Math.PI) * 1.0;
+                this.armL.rotation.z = Math.sin(this.runTime + Math.PI) * 1.0;
+                this.armR.rotation.z = Math.sin(this.runTime) * 1.0;
+                
+                if(this.boostTimer > 0 || this.superstarTimer > 0) {
+                    // Lean forward when fast
+                    this.mesh.rotation.z += (this.gravityDir === 1 ? 0.3 : -0.3);
+                }
+            }
+
+            // Powerup Pickup
+            for(let i=powerups.length-1; i>=0; i--) {
+                let pu = powerups[i];
+                if(this.mesh.position.distanceTo(pu.mesh.position) < 1.5) {
+                    sfx.powerup();
+                    if(pu.type === 'shield') this.hasShield = true;
+                    if(pu.type === 'boost') this.boostTimer = 4.0; // Speed + Shield
+                    if(pu.type === 'superstar') { this.superstarTimer = 5.0; this.hasShield = true; }
+                    scene.remove(pu.mesh);
+                    powerups.splice(i, 1);
+                }
+            }
+
+            // Death conditions
+            if (this.mesh.position.y > 10 || this.mesh.position.y < -10 || this.mesh.position.x < camera.position.x - 20) {
+                this.lives = 0;
+                updateHUDLives();
+                this.die();
+            } else if (hitWall) {
+                // Pass wall collision point to damage handler
+                let wallPos = this.mesh.position.clone(); wallPos.x += 1;
+                this.takeDamage(wallPos, false);
+            }
+        }
+
+        die() {
+            if(!this.alive) return;
+            this.alive = false;
+            sfx.crash();
+            createBurst(this.mesh.position, this.colorHex, 50);
+            scene.remove(this.mesh);
+        }
+    }
+
+    // Procedural Generation Fix: Ensures a path always exists
+    function addPlatform(x, length, type) {
+        let y = type === 'bottom' ? FLOOR_Y : CEIL_Y;
+        let p = new THREE.Mesh(boxGeo, type === 'bottom' ? matBottom : matTop);
+        p.scale.set(length, PLATFORM_THICKNESS, 8); 
+        p.position.set(x + length/2, y, 0);
+        scene.add(p);
+        
+        platforms.push({
+            mesh: p,
+            minX: x, maxX: x + length,
+            minY: y - PLATFORM_THICKNESS/2, maxY: y + PLATFORM_THICKNESS/2
+        });
+    }
+
+    function spawnChunk() {
+        let leaderX = players.length > 0 ? Math.max(...players.map(p=>p.mesh.position.x)) : 0;
+        
+        while (nextSpawnX < leaderX + 200) {
+            let solidLength = 20 + Math.random() * 30;
+            // Gaps get wider as the level increases
+            let gapLength = 10 + (currentLevel * 3) + Math.random() * 15;
+            let gapType = Math.floor(Math.random() * 2); 
+            
+            // 1. Solid Section
+            addPlatform(nextSpawnX, solidLength, 'bottom');
+            addPlatform(nextSpawnX, solidLength, 'top');
+            
+            // Powerup Spawn (15% chance)
+            if(Math.random() < 0.15) {
+                let rand = Math.random();
+                let puType = rand > 0.6 ? 'shield' : (rand > 0.2 ? 'boost' : 'superstar');
+                let pGroup = new THREE.Group();
+                
+                if (puType === 'boost') {
+                    let pMesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.5, 8), new THREE.MeshStandardMaterial({color: 0x00ffaa, emissive: 0x00ffaa}));
+                    pMesh.rotation.z = -Math.PI / 2;
+                    pGroup.add(pMesh);
+                } else if (puType === 'superstar') {
+                    let pMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.8), new THREE.MeshStandardMaterial({color: 0xffff00, emissive: 0xffff00}));
+                    pGroup.add(pMesh);
+                } else {
+                    let pMesh1 = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.15, 8, 16), new THREE.MeshStandardMaterial({color: 0x00aaff, emissive: 0x00aaff}));
+                    let pMesh2 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshStandardMaterial({color: 0x00aaff, emissive: 0x00aaff}));
+                    pGroup.add(pMesh1); pGroup.add(pMesh2);
+                }
+                
+                // Track current player lanes to ensure items don't spawn out of reach
+                let activeZ = players.length > 0 ? players.map(p => p.mesh.position.z) : [-1];
+                let laneZ = activeZ[Math.floor(Math.random() * activeZ.length)];
+                let itemY = Math.random() > 0.5 ? CEIL_Y - 1.6 : FLOOR_Y + 1.6;
+                
+                pGroup.position.set(nextSpawnX + solidLength/2, itemY, laneZ);
+                scene.add(pGroup);
+                powerups.push({mesh: pGroup, type: puType});
+            }
+
+            // Enemy Spawn (Starts level 1, frequency scales with level)
+            if(Math.random() < 0.15 + (currentLevel * 0.05)) {
+                let enMesh = createEnemyMesh();
+                
+                // Track current player lanes for enemies too
+                let activeZ = players.length > 0 ? players.map(p => p.mesh.position.z) : [-1];
+                let enLaneZ = activeZ[Math.floor(Math.random() * activeZ.length)];
+                let enItemY = Math.random() > 0.5 ? CEIL_Y - 1.6 : FLOOR_Y + 1.6;
+                
+                enMesh.position.set(nextSpawnX + solidLength/2 + 5, enItemY, enLaneZ);
+                scene.add(enMesh);
+                enemies.push({mesh: enMesh});
+            }
+            
+            nextSpawnX += solidLength;
+            
+            // 2. Gap Section
+            if (gapType === 0) {
+                addPlatform(nextSpawnX, gapLength, 'bottom');
+            } else {
+                addPlatform(nextSpawnX, gapLength, 'top');
+            }
+            nextSpawnX += gapLength;
+        }
+    }
+
+    // Particles System
+    function createBurst(pos, colorHex, count=15) {
+        for(let i=0; i<count; i++) {
+            let p = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({color: colorHex}));
+            p.scale.set(0.3,0.3,0.3);
+            p.position.copy(pos);
+            p.velocity = new THREE.Vector3((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+            p.life = 1.0;
+            scene.add(p);
+            particles.push(p);
+        }
+    }
+
+    function createTrail(pos, colorHex) {
+        let p = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({color: colorHex, transparent:true, opacity:0.5}));
+        p.scale.set(0.5,0.5,0.5);
+        p.position.copy(pos);
+        p.velocity = new THREE.Vector3(-10, 0, 0);
+        p.life = 0.5;
+        scene.add(p);
+        particles.push(p);
+    }
+
+    function cleanWorld(keepPlayers = false) {
+        platforms.forEach(p => scene.remove(p.mesh)); platforms = [];
+        powerups.forEach(p => scene.remove(p.mesh)); powerups = [];
+        enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
+        particles.forEach(p => scene.remove(p)); particles = [];
+        if (!keepPlayers) {
+            players.forEach(p => { if(p.mesh) scene.remove(p.mesh); }); 
+            players = [];
+        }
+    }
+
+    function startNewLevel() {
+        document.getElementById('ui-transition').classList.add('hidden');
+        document.getElementById('ui-hud').classList.remove('hidden');
+        document.getElementById('hud-level').innerText = currentLevel;
+        
+        cleanWorld(true);
+        
+        camera.position.set(0, 0, 20);
+        camera.lookAt(5, 0, 0);
+        gridHelperTop.position.x = 0;
+        gridHelperBottom.position.x = 0;
+        
+        worldSpeed = WORLD_BASE_SPEED + ((currentLevel - 1) * 8); // Progressively harder
+        nextSpawnX = -20;
+        
+        // Setup Players for the new run
+        players.forEach(p => {
+            p.alive = true;
+            p.lives = 3;
+            // Re-align perfectly with surfaces
+            p.mesh.position.set(0, p.id === 1 ? FLOOR_Y + 1.6 : CEIL_Y - 1.6, p.id === 1 ? -1 : 1);
+            p.vy = 0;
+            p.gravityDir = p.id === 1 ? -1 : 1;
+            p.grounded = false;
+            p.hasShield = false;
+            p.boostTimer = 0;
+            p.superstarTimer = 0;
+            p.shieldTimer = 3.0; // Invincible start
+            if(!scene.children.includes(p.mesh)) scene.add(p.mesh);
+        });
+        updateHUDLives();
+        
+        // Initial solid chunk
+        addPlatform(-20, 100, 'bottom');
+        addPlatform(-20, 100, 'top');
+        nextSpawnX = 80;
+        
+        gameState = 'playing';
+    }
+
+    // ==========================================
+    // GAME LOOP & INPUT
+    // ==========================================
+    function startGame(numPlayers) {
+        window.lastPlayerCount = numPlayers;
+        cleanWorld(); // Full clear
+        
+        score = 0;
+        currentLevel = 1;
+        
+        players = [];
+        players.push(new Player(1, 0xff6600, 0)); // Start Y correctly set in startNewLevel
+        if (numPlayers === 2) {
+            players.push(new Player(2, 0x00ff00, 0));
+        }
+        
+        hideAllUI();
+        if(deviceMode === 'mobile') document.getElementById('touch-zones').classList.remove('hidden');
+        
+        startNewLevel();
+    }
+
+    // Inputs
+    window.addEventListener('keydown', (e) => {
+        if(gameState !== 'playing') return;
+        if(e.code === 'Space' || e.code === 'KeyW') { if(players[0]) players[0].flip(); e.preventDefault(); }
+        if(e.code === 'Enter' || e.code === 'ArrowUp') { if(players[1]) players[1].flip(); e.preventDefault(); }
+        if(e.code === 'Escape') pauseGame();
+    });
+
+    document.getElementById('touch-left').addEventListener('touchstart', (e) => {
+        e.preventDefault(); if(players[0]) players[0].flip();
+    });
+    document.getElementById('touch-right').addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        if(players[1]) players[1].flip(); 
+        else if(players[0]) players[0].flip(); // If 1P mode, right side also flips P1
+    });
+    // Universal tap for 1P mobile if they don't hit the specific div
+    document.addEventListener('touchstart', (e) => {
+        if(gameState === 'playing' && window.lastPlayerCount === 1 && e.target.tagName !== 'BUTTON' && !e.target.id.includes('touch')) {
+            if(players[0]) players[0].flip();
+        }
+    }, {passive: false});
+
+
+    function checkGamepads() {
+        if(gameState !== 'playing') return;
+        const gps = navigator.getGamepads();
+        
+        if(gps[0] && gps[0].buttons[0].pressed && !gps[0].prevPressed) {
+            if(players[0]) players[0].flip();
+        }
+        if(gps[0]) gps[0].prevPressed = gps[0].buttons[0].pressed;
+
+        if(gps[1] && gps[1].buttons[0].pressed && !gps[1].prevPressed) {
+            if(players[1]) players[1].flip();
+        }
+        if(gps[1]) gps[1].prevPressed = gps[1].buttons[0].pressed;
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.1); // cap dt to prevent physics glitches
+
+        if (gameState === 'playing') {
+            checkGamepads();
+            
+            document.getElementById('hud-score').innerText = Math.floor(score);
+
+            spawnChunk();
+
+            // Update Players
+            players.forEach(p => p.update(dt));
+            
+            // Check Game Over
+            if(players.every(p => !p.alive)) {
+                gameState = 'gameover';
+                document.getElementById('ui-hud').classList.add('hidden');
+                document.getElementById('touch-zones').classList.add('hidden');
+                document.getElementById('ui-gameover').classList.remove('hidden');
+                document.getElementById('final-score').innerText = Math.floor(score);
+                saveScore(score);
+            }
+
+            // Update Entities (Spin)
+            powerups.forEach(p => {
+                if (p.type === 'boost') p.mesh.rotation.x += 4 * dt; 
+                else if (p.type === 'superstar') { p.mesh.rotation.x += 2*dt; p.mesh.rotation.y += 2*dt; }
+                else { p.mesh.rotation.y += 2 * dt; p.mesh.rotation.x += 1 * dt; }
+            });
+
+            enemies.forEach(e => {
+                e.mesh.rotation.x += 1 * dt;
+                e.mesh.rotation.y += 3 * dt;
+            });
+
+            // Cleanup & Update Particles
+            for(let i=particles.length-1; i>=0; i--) {
+                let p = particles[i];
+                p.position.addScaledVector(p.velocity, dt);
+                p.life -= dt * 1.5;
+                p.material.opacity = p.life;
+                if(p.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Camera Logic & Level Progression
+            let alivePlayers = players.filter(p => p.alive);
+            if(alivePlayers.length > 0) {
+                let maxXs = alivePlayers.map(p => p.mesh.position.x);
+                let leaderX = Math.max(...maxXs);
+                let trailerX = Math.min(...maxXs);
+                
+                // Hard Level Break/Transition (Every 1000 units)
+                if (leaderX > 1000) {
+                    gameState = 'transition';
+                    document.getElementById('ui-hud').classList.add('hidden');
+                    document.getElementById('ui-transition').classList.remove('hidden');
+                    document.getElementById('transition-title').innerText = `LEVEL ${currentLevel} CLEARED`;
+                    
+                    setTimeout(() => {
+                        currentLevel++;
+                        startNewLevel();
+                    }, 2500);
+                    return; // Pause physics until next level starts
+                }
+
+                // Camera tracking midpoint for multiplayer support
+                let midX = (leaderX + trailerX) / 2;
+                let separation = leaderX - trailerX;
+                
+                // Track midpoint smoothly
+                camera.position.x += (midX + 6 - camera.position.x) * 5 * dt;
+                
+                // Dynamic Zoom: Ensure both players are visible based on separation
+                let targetZ = 18 + (separation * 1.0); 
+                targetZ = Math.min(Math.max(targetZ, 18), 60); // Clamp zoom, max 60 to fit large gaps
+                
+                camera.position.z += (targetZ - camera.position.z) * 2 * dt;
+                camera.position.y = 0; // lock Y
+                camera.lookAt(camera.position.x + 5, 0, 0);
+
+                // Parallax grids
+                gridHelperTop.position.x = camera.position.x;
+                gridHelperBottom.position.x = camera.position.x;
+            }
+
+            // World Cleanup (Behind Camera)
+            let cullX = camera.position.x - 30;
+            for(let i=platforms.length-1; i>=0; i--) {
+                if(platforms[i].maxX < cullX) {
+                    scene.remove(platforms[i].mesh);
+                    platforms.splice(i, 1);
+                }
+            }
+            for(let i=powerups.length-1; i>=0; i--) {
+                if(powerups[i].mesh.position.x < cullX) {
+                    scene.remove(powerups[i].mesh);
+                    powerups.splice(i, 1);
+                }
+            }
+            for(let i=enemies.length-1; i>=0; i--) {
+                if(enemies[i].mesh.position.x < cullX) {
+                    scene.remove(enemies[i].mesh);
+                    enemies.splice(i, 1);
+                }
+            }
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+    
+    // Init display
+    document.addEventListener("DOMContentLoaded", () => {
+        // Initial dummy camera setup for background menu render
+        camera.position.set(0,0,20);
+        camera.lookAt(10,0,0);
+    });
+
+</script>
+</body>
+</html>
