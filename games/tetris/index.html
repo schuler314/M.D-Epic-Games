@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power-Tetris Modern</title>
+    <!-- Modern Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --neon-blue: #0ea5e9;
+            --neon-purple: #8b5cf6;
+            --neon-pink: #ec4899;
+            --text-light: #f8fafc;
+        }
+
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: transparent; 
+            display: flex; justify-content: center; align-items: center;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-light);
+            overflow: hidden;
+        }
+
+        /* Main Wrapper */
+        #game-app {
+            position: relative;
+            background: linear-gradient(135deg, var(--bg-dark), #1e1b4b);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255,255,255,0.1);
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: fit-content;
+            min-width: 400px;
+            min-height: 600px;
+            overflow: hidden;
+        }
+
+        /* Iframe Focus Helper */
+        #focus-warning {
+            position: absolute; top: 8px; left: 0; width: 100%;
+            text-align: center; font-size: 13px; font-weight: 500;
+            color: #fbbf24; z-index: 50; pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            transition: opacity 0.3s;
+        }
+
+        /* Screens (Home, Pause, Game Over) */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; z-index: 20;
+            border-radius: 20px;
+        }
+        .hidden { display: none !important; }
+
+        h1 { 
+            font-size: 46px; margin-bottom: 5px; font-weight: 900;
+            background: linear-gradient(to right, var(--neon-blue), var(--neon-purple), var(--neon-pink));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0px 4px 10px rgba(139, 92, 246, 0.4));
+        }
+        h2 { font-size: 32px; font-weight: 700; color: var(--neon-blue); margin-top: 0; }
+
+        /* Modern Buttons */
+        .btn {
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            color: white; border: none; border-radius: 99px;
+            padding: 14px 32px; margin: 10px;
+            font-size: 16px; font-weight: 700; font-family: 'Outfit', sans-serif;
+            text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+            transition: all 0.2s ease;
+            width: 260px;
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5);
+        }
+        .btn-small { width: auto; padding: 10px 24px; font-size: 14px; margin-top: 20px; }
+
+        /* Text areas */
+        .info-box {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px; width: 80%; max-width: 350px;
+            font-size: 15px; line-height: 1.6; text-align: left;
+            margin-bottom: 20px;
+        }
+        .info-box ul { padding-left: 20px; margin: 10px 0; }
+        .info-box li { margin-bottom: 6px; }
+
+        /* Boards Layout */
+        #boards-container {
+            display: flex; gap: 30px;
+        }
+        .player-board {
+            display: flex; flex-direction: column; align-items: center;
+            background: var(--panel-bg);
+            padding: 15px; border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .hud {
+            width: 100%; display: flex; justify-content: space-between;
+            margin-bottom: 15px; font-weight: 700; font-size: 18px;
+            color: var(--neon-blue);
+        }
+        canvas {
+            background: #000;
+            border-radius: 8px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        
+        #global-pause-btn {
+            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 10;
+        }
+
+        .winner-text { font-size: 28px; color: var(--neon-pink); font-weight: 900; margin-bottom: 20px;}
+    </style>
+</head>
+<body>
+
+<div id="game-app">
+    <div id="focus-warning">Click here to enable controls</div>
+
+    <!-- Active Game Boards -->
+    <div id="boards-container" class="hidden">
+        <!-- Player 1 Board -->
+        <div class="player-board" id="p1-board">
+            <div class="hud">
+                <span id="p1-score">Score: 0</span>
+                <span id="p1-level">Lv: 1</span>
+            </div>
+            <canvas id="canvas1" width="250" height="475"></canvas>
+        </div>
+
+        <!-- Player 2 Board (Hidden by default) -->
+        <div class="player-board hidden" id="p2-board">
+            <div class="hud">
+                <span id="p2-score">Score: 0</span>
+                <span id="p2-level">Lv: 1</span>
+            </div>
+            <canvas id="canvas2" width="250" height="475"></canvas>
+        </div>
+    </div>
+    
+    <button id="global-pause-btn" class="btn btn-small hidden" onclick="togglePause()">Pause (P)</button>
+
+    <!-- Home Screen -->
+    <div id="home-screen" class="screen">
+        <h1>POWER TETRIS</h1>
+        <p style="margin-top: 0; color: #94a3b8; margin-bottom: 30px; font-weight: 300;">MODERN EDITION</p>
+        <button class="btn" onclick="startGame(1)">1 Player Mode</button>
+        <button class="btn" onclick="startGame(2)">2 Player Battle</button>
+        <button class="btn" onclick="showScreen('instructions-screen')">How to Play</button>
+        <button class="btn" onclick="showHighScores()">Local High Scores</button>
+    </div>
+
+    <!-- Instructions Screen -->
+    <div id="instructions-screen" class="screen hidden">
+        <h2>How to Play</h2>
+        <div class="info-box">
+            <p><strong>1 Player:</strong> Arrow Keys to move, Space to drop.</p>
+            <p><strong>2 Player Battle:</strong><br>
+               P1: W A S D + Spacebar<br>
+               P2: Arrows + Enter</p>
+            <hr style="border-color: rgba(255,255,255,0.1); margin: 15px 0;">
+            <p><strong>Powerups:</strong> Clear lines with glowing blocks!</p>
+            <ul>
+                <li><span style="color:#ff3333; font-weight:bold;">Red Bomb:</span> Destroys surrounding blocks.</li>
+                <li><span style="color:#33ffff; font-weight:bold;">Cyan Slow:</span> Slows down your fall speed.</li>
+            </ul>
+        </div>
+        <button class="btn" onclick="showScreen('home-screen')">Back</button>
+    </div>
+
+    <!-- High Score Screen -->
+    <div id="high-score-screen" class="screen hidden">
+        <h2>Top Scores (1P)</h2>
+        <div id="high-score-list" class="info-box" style="text-align: center;"></div>
+        <button class="btn" onclick="showScreen('home-screen')">Back</button>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" class="screen hidden">
+        <h2>GAME PAUSED</h2>
+        <button class="btn" onclick="togglePause()">Resume</button>
+        <button class="btn" onclick="endGame('Quit')">Quit to Home</button>
+    </div>
+    
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="screen hidden">
+        <h2>GAME OVER</h2>
+        <div id="winner-announcement" class="winner-text"></div>
+        <div class="info-box" id="final-stats" style="text-align: center; font-size: 20px; font-weight: 700;"></div>
+        <button class="btn" onclick="showScreen('home-screen')">Return to Home</button>
+    </div>
+</div>
+
+<script>
+    // --- Iframe Focus Handling ---
+    document.addEventListener('click', () => {
+        window.focus();
+        document.getElementById('focus-warning').style.opacity = '0';
+    });
+    window.addEventListener("keydown", function(e) {
+        // Prevent scrolling with game keys
+        if(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyS"].indexOf(e.code) > -1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    // --- Audio Engine ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+    function playSound(type) {
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        
+        if (type === 'move') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(300, now);
+            gain.gain.setValueAtTime(0.03, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'drop') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(100, now);
+            gain.gain.setValueAtTime(0.04, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'clear') {
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+            gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'powerup') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.5);
+            gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'gameover') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(40, now + 1);
+            gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 1);
+            osc.start(now); osc.stop(now + 1);
+        }
+    }
+
+    // --- Game Engine Constants ---
+    const ROWS = 19; 
+    const COLS = 10; 
+    const BLOCK_SIZE = 25; 
+    
+    const SHAPES = [
+        [], // Empty
+        [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I (Cyan)
+        [[2,0,0],[2,2,2],[0,0,0]], // J (Blue)
+        [[0,0,3],[3,3,3],[0,0,0]], // L (Orange)
+        [[4,4],[4,4]], // O (Yellow)
+        [[0,5,5],[5,5,0],[0,0,0]], // S (Green)
+        [[0,6,0],[6,6,6],[0,0,0]], // T (Purple)
+        [[7,7,0],[0,7,7],[0,0,0]]  // Z (Red)
+    ];
+    // Modern vibrant palette. Index 8=Bomb, 9=Slow
+    const COLORS = [null, '#22d3ee', '#3b82f6', '#f97316', '#facc15', '#4ade80', '#a855f7', '#ef4444', '#ef4444', '#22d3ee']; 
+
+    // --- Tetris Instance Class ---
+    // Using a class allows us to easily spawn multiple boards!
+    class TetrisBoard {
+        constructor(canvasId, scoreId, levelId, controls, playerName) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.scoreElem = document.getElementById(scoreId);
+            this.levelElem = document.getElementById(levelId);
+            this.controls = controls;
+            this.playerName = playerName;
+            
+            this.resetState();
+        }
+
+        resetState() {
+            this.board = this.createMatrix(COLS, ROWS);
+            this.score = 0;
+            this.level = 1;
+            this.dropCounter = 0;
+            this.dropInterval = 1000;
+            this.player = { pos: {x: 0, y: 0}, matrix: null };
+            this.updateHUD();
+            this.spawnPiece();
+        }
+
+        createMatrix(w, h) {
+            const matrix = [];
+            while (h--) matrix.push(new Array(w).fill(0));
+            return matrix;
+        }
+
+        draw() {
+            // Background
+            this.ctx.fillStyle = '#050505';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Grid Lines
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            this.ctx.lineWidth = 1;
+            for(let x=0; x<=this.canvas.width; x+=BLOCK_SIZE) { this.ctx.beginPath(); this.ctx.moveTo(x,0); this.ctx.lineTo(x,this.canvas.height); this.ctx.stroke(); }
+            for(let y=0; y<=this.canvas.height; y+=BLOCK_SIZE) { this.ctx.beginPath(); this.ctx.moveTo(0,y); this.ctx.lineTo(this.canvas.width,y); this.ctx.stroke(); }
+
+            // Draw Board & Player
+            this.drawMatrix(this.board, {x: 0, y: 0});
+            this.drawMatrix(this.player.matrix, this.player.pos);
+        }
+
+        drawMatrix(matrix, offset) {
+            if (!matrix) return;
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        const px = (x + offset.x) * BLOCK_SIZE;
+                        const py = (y + offset.y) * BLOCK_SIZE;
+                        
+                        // Main color
+                        this.ctx.fillStyle = COLORS[value];
+                        this.ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+                        
+                        // 3D Shading effect (Modern touch)
+                        this.ctx.fillStyle = 'rgba(255,255,255,0.25)'; // Top highlight
+                        this.ctx.fillRect(px, py, BLOCK_SIZE, 4);
+                        this.ctx.fillStyle = 'rgba(0,0,0,0.3)'; // Bottom shadow
+                        this.ctx.fillRect(px, py + BLOCK_SIZE - 4, BLOCK_SIZE, 4);
+                        
+                        // Powerup Glow Layer
+                        if (value > 7) {
+                            this.ctx.fillStyle = "rgba(255,255,255,0.5)";
+                            this.ctx.fillRect(px + 6, py + 6, BLOCK_SIZE - 12, BLOCK_SIZE - 12);
+                            this.ctx.shadowBlur = 10;
+                            this.ctx.shadowColor = COLORS[value];
+                            this.ctx.strokeRect(px+2, py+2, BLOCK_SIZE-4, BLOCK_SIZE-4);
+                            this.ctx.shadowBlur = 0; // reset
+                        } else {
+                            // Standard border
+                            this.ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                            this.ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+                        }
+                    }
+                });
+            });
+        }
+
+        collide() {
+            const m = this.player.matrix;
+            const o = this.player.pos;
+            for (let y = 0; y < m.length; ++y) {
+                for (let x = 0; x < m[y].length; ++x) {
+                    if (m[y][x] !== 0 && (this.board[y + o.y] && this.board[y + o.y][x + o.x]) !== 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        merge() {
+            this.player.matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0 && (y + this.player.pos.y) >= 0) {
+                        this.board[y + this.player.pos.y][x + this.player.pos.x] = value;
+                    }
+                });
+            });
+        }
+
+        spawnPiece() {
+            const pieces = '1234567';
+            const type = pieces[pieces.length * Math.random() | 0];
+            this.player.matrix = JSON.parse(JSON.stringify(SHAPES[type])); 
+            
+            // 10% chance to embed a powerup block
+            if (Math.random() < 0.1) {
+                let powerupType = Math.random() < 0.5 ? 8 : 9; // 8=Bomb, 9=Slow
+                for (let y = 0; y < this.player.matrix.length; y++) {
+                    for (let x = 0; x < this.player.matrix[y].length; x++) {
+                        if (this.player.matrix[y][x] !== 0) {
+                            this.player.matrix[y][x] = powerupType; break; 
+                        }
+                    }
+                }
+            }
+
+            this.player.pos.y = 0;
+            this.player.pos.x = (Math.floor(COLS / 2)) - (Math.floor(this.player.matrix[0].length / 2));
+            
+            if (this.collide()) {
+                triggerGameOver(this); // Tell global engine this player died
+            }
+        }
+
+        move(dir) {
+            this.player.pos.x += dir;
+            if (this.collide()) this.player.pos.x -= dir;
+            else playSound('move');
+        }
+
+        rotate(dir) {
+            const pos = this.player.pos.x;
+            let offset = 1;
+            
+            // Transpose & Reverse
+            for (let y = 0; y < this.player.matrix.length; ++y) {
+                for (let x = 0; x < y; ++x) {
+                    [this.player.matrix[x][y], this.player.matrix[y][x]] = [this.player.matrix[y][x], this.player.matrix[x][y]];
+                }
+            }
+            if (dir > 0) this.player.matrix.forEach(row => row.reverse());
+            else this.player.matrix.reverse();
+
+            // Wall kick check
+            while (this.collide()) {
+                this.player.pos.x += offset;
+                offset = -(offset + (offset > 0 ? 1 : -1));
+                if (offset > this.player.matrix[0].length) {
+                    // Revert rotate
+                    if (dir > 0) this.player.matrix.forEach(row => row.reverse());
+                    else this.player.matrix.reverse();
+                    for (let y = 0; y < this.player.matrix.length; ++y) {
+                        for (let x = 0; x < y; ++x) {
+                            [this.player.matrix[x][y], this.player.matrix[y][x]] = [this.player.matrix[y][x], this.player.matrix[x][y]];
+                        }
+                    }
+                    this.player.pos.x = pos;
+                    return;
+                }
+            }
+            playSound('move');
+        }
+
+        drop() {
+            this.player.pos.y++;
+            if (this.collide()) {
+                this.player.pos.y--;
+                this.merge();
+                this.spawnPiece();
+                this.sweep();
+                playSound('drop');
+            }
+            this.dropCounter = 0;
+        }
+
+        hardDrop() {
+            while (!this.collide()) { this.player.pos.y++; }
+            this.player.pos.y--; 
+            this.drop();
+        }
+
+        activatePowerup(type, row) {
+            playSound('powerup');
+            if (type === 8) {
+                // Bomb: Clear adjacent rows
+                for(let i = Math.max(0, row-1); i <= Math.min(ROWS-1, row+1); i++) {
+                    this.board[i] = new Array(COLS).fill(0);
+                }
+            } else if (type === 9) {
+                // Slow: Temporarily reduce speed
+                this.dropInterval = 1500;
+                setTimeout(() => { this.calculateLevel(); }, 8000); 
+            }
+        }
+
+        sweep() {
+            let rowCount = 1;
+            let powerupsActivated = [];
+            
+            outer: for (let y = this.board.length - 1; y >= 0; --y) {
+                let full = true;
+                let rowPowerups = [];
+                for (let x = 0; x < this.board[y].length; ++x) {
+                    if (this.board[y][x] === 0) full = false;
+                    if (this.board[y][x] > 7) rowPowerups.push(this.board[y][x]);
+                }
+
+                if (full) {
+                    const row = this.board.splice(y, 1)[0].fill(0);
+                    this.board.unshift(row);
+                    ++y;
+                    this.score += rowCount * 100;
+                    rowCount *= 2;
+                    playSound('clear');
+                    rowPowerups.forEach(p => powerupsActivated.push({type: p, row: y}));
+                }
+            }
+            powerupsActivated.forEach(p => this.activatePowerup(p.type, p.row));
+            this.calculateLevel();
+            this.updateHUD();
+        }
+
+        calculateLevel() {
+            this.level = Math.floor(this.score / 500) + 1; 
+            this.dropInterval = Math.max(100, 1000 - (this.level * 50)); 
+        }
+
+        updateHUD() {
+            this.scoreElem.innerText = `Score: ${this.score}`;
+            this.levelElem.innerText = `Lv: ${this.level}`;
+        }
+
+        update(deltaTime) {
+            this.dropCounter += deltaTime;
+            if (this.dropCounter > this.dropInterval) {
+                this.drop();
+            }
+            this.draw();
+        }
+    }
+
+    // --- Global Game State ---
+    let games = [];
+    let gameLoop;
+    let lastTime = 0;
+    let isPaused = false;
+    let isPlaying = false;
+    let currentMode = 1;
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById('boards-container').classList.add('hidden');
+        document.getElementById('global-pause-btn').classList.add('hidden');
+        if (screenId) document.getElementById(screenId).classList.remove('hidden');
+    }
+
+    function startGame(players) {
+        currentMode = players;
+        games = [];
+        
+        // Setup Players
+        if (players === 1) {
+            document.getElementById('p1-board').classList.remove('hidden');
+            document.getElementById('p2-board').classList.add('hidden');
+            games.push(new TetrisBoard('canvas1', 'p1-score', 'p1-level', {
+                left: 'ArrowLeft', right: 'ArrowRight', down: 'ArrowDown', rotate: 'ArrowUp', hard: 'Space'
+            }, 'Player 1'));
+        } else {
+            document.getElementById('p1-board').classList.remove('hidden');
+            document.getElementById('p2-board').classList.remove('hidden');
+            
+            // P1: WASD + Space
+            games.push(new TetrisBoard('canvas1', 'p1-score', 'p1-level', {
+                left: 'KeyA', right: 'KeyD', down: 'KeyS', rotate: 'KeyW', hard: 'Space'
+            }, 'Player 1'));
+            
+            // P2: Arrows + Enter
+            games.push(new TetrisBoard('canvas2', 'p2-score', 'p2-level', {
+                left: 'ArrowLeft', right: 'ArrowRight', down: 'ArrowDown', rotate: 'ArrowUp', hard: 'Enter'
+            }, 'Player 2'));
+        }
+
+        showScreen(null); // Hide all screens
+        document.getElementById('boards-container').classList.remove('hidden');
+        document.getElementById('global-pause-btn').classList.remove('hidden');
+        
+        isPlaying = true; isPaused = false;
+        lastTime = performance.now();
+        window.focus(); 
+        loop();
+    }
+
+    function togglePause() {
+        if (!isPlaying) return;
+        isPaused = !isPaused;
+        if (isPaused) {
+            document.getElementById('pause-screen').classList.remove('hidden');
+        } else {
+            document.getElementById('pause-screen').classList.add('hidden');
+            lastTime = performance.now();
+            window.focus();
+            loop();
+        }
+    }
+
+    function triggerGameOver(losingBoard) {
+        isPlaying = false;
+        cancelAnimationFrame(gameLoop);
+        playSound('gameover');
+        
+        const winnerText = document.getElementById('winner-announcement');
+        const statsBox = document.getElementById('final-stats');
+        
+        if (currentMode === 1) {
+            saveHighScore(games[0].score);
+            winnerText.innerText = "";
+            statsBox.innerText = `Final Score: ${games[0].score}`;
+        } else {
+            // In 2 player, the one who didn't top out wins.
+            let winner = games.find(g => g !== losingBoard);
+            winnerText.innerText = `${winner.playerName} WINS!`;
+            statsBox.innerHTML = `P1 Score: ${games[0].score}<br>P2 Score: ${games[1].score}`;
+        }
+        
+        showScreen('game-over-screen');
+    }
+
+    function endGame() {
+        isPlaying = false;
+        cancelAnimationFrame(gameLoop);
+        showScreen('home-screen');
+    }
+
+    function loop(time = 0) {
+        if (isPaused || !isPlaying) return;
+        const deltaTime = time - lastTime;
+        lastTime = time;
+        
+        games.forEach(game => game.update(deltaTime));
+        
+        if(isPlaying) gameLoop = requestAnimationFrame(loop);
+    }
+
+    // --- Input Listener ---
+    document.addEventListener('keydown', event => {
+        if (!isPlaying) return;
+        if (event.code === 'KeyP') { togglePause(); return; }
+        if (isPaused) return;
+
+        games.forEach(game => {
+            switch(event.code) {
+                case game.controls.left: game.move(-1); break;
+                case game.controls.right: game.move(1); break;
+                case game.controls.down: game.drop(); break;
+                case game.controls.rotate: game.rotate(1); break;
+                case game.controls.hard: game.hardDrop(); break;
+            }
+        });
+    });
+
+    // --- Local Storage (1P Only) ---
+    function saveHighScore(newScore) {
+        if (newScore === 0) return;
+        let scores = JSON.parse(localStorage.getItem('modernTetrisScores')) || [];
+        scores.push({ date: new Date().toLocaleDateString(), score: newScore });
+        scores.sort((a, b) => b.score - a.score);
+        scores = scores.slice(0, 5); 
+        localStorage.setItem('modernTetrisScores', JSON.stringify(scores));
+    }
+
+    function showHighScores() {
+        let scores = JSON.parse(localStorage.getItem('modernTetrisScores')) || [];
+        let html = "<ul>";
+        if (scores.length === 0) {
+            html += "<li>No scores yet. Play a 1P game!</li>";
+        } else {
+            scores.forEach(s => { html += `<li><span style="color:var(--neon-blue)">${s.score} pts</span> - ${s.date}</li>`; });
+        }
+        html += "</ul>";
+        document.getElementById('high-score-list').innerHTML = html;
+        showScreen('high-score-screen');
+    }
+</script>
+</body>
+</html>

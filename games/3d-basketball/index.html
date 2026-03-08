@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Hoops Jam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111827;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            touch-action: none;
+        }
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s;
+        }
+        .hidden {
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .score-box {
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid;
+            padding: 10px 30px;
+            border-radius: 8px;
+            text-align: center;
+            transform: skewX(-10deg);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .p1-score { border-color: #3b82f6; color: #60a5fa; }
+        .p2-score { border-color: #ef4444; color: #f87171; }
+        .score-num { font-size: 3rem; line-height: 1; margin-top: 5px; color: white;}
+        
+        #timer {
+            font-size: 3rem;
+            color: #facc15;
+            text-shadow: 2px 2px 0 #ca8a04, 4px 4px 0 #000;
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #f97316, #c2410c);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 4px;
+            font-size: 2rem;
+            border: 2px solid #fdba74;
+            cursor: pointer;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            box-shadow: 0 6px 0 #9a3412, 0 15px 20px rgba(0,0,0,0.4);
+            margin: 10px;
+            transform: skewX(-5deg);
+        }
+        .btn:hover {
+            transform: skewX(-5deg) translateY(2px);
+            box-shadow: 0 4px 0 #9a3412, 0 10px 15px rgba(0,0,0,0.4);
+        }
+        .btn:active {
+            transform: skewX(-5deg) translateY(6px);
+            box-shadow: 0 0px 0 #9a3412;
+        }
+        
+        #announcer {
+            position: absolute;
+            top: 25%;
+            width: 100%;
+            text-align: center;
+            font-size: 5rem;
+            color: #ffed4a;
+            text-transform: uppercase;
+            text-shadow: 4px 4px 0px #e3342f, 8px 8px 0px #000;
+            pointer-events: none;
+            z-index: 6;
+            transform: scale(0);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .announce-active {
+            transform: scale(1) !important;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            font-family: sans-serif;
+            text-align: left;
+            background: #1f2937;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #374151;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        .p1-controls { border-left: 4px solid #3b82f6; padding-left: 10px; }
+        .p2-controls { border-left: 4px solid #ef4444; padding-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- HUD -->
+    <div id="hud" class="hud hidden">
+        <div class="score-box p1-score">
+            <div class="text-xl">PLAYER 1</div>
+            <div id="score-p1" class="score-num">0</div>
+        </div>
+        <div class="flex flex-col items-center pointer-events-auto">
+            <div id="timer">3:00</div>
+            <button id="pause-btn" class="mt-1 bg-white/20 hover:bg-white/40 border border-white/50 text-white px-4 py-1 rounded cursor-pointer text-sm font-bold tracking-widest uppercase transition-colors">⏸ Pause</button>
+        </div>
+        <div class="score-box p2-score">
+            <div id="p2-name" class="text-xl">CPU</div>
+            <div id="score-p2" class="score-num">0</div>
+        </div>
+    </div>
+
+    <div id="announcer">BOOMSHAKALAKA!</div>
+
+    <!-- Home Screen -->
+    <div id="home-screen" class="screen">
+        <h1 class="text-7xl font-black italic text-transparent bg-clip-text bg-gradient-to-br from-yellow-300 to-orange-600 mb-2 text-center" style="-webkit-text-stroke: 2px black; filter: drop-shadow(5px 5px 0px #000);">
+            HOOPS JAM 3D
+        </h1>
+        
+        <div class="controls-grid mt-6">
+            <div class="p1-controls">
+                <h3 class="text-2xl text-blue-400 mb-2 uppercase font-black italic">Player 1 (Blue)</h3>
+                <p><strong>Move:</strong> W, A, S, D</p>
+                <p><strong>Shoot / Dunk:</strong> Tap SPACE</p>
+            </div>
+            <div class="p2-controls">
+                <h3 class="text-2xl text-red-400 mb-2 uppercase font-black italic">Player 2 (Red)</h3>
+                <p><strong>Move:</strong> Arrow Keys</p>
+                <p><strong>Shoot / Dunk:</strong> Tap ENTER</p>
+            </div>
+        </div>
+        <div class="text-gray-300 text-sm mb-6 text-center max-w-lg">
+            <strong>Pro Tip:</strong> Just tap the shoot button! Your player will automatically release the ball at the perfect apex of their jump. Run into the opponent to attempt a steal.
+        </div>
+        
+        <div class="flex gap-4">
+            <button class="btn" onclick="startGame(1)">1 P VS CPU</button>
+            <button class="btn" style="background: linear-gradient(to bottom, #3b82f6, #1d4ed8); border-color: #93c5fd; box-shadow: 0 6px 0 #1e3a8a, 0 15px 20px rgba(0,0,0,0.4);" onclick="startGame(2)">2 PLAYERS</button>
+        </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" class="screen hidden">
+        <h2 class="text-7xl font-black mb-8 text-white drop-shadow-md">PAUSED</h2>
+        <button class="btn" onclick="resumeGame()">▶ RESUME</button>
+        <button class="btn" style="background: linear-gradient(to bottom, #4b5563, #374151); border-color: #9ca3af; box-shadow: 0 6px 0 #1f2937, 0 15px 20px rgba(0,0,0,0.4);" onclick="returnToHome()">🏠 QUIT TO MENU</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="screen hidden">
+        <h2 id="go-title" class="text-7xl font-black mb-4 text-orange-500" style="-webkit-text-stroke: 2px black; filter: drop-shadow(5px 5px 0px #000);">GAME OVER</h2>
+        <div id="go-score" class="text-4xl mb-8 text-white font-bold bg-white/10 px-8 py-4 rounded-xl border border-white/20"></div>
+        <button class="btn" onclick="returnToHome()">PLAY AGAIN</button>
+    </div>
+
+    <!-- WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+<script>
+    /** --- AUDIO SYSTEM --- */
+    const AudioSys = {
+        ctx: null,
+        init: function() {
+            if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+        },
+        playTone: function(freq, type, dur, vol, slideFreq = null) {
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            if (slideFreq) osc.frequency.exponentialRampToValueAtTime(slideFreq, this.ctx.currentTime + dur);
+            
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+            
+            osc.start();
+            osc.stop(this.ctx.currentTime + dur);
+        },
+        playBounce: function() { this.playTone(100, 'sine', 0.2, 0.4, 40); },
+        playSwish: function() { this.playTone(800, 'sine', 0.4, 0.3, 100); },
+        playDunk: function() { this.playTone(150, 'square', 0.4, 0.6, 50); },
+        playSteal: function() { this.playTone(400, 'sawtooth', 0.1, 0.2, 800); },
+        playBuzzer: function() { this.playTone(150, 'sawtooth', 1.0, 0.5); }
+    };
+
+    function announce(text, duration = 1500) {
+        const el = document.getElementById('announcer');
+        el.innerText = text;
+        el.classList.add('announce-active');
+        setTimeout(() => el.classList.remove('announce-active'), duration);
+    }
+
+    /** --- THREE.JS SETUP --- */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111827);
+    scene.fog = new THREE.FogExp2(0x111827, 0.005);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 30, 65);
+    camera.lookAt(0, 5, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(20, 50, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.camera.left = -60; dirLight.shadow.camera.right = 60;
+    dirLight.shadow.camera.top = 30; dirLight.shadow.camera.bottom = -30;
+    scene.add(dirLight);
+
+    /** --- GAME STATE & CONSTANTS --- */
+    const STATE = { HOME: 0, PLAYING: 1, GAME_OVER: 2, PAUSED: 3 };
+    const COURT_WIDTH = 100;
+    const COURT_DEPTH = 40;
+    const HOOP_X = 42;
+    const RIM_Y = 12;
+
+    const Game = {
+        state: STATE.HOME,
+        mode: 1, // 1 = vs CPU, 2 = Local 2P
+        time: 180,
+        timerInt: null,
+        isResetting: false,
+        scores: { p1: 0, p2: 0 },
+        keys: {
+            p1: { up: false, down: false, left: false, right: false, action: false },
+            p2: { up: false, down: false, left: false, right: false, action: false }
+        }
+    };
+
+    /** --- BUILD SCENE --- */
+    // Floor
+    const floorGeo = new THREE.PlaneGeometry(COURT_WIDTH + 10, COURT_DEPTH + 10);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xdbb589, roughness: 0.3 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Ball Depth Shadow (UX Improvement)
+    const ballShadow = new THREE.Mesh(
+        new THREE.CircleGeometry(1.2, 16),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
+    );
+    ballShadow.rotation.x = -Math.PI / 2;
+    ballShadow.position.y = 0.1;
+    scene.add(ballShadow);
+
+    function createLine(w, d, x, z, color=0xffffff) {
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({color: color}));
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(x, 0.05, z);
+        scene.add(mesh);
+    }
+    createLine(COURT_WIDTH, 0.5, 0, COURT_DEPTH/2);
+    createLine(COURT_WIDTH, 0.5, 0, -COURT_DEPTH/2);
+    createLine(0.5, COURT_DEPTH, COURT_WIDTH/2, 0);
+    createLine(0.5, COURT_DEPTH, -COURT_WIDTH/2, 0);
+    createLine(0.5, COURT_DEPTH, 0, 0);
+    
+    const paintGeo = new THREE.PlaneGeometry(12, 16);
+    const p1Paint = new THREE.Mesh(paintGeo, new THREE.MeshStandardMaterial({color: 0x2563eb}));
+    p1Paint.rotation.x = -Math.PI/2; p1Paint.position.set(-COURT_WIDTH/2 + 6, 0.02, 0); scene.add(p1Paint);
+    
+    const p2Paint = new THREE.Mesh(paintGeo, new THREE.MeshStandardMaterial({color: 0xdc2626}));
+    p2Paint.rotation.x = -Math.PI/2; p2Paint.position.set(COURT_WIDTH/2 - 6, 0.02, 0); scene.add(p2Paint);
+
+    // 3-Point Lines
+    const threePtMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    // Left Hoop 3PT line
+    const leftThreeGeo = new THREE.RingGeometry(21.5, 22, 32, 1, -Math.PI/2, Math.PI);
+    const leftThree = new THREE.Mesh(leftThreeGeo, threePtMat);
+    leftThree.rotation.x = -Math.PI / 2;
+    leftThree.position.set(-HOOP_X, 0.05, 0);
+    scene.add(leftThree);
+    // Right Hoop 3PT line
+    const rightThreeGeo = new THREE.RingGeometry(21.5, 22, 32, 1, Math.PI/2, Math.PI);
+    const rightThree = new THREE.Mesh(rightThreeGeo, threePtMat);
+    rightThree.rotation.x = -Math.PI / 2;
+    rightThree.position.set(HOOP_X, 0.05, 0);
+    scene.add(rightThree);
+
+    function createHoop(xPos, isLeft) {
+        const group = new THREE.Group();
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, RIM_Y + 4), new THREE.MeshStandardMaterial({color: 0x333}));
+        pole.position.set(xPos + (isLeft?-2:2), (RIM_Y+4)/2, 0);
+        pole.castShadow = true;
+        group.add(pole);
+
+        const bb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6, 8), new THREE.MeshStandardMaterial({color: 0xffffff, transparent: true, opacity: 0.8}));
+        bb.position.set(xPos + (isLeft?-0.5:0.5), RIM_Y + 2, 0);
+        group.add(bb);
+
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.2, 8, 16), new THREE.MeshStandardMaterial({color: 0xff4400}));
+        rim.rotation.x = Math.PI/2;
+        rim.position.set(xPos + (isLeft? 1.2 : -1.2), RIM_Y, 0);
+        group.add(rim);
+
+        scene.add(group);
+        return { rimPos: new THREE.Vector3(xPos + (isLeft? 1.2 : -1.2), RIM_Y, 0) };
+    }
+    const hoopLeft = createHoop(-HOOP_X, true);
+    const hoopRight = createHoop(HOOP_X, false);
+
+    // Humanoid Entities
+    class Player {
+        constructor(color, startX, isP1) {
+            this.isP1 = isP1;
+            this.radius = 1.5;
+            this.height = 6;
+            
+            this.mesh = new THREE.Group();
+            
+            const mat = new THREE.MeshStandardMaterial({color: color});
+            const skinMat = new THREE.MeshStandardMaterial({color: 0xffccaa});
+            
+            // Torso
+            this.torso = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.5, 1), mat);
+            this.torso.position.y = 3.5;
+            this.torso.castShadow = true;
+            this.mesh.add(this.torso);
+            
+            // Head
+            this.head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), skinMat);
+            this.head.position.y = 5.5;
+            this.head.castShadow = true;
+            this.mesh.add(this.head);
+
+            // Limbs
+            const limbGeo = new THREE.BoxGeometry(0.6, 2, 0.6);
+            
+            this.armL = new THREE.Mesh(limbGeo, skinMat);
+            this.armL.position.set(-1.1, 3.5, 0);
+            this.mesh.add(this.armL);
+            
+            this.armR = new THREE.Mesh(limbGeo, skinMat);
+            this.armR.position.set(1.1, 3.5, 0);
+            this.mesh.add(this.armR);
+            
+            this.legL = new THREE.Mesh(limbGeo, mat);
+            this.legL.position.set(-0.5, 1, 0);
+            this.mesh.add(this.legL);
+            
+            this.legR = new THREE.Mesh(limbGeo, mat);
+            this.legR.position.set(0.5, 1, 0);
+            this.mesh.add(this.legR);
+
+            // Player Marker
+            const marker = new THREE.Mesh(
+                new THREE.CircleGeometry(1.8, 16),
+                new THREE.MeshBasicMaterial({color: color, transparent: true, opacity: 0.4})
+            );
+            marker.rotation.x = -Math.PI / 2;
+            marker.position.y = 0.08;
+            this.mesh.add(marker);
+
+            scene.add(this.mesh);
+
+            this.pos = new THREE.Vector3(startX, 0, 0);
+            this.vel = new THREE.Vector3(0, 0, 0);
+            this.speed = 35;
+            this.jumpForce = 35; // Tuned for better playability
+            this.gravity = 50;   // Floatier jumps
+            
+            this.isJumping = false;
+            this.dunking = false;
+            this.dunkTarget = null;
+            this.animTime = 0;
+            
+            this.updateMesh(0);
+        }
+
+        updateMesh(dt) {
+            this.mesh.position.copy(this.pos);
+            
+            let speedSq = this.vel.x*this.vel.x + this.vel.z*this.vel.z;
+            
+            if (speedSq > 0.1 || this.isJumping) {
+                const angle = Math.atan2(this.vel.x, this.vel.z);
+                this.mesh.rotation.y = angle;
+            }
+
+            // Animate limbs
+            if (this.isJumping) {
+                // Raise arms to shoot/dunk
+                this.armL.rotation.x = -Math.PI * 0.8;
+                this.armR.rotation.x = -Math.PI * 0.8;
+                this.legL.rotation.x = -0.2;
+                this.legR.rotation.x = 0.2;
+
+            } else {
+                if (speedSq > 1) {
+                    // Running
+                    this.animTime += dt * 15;
+                    let runCycle = Math.sin(this.animTime) * 0.8;
+                    this.legL.rotation.x = runCycle;
+                    this.legR.rotation.x = -runCycle;
+                    this.armL.rotation.x = -runCycle;
+                    this.armR.rotation.x = runCycle;
+                } else {
+                    // Idle
+                    this.legL.rotation.x = 0; this.legR.rotation.x = 0;
+                    this.armL.rotation.x = 0; this.armR.rotation.x = 0;
+                }
+            }
+        }
+    }
+
+    const p1 = new Player(0x3b82f6, -20, true);
+    const p2 = new Player(0xef4444, 20, false);
+
+    const ball = {
+        mesh: new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshStandardMaterial({color: 0xff6600})),
+        pos: new THREE.Vector3(0, 5, 0),
+        vel: new THREE.Vector3(0, 0, 0),
+        radius: 1,
+        owner: null,
+        isAirborne: false,
+        justShotBy: null,
+        lastTouched: null,
+        isThreePointer: false
+    };
+    ball.mesh.castShadow = true;
+    scene.add(ball.mesh);
+
+    /** --- INPUT --- */
+    window.addEventListener('keydown', (e) => {
+        // Player 1 (WASD + Space)
+        if (e.code === 'KeyW') Game.keys.p1.up = true;
+        if (e.code === 'KeyS') Game.keys.p1.down = true;
+        if (e.code === 'KeyA') Game.keys.p1.left = true;
+        if (e.code === 'KeyD') Game.keys.p1.right = true;
+        if (e.code === 'Space' && !Game.keys.p1.action) {
+            Game.keys.p1.action = true;
+            handleJumpAction(p1);
+            if (e.target === document.body) e.preventDefault();
+        }
+
+        // Player 2 (Arrows + Enter)
+        if (e.code === 'ArrowUp') Game.keys.p2.up = true;
+        if (e.code === 'ArrowDown') Game.keys.p2.down = true;
+        if (e.code === 'ArrowLeft') Game.keys.p2.left = true;
+        if (e.code === 'ArrowRight') Game.keys.p2.right = true;
+        if (e.code === 'Enter' && !Game.keys.p2.action) {
+            Game.keys.p2.action = true;
+            if (Game.mode === 2) handleJumpAction(p2);
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'KeyW') Game.keys.p1.up = false;
+        if (e.code === 'KeyS') Game.keys.p1.down = false;
+        if (e.code === 'KeyA') Game.keys.p1.left = false;
+        if (e.code === 'KeyD') Game.keys.p1.right = false;
+        if (e.code === 'Space') Game.keys.p1.action = false;
+
+        if (e.code === 'ArrowUp') Game.keys.p2.up = false;
+        if (e.code === 'ArrowDown') Game.keys.p2.down = false;
+        if (e.code === 'ArrowLeft') Game.keys.p2.left = false;
+        if (e.code === 'ArrowRight') Game.keys.p2.right = false;
+        if (e.code === 'Enter') Game.keys.p2.action = false;
+    });
+
+    /** --- CORE LOGIC --- */
+    function resetPositions(scorer = null, turnoverTo = null) {
+        ball.owner = null;
+        ball.isAirborne = true;
+        ball.justShotBy = null;
+        ball.isThreePointer = false;
+        
+        p1.vel.set(0,0,0); p1.isJumping = false; p1.dunking = false;
+        p2.vel.set(0,0,0); p2.isJumping = false; p2.dunking = false;
+        
+        if (scorer === p1 || turnoverTo === p2) {
+            // P1 scored or turned it over. P2 inbounds from deep under the right hoop.
+            p2.pos.set(46, 0, 0); 
+            p1.pos.set(-10, 0, 0); // P1 falls back to defend
+            ball.owner = p2;       
+            ball.lastTouched = p2;
+        } else if (scorer === p2 || turnoverTo === p1) {
+            // P2 scored or turned it over. P1 inbounds from deep under the left hoop.
+            p1.pos.set(-46, 0, 0);
+            p2.pos.set(10, 0, 0); // P2 falls back to defend
+            ball.owner = p1;      
+            ball.lastTouched = p1;
+        } else {
+            // Tip off (Start of game)
+            p1.pos.set(-20, 0, 0);
+            p2.pos.set(20, 0, 0);
+            ball.pos.set(0, 20, 0);
+            ball.vel.set(0, 0, 0);
+            ball.lastTouched = null;
+        }
+    }
+
+    function handleJumpAction(player) {
+        if (Game.state !== STATE.PLAYING) return;
+        
+        if (!player.isJumping) {
+            player.isJumping = true;
+            player.vel.y = player.jumpForce;
+            
+            if (ball.owner === player) {
+                let targetRim = player.isP1 ? hoopRight.rimPos : hoopLeft.rimPos;
+                let distToRim = Math.hypot(targetRim.x - player.pos.x, targetRim.z - player.pos.z);
+                
+                // UX Fix: Automatic standing dunks if close (dist < 10) OR flying dunks if moving fast
+                if (distToRim < 10 || (distToRim < 25 && Math.abs(player.vel.x) > 10)) {
+                    player.dunking = true;
+                    player.dunkTarget = targetRim;
+                    player.vel.y = player.jumpForce * 1.1; 
+                    
+                    let dx = targetRim.x - player.pos.x;
+                    let dz = targetRim.z - player.pos.z;
+                    let len = Math.max(0.1, Math.hypot(dx, dz));
+                    player.vel.x = (dx / len) * (player.speed * 1.5);
+                    player.vel.z = (dz / len) * (player.speed * 1.5);
+                    
+                    announce(player.isP1 ? "P1 FLIES!" : "P2 FLIES!");
+                }
+            }
+        }
+    }
+
+    function shootBall(player) {
+        ball.owner = null;
+        ball.isAirborne = true;
+        ball.justShotBy = player;
+        ball.lastTouched = player;
+        
+        let targetRim = player.isP1 ? hoopRight.rimPos : hoopLeft.rimPos;
+        
+        // CRITICAL FIX: Calculate trajectory from the ball's actual current position (in the hand),
+        // instead of the player's feet (player.pos)!
+        let startPos = ball.pos.clone();
+        
+        let dxRaw = targetRim.x - startPos.x;
+        let dzRaw = targetRim.z - startPos.z;
+        let distToRimRaw = Math.hypot(dxRaw, dzRaw);
+        
+        // 3-Point Check (distance > 22)
+        ball.isThreePointer = distToRimRaw >= 22;
+
+        // Auto-shoot mechanic: Use RNG for accuracy instead of timing
+        let isMiss = false;
+        let rng = Math.random();
+        
+        if (ball.isThreePointer && rng < 0.35) {
+            isMiss = true; // 35% chance to miss a 3-pointer
+        } else if (!ball.isThreePointer && rng < 0.10) {
+            isMiss = true; // 10% chance to miss a 2-pointer
+        }
+        
+        let targetX = targetRim.x;
+        let targetZ = targetRim.z;
+        
+        if (isMiss) {
+            targetX += (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2); 
+            targetZ += (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2);
+            announce("BRICK!", 1000);
+        } else {
+            announce(ball.isThreePointer ? "FOR THREE!" : "PERFECT!", 1000);
+        }
+
+        let dx = targetX - startPos.x;
+        let dz = targetZ - startPos.z;
+        let dist = Math.max(0.1, Math.hypot(dx, dz));
+        
+        // Minimum air time of 0.6s
+        let t = Math.max(0.6, dist / 35);
+        
+        let hSpeedX = dx / t;
+        let hSpeedZ = dz / t;
+        
+        // CRITICAL FIX: Use the hand height (startPos.y) for the Y delta
+        let yDiff = targetRim.y - startPos.y;
+        
+        // Ball gravity is explicitly 50 in the animate loop
+        let vY = (yDiff + 0.5 * 50 * t * t) / t;
+
+        ball.vel.set(hSpeedX, vY, hSpeedZ);
+        AudioSys.playSwish();
+    }
+
+    function doStealCheck(stealer, victim) {
+        if (!ball.owner || ball.owner === stealer || ball.owner !== victim) return;
+        
+        let dist = stealer.pos.distanceTo(victim.pos);
+        if (dist < stealer.radius + victim.radius + 1.5) {
+            if (Math.random() < 0.015) { 
+                ball.owner = null;
+                ball.lastTouched = stealer;
+                ball.isAirborne = true;
+                ball.isThreePointer = false;
+                ball.vel.set((Math.random()-0.5)*20, 20, (Math.random()-0.5)*20);
+                ball.pos.y += 2;
+                AudioSys.playSteal();
+                announce("STOLEN!", 1000);
+            }
+        }
+    }
+
+    /** --- AI LOGIC --- */
+    function updateAI(dt) {
+        if (Game.state !== STATE.PLAYING || Game.mode === 2) return;
+        
+        let targetX = 0, targetZ = 0;
+        let moving = false;
+
+        if (ball.owner === p2) {
+            targetX = hoopLeft.rimPos.x;
+            targetZ = 0;
+            let distToHoop = Math.abs(p2.pos.x - targetX);
+            
+            // AI will pull up for 3 occasionally, or drive to the hoop. (Auto-shoots at apex)
+            if ((distToHoop < 18 || (distToHoop > 22 && distToHoop < 26 && Math.random() < 0.02)) && !p2.isJumping) {
+                handleJumpAction(p2);
+            } else {
+                moving = true;
+            }
+        } else if (ball.owner === p1) {
+            targetX = p1.pos.x;
+            targetZ = p1.pos.z;
+            moving = true;
+            
+            if (p1.isJumping && !p2.isJumping && p2.pos.distanceTo(p1.pos) < 15) {
+                handleJumpAction(p2);
+            }
+        } else {
+            targetX = ball.pos.x;
+            targetZ = ball.pos.z;
+            moving = true;
+        }
+
+        if (moving && !p2.isJumping) {
+            let dx = targetX - p2.pos.x;
+            let dz = targetZ - p2.pos.z;
+            let len = Math.hypot(dx, dz);
+            if (len > 1) {
+                p2.vel.x = (dx / len) * (p2.speed * 0.70); // CPU significantly slower to allow P1 to get the ball
+                p2.vel.z = (dz / len) * (p2.speed * 0.70);
+            } else {
+                p2.vel.x = 0; p2.vel.z = 0;
+            }
+        }
+    }
+
+    function processPlayerInput(player, keys) {
+        if (!player.isJumping) {
+            player.vel.x = 0; player.vel.z = 0;
+            if (keys.left) player.vel.x = -player.speed;
+            if (keys.right) player.vel.x = player.speed;
+            if (keys.up) player.vel.z = -player.speed;
+            if (keys.down) player.vel.z = player.speed;
+            
+            if (player.vel.x !== 0 && player.vel.z !== 0) {
+                player.vel.x *= 0.707; player.vel.z *= 0.707;
+            }
+        }
+    }
+
+    /** --- MAIN LOOP --- */
+    let lastTime = performance.now();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        let now = performance.now();
+        let dt = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+
+        if (Game.state === STATE.PLAYING) {
+            
+            // 1. Inputs
+            processPlayerInput(p1, Game.keys.p1);
+            if (Game.mode === 2) {
+                processPlayerInput(p2, Game.keys.p2);
+            } else {
+                updateAI(dt);
+            }
+
+            // 2. Update Positions
+            [p1, p2].forEach(p => {
+                p.pos.x += p.vel.x * dt;
+                p.pos.z += p.vel.z * dt;
+                
+                let isOOB = p.pos.x <= -COURT_WIDTH/2 || p.pos.x >= COURT_WIDTH/2 || p.pos.z <= -COURT_DEPTH/2 || p.pos.z >= COURT_DEPTH/2;
+                
+                p.pos.x = Math.max(-COURT_WIDTH/2, Math.min(COURT_WIDTH/2, p.pos.x));
+                p.pos.z = Math.max(-COURT_DEPTH/2, Math.min(COURT_DEPTH/2, p.pos.z));
+                
+                // Out of Bounds Turnover Check
+                if (isOOB && ball.owner === p && !Game.isResetting) {
+                    Game.isResetting = true;
+                    announce("OUT OF BOUNDS!", 1000);
+                    ball.owner = null;
+                    setTimeout(() => { resetPositions(null, p === p1 ? p2 : p1); Game.isResetting = false; }, 1000);
+                }
+
+                if (p.isJumping) {
+                    p.vel.y -= p.gravity * dt;
+                    p.pos.y += p.vel.y * dt;
+                    
+                    // NEW MECHANIC: Auto-Shoot exactly at the apex of the jump!
+                    if (ball.owner === p && !p.dunking && p.vel.y <= 0) {
+                        shootBall(p);
+                    }
+                    
+                    if (p.dunking && p.pos.distanceTo(p.dunkTarget) < 4 && p.vel.y < 0) {
+                        p.dunking = false;
+                        if (ball.owner === p) {
+                            ball.owner = null;
+                            ball.isAirborne = true;
+                            ball.pos.copy(p.dunkTarget);
+                            ball.vel.set(0, -20, 0);
+                            ball.justShotBy = p;
+                            AudioSys.playDunk();
+                            announce(p.isP1 ? "P1 SLAM!" : "P2 SLAM!");
+                        }
+                    }
+
+                    if (p.pos.y <= 0) {
+                        p.pos.y = 0;
+                        p.vel.y = 0;
+                        p.isJumping = false;
+                        p.dunking = false;
+                        
+                        if (ball.owner === p) {
+                            ball.owner = null;
+                            ball.isAirborne = true;
+                            ball.isThreePointer = false;
+                            ball.vel.set((Math.random()-0.5)*10, 10, (Math.random()-0.5)*10);
+                        }
+                    }
+                }
+                p.updateMesh(dt);
+            });
+
+            // 3. Collisions & Steals
+            doStealCheck(p1, p2);
+            doStealCheck(p2, p1);
+
+            // 4. Ball Logic
+            if (ball.owner) {
+                ball.lastTouched = ball.owner; // Track possession
+                
+                // Ball in hand
+                let handHeight = ball.owner.isJumping ? ball.owner.pos.y + 7 : 4;
+                if (!ball.owner.isJumping && (ball.owner.vel.x !== 0 || ball.owner.vel.z !== 0)) {
+                    handHeight += Math.sin(now * 0.015) * 1.5 - 1; // dribble
+                }
+
+                let faceAngle = ball.owner.mesh.rotation.y;
+                let offset = new THREE.Vector3(Math.sin(faceAngle)*1.5, 0, Math.cos(faceAngle)*1.5);
+                
+                ball.pos.copy(ball.owner.pos).add(offset);
+                ball.pos.y = handHeight;
+                ball.isAirborne = false;
+            } else {
+                let prevBallY = ball.pos.y; // Track exact previous Y to fix "teleporting ball" missing hoop
+                
+                ball.vel.y -= 50 * dt;
+                ball.pos.addScaledVector(ball.vel, dt);
+                
+                if (ball.pos.y < ball.radius) {
+                    ball.pos.y = ball.radius;
+                    ball.vel.y *= -0.7;
+                    ball.vel.x *= 0.9; ball.vel.z *= 0.9;
+                    if (Math.abs(ball.vel.y) > 2) AudioSys.playBounce();
+                }
+                
+                // Loose Ball Out of Bounds Turnover Check
+                if ((Math.abs(ball.pos.x) > COURT_WIDTH/2 || Math.abs(ball.pos.z) > COURT_DEPTH/2) && !Game.isResetting) {
+                    Game.isResetting = true;
+                    announce("OUT OF BOUNDS!", 1000);
+                    let recipient = ball.lastTouched === p1 ? p2 : p1;
+                    setTimeout(() => { resetPositions(null, recipient); Game.isResetting = false; }, 1000);
+                }
+
+                if (ball.pos.y < 8 && !Game.isResetting) {
+                    let distP1 = p1.pos.distanceTo(ball.pos);
+                    let distP2 = p2.pos.distanceTo(ball.pos);
+                    
+                    if (distP1 < p1.radius + ball.radius + 1 && ball.justShotBy !== p1) {
+                        ball.owner = p1; ball.justShotBy = null; ball.lastTouched = p1;
+                    } else if (distP2 < p2.radius + ball.radius + 1 && ball.justShotBy !== p2) {
+                        ball.owner = p2; ball.justShotBy = null; ball.lastTouched = p2;
+                    }
+                }
+
+                // Scoring (Fixed to prevent bullet-through-paper physics bugs)
+                if (ball.vel.y < 0 && prevBallY >= RIM_Y && ball.pos.y <= RIM_Y && !Game.isResetting) {
+                    let dLeft = Math.hypot(ball.pos.x - hoopLeft.rimPos.x, ball.pos.z - hoopLeft.rimPos.z);
+                    let dRight = Math.hypot(ball.pos.x - hoopRight.rimPos.x, ball.pos.z - hoopRight.rimPos.z);
+                    
+                    let points = ball.isThreePointer ? 3 : 2;
+
+                    if (dRight < 2.5 && ball.justShotBy === p1) {
+                        Game.isResetting = true;
+                        Game.scores.p1 += points;
+                        document.getElementById('score-p1').innerText = Game.scores.p1;
+                        AudioSys.playSwish();
+                        setTimeout(() => { resetPositions(p1); Game.isResetting = false; }, 1000);
+                        ball.justShotBy = null;
+                        announce(points === 3 ? "THREEEEEE!" : "MONEY!", 1000);
+                    } else if (dLeft < 2.5 && ball.justShotBy === p2) {
+                        Game.isResetting = true;
+                        Game.scores.p2 += points;
+                        document.getElementById('score-p2').innerText = Game.scores.p2;
+                        AudioSys.playSwish();
+                        setTimeout(() => { resetPositions(p2); Game.isResetting = false; }, 1000);
+                        ball.justShotBy = null;
+                        if (points === 3) announce("THREEEEEE!", 1000);
+                        else announce(Game.mode === 2 ? "P2 SCORES!" : "CPU SCORES!", 1000);
+                    }
+                }
+            }
+            ball.mesh.position.copy(ball.pos);
+            
+            // Update Ball Depth Shadow
+            ballShadow.position.x = ball.pos.x;
+            ballShadow.position.z = ball.pos.z;
+            let shadowScale = Math.max(0.3, 1.2 - (ball.pos.y / 25));
+            ballShadow.scale.set(shadowScale, shadowScale, 1);
+            ballShadow.material.opacity = Math.max(0.1, 0.6 - (ball.pos.y / 40));
+
+            // Camera Follow
+            let targetCamX = ball.owner ? ball.owner.pos.x : ball.pos.x;
+            targetCamX = Math.max(-20, Math.min(20, targetCamX));
+            camera.position.x += (targetCamX - camera.position.x) * 0.1;
+            camera.lookAt(camera.position.x, 5, 0);
+        }
+
+        if (Game.state === STATE.HOME) {
+            camera.position.x = Math.sin(now * 0.0005) * 20;
+            camera.lookAt(0, 5, 0);
+            p1.updateMesh(dt);
+            p2.updateMesh(dt);
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    /** --- UI LOGIC --- */
+    function formatTime(s) {
+        let min = Math.floor(s / 60);
+        let sec = s % 60;
+        return `${min}:${sec < 10 ? '0'+sec : sec}`;
+    }
+
+    function timerTick() {
+        if (Game.state !== STATE.PLAYING) return;
+        Game.time--;
+        document.getElementById('timer').innerText = formatTime(Game.time);
+        
+        if (Game.time <= 0) {
+            endGame();
+        } else if (Game.time <= 10) {
+            document.getElementById('timer').style.color = '#ef4444';
+        }
+    }
+
+    window.startGame = function(mode) {
+        AudioSys.init();
+        Game.mode = mode;
+        Game.state = STATE.PLAYING;
+        Game.isResetting = false;
+        Game.time = 180;
+        Game.scores = {p1: 0, p2: 0};
+        
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+        
+        document.getElementById('p2-name').innerText = mode === 2 ? "PLAYER 2" : "CPU";
+        
+        document.getElementById('score-p1').innerText = "0";
+        document.getElementById('score-p2').innerText = "0";
+        document.getElementById('timer').innerText = formatTime(Game.time);
+        document.getElementById('timer').style.color = '#facc15';
+
+        resetPositions();
+        
+        if (Game.timerInt) clearInterval(Game.timerInt);
+        Game.timerInt = setInterval(timerTick, 1000);
+    }
+
+    function endGame() {
+        clearInterval(Game.timerInt);
+        Game.state = STATE.GAME_OVER;
+        AudioSys.playBuzzer();
+        
+        document.getElementById('hud').classList.add('hidden');
+        document.getElementById('game-over-screen').classList.remove('hidden');
+        
+        const title = document.getElementById('go-title');
+        const score = document.getElementById('go-score');
+        
+        if (Game.scores.p1 > Game.scores.p2) title.innerText = "PLAYER 1 WINS!";
+        else if (Game.scores.p2 > Game.scores.p1) title.innerText = Game.mode === 2 ? "PLAYER 2 WINS!" : "CPU WINS!";
+        else title.innerText = "TIE GAME!";
+        
+        score.innerText = `${Game.scores.p1} - ${Game.scores.p2}`;
+    }
+
+    window.returnToHome = function() {
+        Game.state = STATE.HOME;
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('pause-screen').classList.add('hidden');
+        document.getElementById('home-screen').classList.remove('hidden');
+        document.getElementById('hud').classList.add('hidden');
+        if (Game.timerInt) clearInterval(Game.timerInt);
+    }
+
+    document.getElementById('pause-btn').addEventListener('click', () => {
+        if (Game.state === STATE.PLAYING) {
+            Game.state = STATE.PAUSED;
+            clearInterval(Game.timerInt);
+            document.getElementById('pause-screen').classList.remove('hidden');
+        }
+    });
+
+    window.resumeGame = function() {
+        if (Game.state === STATE.PAUSED) {
+            Game.state = STATE.PLAYING;
+            document.getElementById('pause-screen').classList.add('hidden');
+            Game.timerInt = setInterval(timerTick, 1000);
+        }
+    };
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+</body>
+</html>

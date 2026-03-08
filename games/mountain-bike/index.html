@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mountain Rider 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud-text {
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        /* Touch Controls */
+        #touch-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            display: none;
+            justify-content: space-between;
+            padding: 0 20px;
+            pointer-events: auto;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            #touch-controls {
+                display: flex;
+            }
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            color: white;
+            user-select: none;
+            backdrop-filter: blur(4px);
+        }
+        
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        #gas-btn {
+            width: 90px;
+            height: 90px;
+            border-radius: 20px;
+        }
+
+        /* Modals */
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            color: white;
+            pointer-events: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <!-- HUD -->
+        <div class="flex justify-between items-start p-4 w-full">
+            <div>
+                <div class="text-white text-2xl font-black hud-text tracking-wider" id="score-display">
+                    SCORE: 0<br>
+                    <span class="text-lg text-yellow-400" id="distance-display">0m</span><br>
+                    <span class="text-sm text-purple-300" id="level-display">ZONE 1</span>
+                </div>
+                <div id="lives-display" class="mt-2 text-lg hud-text font-bold leading-tight tracking-wider"></div>
+            </div>
+            <div class="flex flex-col items-end gap-2 pointer-events-auto">
+                <button id="pause-btn" class="bg-white/20 border-2 border-white/50 text-white rounded-full w-12 h-12 flex items-center justify-center text-xl hover:bg-white/40 transition">
+                    ⏸
+                </button>
+                <div class="text-white text-xl font-bold hud-text text-right" id="flips-display">
+                    FLIPS: 0
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="modal">
+        <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-2" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">MOUNTAIN RIDER 3D</h1>
+        <p class="text-gray-300 mb-6">Ride far, grab powerups, don't crash!</p>
+        
+        <div class="flex flex-col gap-3">
+            <button id="start-1p-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl transition transform hover:scale-105 shadow-lg shadow-green-500/50">
+                1 PLAYER RIDE
+            </button>
+            <button id="start-2p-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full text-xl transition transform hover:scale-105 shadow-lg shadow-purple-500/50 hidden md:block">
+                2 PLAYER CO-OP
+            </button>
+            <div class="flex gap-3">
+                <button id="instructions-btn" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-full text-lg transition transform hover:scale-105 shadow-lg shadow-yellow-500/50">
+                    HOW TO PLAY
+                </button>
+                <button id="high-scores-btn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-lg transition transform hover:scale-105 shadow-lg shadow-blue-500/50">
+                    HIGH SCORES
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions Screen -->
+    <div id="instructions-screen" class="modal hidden max-h-[80vh] overflow-y-auto w-[90%] max-w-lg text-left">
+        <h2 class="text-3xl font-black text-yellow-400 mb-4 uppercase text-center">HOW TO PLAY</h2>
+        
+        <div class="space-y-4 text-gray-200">
+            <p><strong>Goal:</strong> Ride as far as possible without crashing. Earn points for distance and flips!</p>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                    <h3 class="text-lg font-bold text-blue-400 mb-1">Player 1</h3>
+                    <ul class="text-sm space-y-1">
+                        <li><strong>Gas:</strong> [Up] or [Space]</li>
+                        <li><strong>Lean Back:</strong> [Left]</li>
+                        <li><strong>Lean Fwd:</strong> [Right]</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                    <h3 class="text-lg font-bold text-red-400 mb-1">Player 2</h3>
+                    <ul class="text-sm space-y-1">
+                        <li><strong>Gas:</strong> [W]</li>
+                        <li><strong>Lean Back:</strong> [A]</li>
+                        <li><strong>Lean Fwd:</strong> [D]</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-3 rounded mt-2 border border-slate-600">
+                <h3 class="text-lg font-bold text-green-400 mb-1">Powerups</h3>
+                <ul class="text-sm space-y-1">
+                    <li><span class="text-yellow-400">⚡ Arrows</span> <strong>Speed:</strong> Double engine power!</li>
+                    <li><span class="text-blue-400">🛡️ Crystal</span> <strong>Shield:</strong> Bounces you back up if you crash.</li>
+                    <li><span class="text-yellow-200">⭐ Gold Coin</span> <strong>Coin:</strong> Bonus +1000 points.</li>
+                    <li><span class="text-pink-400">🎈 Balloon</span> <strong>Float:</strong> Lower gravity for huge jumps.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <button id="close-instructions-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-8 rounded-full text-lg transition transform hover:scale-105">
+                BACK
+            </button>
+        </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" class="modal hidden">
+        <h2 class="text-4xl font-black text-white mb-6 uppercase">PAUSED</h2>
+        <div class="flex flex-col gap-4">
+            <button id="resume-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl transition transform hover:scale-105">
+                RESUME
+            </button>
+            <button id="home-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-full text-xl transition transform hover:scale-105">
+                HOME
+            </button>
+        </div>
+    </div>
+
+    <!-- High Scores Screen -->
+    <div id="high-score-screen" class="modal hidden max-h-[80vh] overflow-y-auto w-[90%] max-w-md">
+        <h2 class="text-3xl font-black text-blue-400 mb-4 uppercase">TOP RIDERS</h2>
+        <div id="score-list" class="text-left space-y-2 mb-6 text-gray-200">
+            <p class="text-center text-gray-500">Loading...</p>
+        </div>
+        <button id="close-scores-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-8 rounded-full text-lg transition transform hover:scale-105">
+            CLOSE
+        </button>
+    </div>
+
+    <!-- Level Complete Screen -->
+    <div id="level-complete-screen" class="modal hidden">
+        <h2 class="text-5xl font-black text-green-400 mb-2 uppercase" id="level-title">ZONE 1 COMPLETE!</h2>
+        <p class="text-xl text-white mb-4">Lives Restored!</p>
+        <p class="text-md text-gray-300 animate-pulse">Warping to next zone...</p>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="modal hidden">
+        <h2 class="text-4xl font-black text-red-500 mb-2 uppercase">Wipeout!</h2>
+        <div class="text-xl mb-6 space-y-2">
+            <p>Distance: <span id="final-distance" class="font-bold text-yellow-400">0</span>m</p>
+            <p>Flips: <span id="final-flips" class="font-bold text-blue-400">0</span></p>
+            <p class="text-2xl mt-4 border-t border-slate-700 pt-4">Total Score: <span id="final-score" class="font-bold text-white">0</span></p>
+        </div>
+        <button id="restart-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-full text-xl transition transform hover:scale-105 shadow-lg shadow-blue-500/50">
+            RIDE AGAIN
+        </button>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="touch-controls">
+        <div class="control-group">
+            <div class="control-btn" id="btn-left">↺</div>
+            <div class="control-btn" id="btn-right">↻</div>
+        </div>
+        <div class="control-group">
+            <div class="control-btn" id="gas-btn">⚡</div>
+        </div>
+    </div>
+
+<script>
+    // --- Local Storage High Scores Setup ---
+    let dbScores = [];
+    const LOCAL_STORAGE_KEY = 'mountain_rider_3d_high_scores';
+
+    function loadHighScores() {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                dbScores = JSON.parse(stored);
+            }
+        } catch (e) {
+            console.error("Could not load local scores", e);
+            dbScores = [];
+        }
+        renderHighScores();
+    }
+
+    function renderHighScores() {
+        const list = document.getElementById('score-list');
+        if (dbScores.length === 0) {
+            list.innerHTML = '<p class="text-center text-gray-500">No scores yet! Be the first!</p>';
+            return;
+        }
+        list.innerHTML = dbScores.slice(0, 10).map((s, i) => `
+            <div class="flex justify-between items-center bg-slate-800 p-2 rounded border border-slate-700">
+                <span class="font-bold text-${i===0?'yellow':i===1?'gray':i===2?'orange':'blue'}-400">#${i+1} ${s.playerInfo}</span>
+                <div class="text-right">
+                    <span class="text-white font-bold">${s.score}</span><br>
+                    <span class="text-xs text-gray-400">${s.distance}m</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function saveHighScore() {
+        let finalScore = Math.floor(Math.max(...bikes.map(b => b.score)));
+        let finalDistance = Math.floor(Math.max(...bikes.map(b => b.distance)));
+        if (finalScore <= 0) return;
+        
+        dbScores.push({
+            score: finalScore,
+            distance: finalDistance,
+            playerInfo: numPlayers > 1 ? "Co-Op Team" : "Player",
+            date: Date.now()
+        });
+        
+        dbScores.sort((a, b) => b.score - a.score);
+        dbScores = dbScores.slice(0, 10);
+        
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dbScores));
+        } catch (e) {
+            console.error("Could not save local score", e);
+        }
+        renderHighScores();
+    }
+
+    loadHighScores();
+
+    // --- Audio Engine (Only SFX, no continuous motor) ---
+    let audioCtx = null;
+
+    function playSound(type) {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'crash') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        } else if (type === 'coin') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'powerup') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+    }
+
+    // --- DOM Elements ---
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const pauseScreen = document.getElementById('pause-screen');
+    const highScoreScreen = document.getElementById('high-score-screen');
+    const scoreDisplay = document.getElementById('score-display');
+    const flipsDisplay = document.getElementById('flips-display');
+    
+    // --- Game Logic Constants ---
+    let state = 'START'; 
+    let animationFrameId;
+    const GRAVITY = 0.35;
+    const FRICTION = 0.98;
+    const AIR_RESISTANCE = 0.995;
+    const ENGINE_POWER = 0.8;
+    const MAX_SPEED = 20;
+    const ROTATION_SPEED = 0.06;
+    const WHEEL_RADIUS = 15;
+    const SKY_COLORS = [0x87CEEB, 0xFFB6C1, 0x2F4F4F, 0x483D8B, 0xFF8C00];
+    const TERRAIN_COLORS = [0x4d8a37, 0x2f3947, 0x7a6d37, 0x3f4e56, 0x7a4137];
+
+    let numPlayers = 1;
+    let bikes = [];
+    let currentLevel = 1;
+    let terrainSeed1, terrainSeed2;
+
+    // --- Inputs ---
+    let keys = {};
+    let touchInput = { gas: false, left: false, right: false };
+    
+    window.addEventListener('keydown', (e) => keys[e.code] = true);
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+    function setupTouch(id, key) {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); touchInput[key] = true; }, {passive: false});
+        el.addEventListener('touchend', (e) => { e.preventDefault(); touchInput[key] = false; }, {passive: false});
+        el.addEventListener('touchcancel', (e) => { e.preventDefault(); touchInput[key] = false; }, {passive: false});
+    }
+    setupTouch('btn-left', 'left');
+    setupTouch('btn-right', 'right');
+    setupTouch('gas-btn', 'gas');
+
+    // --- THREE.JS Setup ---
+    const canvas = document.getElementById('gameCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true; // Enable Shadows!
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.0012);
+    
+    const camera3D = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 10000);
+
+    // Lights
+    const ambientLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
+    scene.add(ambientLight);
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.castShadow = true;
+    dirLight.shadow.camera.left = -600;
+    dirLight.shadow.camera.right = 600;
+    dirLight.shadow.camera.top = 600;
+    dirLight.shadow.camera.bottom = -600;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 2000;
+    dirLight.shadow.bias = -0.001;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    scene.add(dirLight);
+
+    // Resize Handler
+    window.addEventListener('resize', () => {
+        camera3D.aspect = window.innerWidth / window.innerHeight;
+        camera3D.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- 3D Objects Generators ---
+
+    function getElevation(x) {
+        let y = 300; 
+        y += Math.sin((x + terrainSeed1) * 0.003) * 120;
+        y += Math.sin((x + terrainSeed2) * 0.01) * 40;
+        y += Math.sin(x * 0.05) * 5;
+        return y;
+    }
+
+    // Shared Materials & Geometries for scenery
+    const treeGeo = new THREE.ConeGeometry(20, 60, 5);
+    const treeMat = new THREE.MeshStandardMaterial({color: 0x2d4c1e, roughness: 0.9});
+    const trunkGeo = new THREE.CylinderGeometry(4, 4, 15);
+    const trunkMat = new THREE.MeshStandardMaterial({color: 0x4a3b22});
+
+    function addTree(x, y, z, group) {
+        const tree = new THREE.Group();
+        const leaves = new THREE.Mesh(treeGeo, treeMat);
+        leaves.position.y = 35;
+        leaves.castShadow = true;
+        
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = 7.5;
+        trunk.castShadow = true;
+        
+        tree.add(leaves);
+        tree.add(trunk);
+        tree.position.set(x, y, z);
+        group.add(tree);
+    }
+
+    let terrainChunks = [];
+    const CHUNK_SIZE = 1500;
+    const CHUNK_SEGMENTS = 150; 
+
+    function generateTerrainChunk(startX) {
+        const group = new THREE.Group();
+        group.position.x = startX + CHUNK_SIZE / 2;
+
+        const geo = new THREE.PlaneGeometry(CHUNK_SIZE, 800, CHUNK_SEGMENTS, 40);
+        geo.rotateX(-Math.PI / 2); // Lay flat
+        
+        const posAttribute = geo.attributes.position;
+        const colors = [];
+        const colorGrass = new THREE.Color(TERRAIN_COLORS[(currentLevel - 1) % TERRAIN_COLORS.length]);
+        const colorDirt = new THREE.Color(0x8B5A2B); // Dirt Track Color
+        
+        for (let i = 0; i < posAttribute.count; i++) {
+            let localX = posAttribute.getX(i);
+            let z = posAttribute.getZ(i);
+            let worldX = startX + (localX + CHUNK_SIZE/2);
+            let elev = getElevation(worldX);
+            
+            let distFromCenter = Math.abs(z);
+            let y = -elev; // Invert to place right-side up in 3D
+
+            // Generate Track vs Grass
+            if (distFromCenter < 50) {
+                colors.push(colorDirt.r, colorDirt.g, colorDirt.b);
+            } else {
+                colors.push(colorGrass.r, colorGrass.g, colorGrass.b);
+                y -= Math.random() * 6 + 2; // Make off-road rougher
+                
+                // Random Scenery Trees
+                if (Math.random() < 0.006 && distFromCenter > 80 && distFromCenter < 350) {
+                    addTree(localX, y, z, group);
+                }
+            }
+            
+            // Slope edges down heavily
+            let edgeFactor = Math.max(0, (distFromCenter - 300) / 100);
+            y -= Math.pow(edgeFactor, 3) * 200; 
+
+            posAttribute.setXYZ(i, localX, y, z);
+        }
+        
+        geo.computeVertexNormals();
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+        const mat = new THREE.MeshStandardMaterial({ 
+            vertexColors: true, 
+            roughness: 0.9,
+            metalness: 0.05
+        });
+
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.receiveShadow = true; 
+        group.add(mesh);
+        
+        scene.add(group);
+        terrainChunks.push({ group, mesh, startX, endX: startX + CHUNK_SIZE });
+    }
+
+    function updateTerrainChunks(camX) {
+        // Remove old chunks
+        for (let i = terrainChunks.length - 1; i >= 0; i--) {
+            if (terrainChunks[i].endX < camX - 1000) {
+                scene.remove(terrainChunks[i].group);
+                terrainChunks[i].mesh.geometry.dispose();
+                terrainChunks[i].mesh.material.dispose();
+                terrainChunks.splice(i, 1);
+            }
+        }
+        
+        // Add new chunks ahead
+        let maxChunkX = terrainChunks.length > 0 ? terrainChunks[terrainChunks.length - 1].endX : camX - 1000;
+        while (maxChunkX < camX + 4000) {
+            generateTerrainChunk(maxChunkX);
+            maxChunkX += CHUNK_SIZE;
+        }
+    }
+
+    // --- Complex 3D Bike & Rider Generation ---
+    function createBikeMesh(colorStr) {
+        const group = new THREE.Group();
+        
+        const frameMat = new THREE.MeshStandardMaterial({ color: colorStr, metalness: 0.5, roughness: 0.4 });
+        const tireMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        const rimMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 });
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+
+        // Wheels
+        const createWheel = () => {
+            const wGroup = new THREE.Group();
+            const tGeo = new THREE.TorusGeometry(12, 3, 10, 24); 
+            const tire = new THREE.Mesh(tGeo, tireMat);
+            tire.castShadow = true;
+            wGroup.add(tire);
+            
+            const sGeo = new THREE.CylinderGeometry(1, 1, 26, 8);
+            const spoke1 = new THREE.Mesh(sGeo, rimMat);
+            const spoke2 = new THREE.Mesh(sGeo, rimMat);
+            spoke2.rotation.z = Math.PI/2;
+            spoke1.castShadow = true;
+            spoke2.castShadow = true;
+            wGroup.add(spoke1);
+            wGroup.add(spoke2);
+            return wGroup;
+        };
+
+        const wBack = createWheel();
+        wBack.position.set(-25, 0, 0); 
+        group.add(wBack);
+        
+        const wFront = createWheel();
+        wFront.position.set(25, 0, 0); 
+        group.add(wFront);
+
+        // Bike Frame Main Tube
+        const bodyGeo = new THREE.BoxGeometry(36, 4, 4);
+        const body = new THREE.Mesh(bodyGeo, frameMat);
+        body.position.set(-2, 14, 0);
+        body.rotation.z = Math.PI / 6;
+        body.castShadow = true;
+        group.add(body);
+        
+        // Bike Fork
+        const forkGeo = new THREE.BoxGeometry(4, 25, 4);
+        const fork = new THREE.Mesh(forkGeo, frameMat);
+        fork.position.set(20, 10, 0);
+        fork.rotation.z = -Math.PI / 8;
+        fork.castShadow = true;
+        group.add(fork);
+
+        // Chainstay (Rear Triangle Bottom)
+        const chainGeo = new THREE.BoxGeometry(22, 3, 3);
+        const chain = new THREE.Mesh(chainGeo, frameMat);
+        chain.position.set(-15, 3, 0);
+        chain.rotation.z = -Math.PI / 16;
+        chain.castShadow = true;
+        group.add(chain);
+
+        // Handlebars
+        const handleGeo = new THREE.CylinderGeometry(1.5, 1.5, 20);
+        const handle = new THREE.Mesh(handleGeo, rimMat);
+        handle.rotation.x = Math.PI / 2;
+        handle.position.set(20, 23, 0);
+        handle.castShadow = true;
+        group.add(handle);
+
+        // Seat
+        const seatGeo = new THREE.BoxGeometry(8, 3, 6);
+        const seatMat = new THREE.MeshStandardMaterial({color: 0x222222});
+        const seat = new THREE.Mesh(seatGeo, seatMat);
+        seat.position.set(-10, 22, 0);
+        seat.castShadow = true;
+        group.add(seat);
+
+        // --- Rider Upper Body Group (Pivots at Seat) ---
+        const upperBody = new THREE.Group();
+        upperBody.position.set(-10, 22, 0);
+        
+        const torsoGeo = new THREE.BoxGeometry(9, 16, 7);
+        const torso = new THREE.Mesh(torsoGeo, headMat);
+        torso.position.set(0, 9, 0);
+        torso.castShadow = true;
+        upperBody.add(torso);
+        
+        const headGeo = new THREE.BoxGeometry(9, 9, 9);
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.set(2, 20, 0);
+        head.castShadow = true;
+        upperBody.add(head);
+
+        const armGeo = new THREE.BoxGeometry(3.5, 18, 3.5);
+        const armL = new THREE.Mesh(armGeo, headMat);
+        armL.position.set(13, 9, 5);
+        armL.rotation.z = -Math.PI / 3;
+        armL.castShadow = true;
+        upperBody.add(armL);
+
+        const armR = new THREE.Mesh(armGeo, headMat);
+        armR.position.set(13, 9, -5);
+        armR.rotation.z = -Math.PI / 3;
+        armR.castShadow = true;
+        upperBody.add(armR);
+        
+        group.add(upperBody);
+
+        // --- Rider Legs (Animates for pedaling) ---
+        const legGeo = new THREE.BoxGeometry(4.5, 16, 4.5);
+        const legL = new THREE.Mesh(legGeo, headMat);
+        legL.position.set(-10, 14, 5);
+        legL.castShadow = true;
+        group.add(legL);
+
+        const legR = new THREE.Mesh(legGeo, headMat);
+        legR.position.set(-10, 14, -5);
+        legR.castShadow = true;
+        group.add(legR);
+
+        // Shield Bubble
+        const shieldGeo = new THREE.SphereGeometry(45, 16, 16);
+        const shieldMat = new THREE.MeshPhongMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.3, shininess: 100 });
+        const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+        shieldMesh.position.set(0, 15, 0);
+        shieldMesh.visible = false;
+        group.add(shieldMesh);
+
+        return { root: group, wBack, wFront, shieldMesh, upperBody, legL, legR, body };
+    }
+
+    // Powerups
+    const POWERUP_DEFS = {
+        'SPEED': { color: 0xfbbf24, effect: (b) => { b.speedBoost = 150; playSound('powerup'); } },
+        'SHIELD': { color: 0x60a5fa, effect: (b) => { b.shield = 300; playSound('powerup'); } },
+        'COIN': { color: 0xfcd34d, effect: (b) => { b.score += 1000; playSound('coin'); } },
+        'FLOAT': { color: 0xf472b6, effect: (b) => { b.float = 200; playSound('powerup'); } },
+    };
+    let activePowerups = [];
+    let lastPowerupX = 0;
+
+    function spawnPowerups(camX) {
+        if (camX > lastPowerupX - 800) {
+            if (Math.random() < 0.4) {
+                let types = Object.keys(POWERUP_DEFS);
+                let type = types[Math.floor(Math.random() * types.length)];
+                let def = POWERUP_DEFS[type];
+                
+                let mesh = new THREE.Group();
+
+                if (type === 'SPEED') {
+                    // Forward-pointing Chevrons (Double Arrows)
+                    const mat = new THREE.MeshStandardMaterial({ color: def.color, emissive: def.color, emissiveIntensity: 0.8 });
+                    const createChevron = (xOffset) => {
+                        const c = new THREE.Group();
+                        const top = new THREE.Mesh(new THREE.BoxGeometry(3, 12, 4), mat);
+                        top.rotation.z = -Math.PI / 4; top.position.set(0, 4, 0); top.castShadow = true;
+                        const bot = new THREE.Mesh(new THREE.BoxGeometry(3, 12, 4), mat);
+                        bot.rotation.z = Math.PI / 4; bot.position.set(0, -4, 0); bot.castShadow = true;
+                        c.add(top, bot);
+                        c.position.x = xOffset;
+                        return c;
+                    };
+                    mesh.add(createChevron(-6), createChevron(6));
+                } else if (type === 'SHIELD') {
+                    // Blue Forcefield Crystal
+                    const matCore = new THREE.MeshStandardMaterial({ color: def.color, emissive: def.color, emissiveIntensity: 0.8 });
+                    const matShell = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, wireframe: true });
+                    const core = new THREE.Mesh(new THREE.OctahedronGeometry(8), matCore);
+                    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(12, 1), matShell);
+                    core.castShadow = true;
+                    mesh.add(core, shell);
+                } else if (type === 'COIN') {
+                    // Gold Ringed Coin
+                    const mat = new THREE.MeshStandardMaterial({ color: def.color, metalness: 0.8, roughness: 0.2, emissive: def.color, emissiveIntensity: 0.4 });
+                    const rim = new THREE.Mesh(new THREE.TorusGeometry(10, 2, 8, 24), mat);
+                    const center = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 2, 16), mat);
+                    center.rotation.x = Math.PI / 2;
+                    rim.castShadow = true; center.castShadow = true;
+                    mesh.add(rim, center);
+                } else if (type === 'FLOAT') {
+                    // Pink Balloon
+                    const mat = new THREE.MeshStandardMaterial({ color: def.color, emissive: def.color, emissiveIntensity: 0.5 });
+                    const top = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 16), mat);
+                    const base = new THREE.Mesh(new THREE.CylinderGeometry(2, 4, 4, 8), mat);
+                    base.position.y = -10;
+                    top.castShadow = true; base.castShadow = true;
+                    mesh.add(top, base);
+                }
+                
+                let px = lastPowerupX + 1200 + Math.random() * 400;
+                let py = getElevation(px) - 20; 
+                mesh.position.set(px, -py, 0); 
+                scene.add(mesh);
+
+                activePowerups.push({ x: px, type: type, mesh: mesh, collected: false });
+            }
+            lastPowerupX += 600;
+        }
+    }
+
+    // Finish Line
+    let finishLineObj = new THREE.Group();
+    const poleGeo = new THREE.CylinderGeometry(2, 2, 200);
+    const poleMat = new THREE.MeshStandardMaterial({color: 0xffffff});
+    const flagGeo = new THREE.PlaneGeometry(60, 40);
+    const flagMat = new THREE.MeshBasicMaterial({color: 0x10b981, side: THREE.DoubleSide});
+    
+    const poleMesh = new THREE.Mesh(poleGeo, poleMat);
+    poleMesh.position.y = 100;
+    poleMesh.castShadow = true;
+    
+    const flagMesh = new THREE.Mesh(flagGeo, flagMat);
+    flagMesh.position.set(30, 180, 0);
+    flagMesh.castShadow = true;
+    
+    finishLineObj.add(poleMesh);
+    finishLineObj.add(flagMesh);
+    scene.add(finishLineObj);
+    finishLineObj.visible = false;
+
+    // --- Game Flow Methods ---
+
+    function resetGame(players) {
+        numPlayers = players;
+        terrainSeed1 = Math.random() * 1000;
+        terrainSeed2 = Math.random() * 1000;
+        currentLevel = 1;
+        lastPowerupX = 0;
+        
+        terrainChunks.forEach(c => scene.remove(c.group));
+        terrainChunks = [];
+        activePowerups.forEach(p => {
+            scene.remove(p.mesh);
+            p.mesh.traverse((child) => {
+                if (child.isMesh) {
+                    child.geometry.dispose();
+                    child.material.dispose();
+                }
+            });
+        });
+        activePowerups = [];
+        bikes.forEach(b => scene.remove(b.meshData.root));
+        
+        bikes = [];
+        for(let i=0; i<players; i++) {
+            let colorStr = i === 0 ? 0xe74c3c : 0x3498db;
+            let zDepth = i === 0 ? 12 : -12; 
+            
+            let bMesh = createBikeMesh(colorStr);
+            bMesh.root.position.set(-50 + (i*40), -(getElevation(0) - WHEEL_RADIUS), zDepth);
+            scene.add(bMesh.root);
+
+            bikes.push({
+                id: i, colorHtml: i === 0 ? '#e74c3c' : '#3498db',
+                x: -50 + (i*40), y: getElevation(0) - WHEEL_RADIUS, zDepth: zDepth,
+                vx: 0, vy: 0, angle: 0, angularVelocity: 0,
+                isGrounded: false, wheelSpin: 0, totalRotation: 0,
+                distance: 0, baseDistance: 0, score: 0, flips: 0,
+                dead: false, lives: 3, invulnerable: 0,
+                speedBoost: 0, shield: 0, float: 0,
+                meshData: bMesh
+            });
+        }
+        
+        let startColor = SKY_COLORS[0];
+        scene.fog.color.setHex(startColor);
+        renderer.setClearColor(startColor);
+        finishLineObj.visible = false;
+        
+        // Initial Camera Setup
+        camera3D.position.set(0, -(getElevation(0)) + 150, 300);
+        camera3D.lookAt(50, -(getElevation(0)), 0);
+
+        updateHUD();
+    }
+
+    // Button Listeners
+    document.getElementById('start-1p-btn').addEventListener('click', () => { startGame(1); });
+    document.getElementById('start-2p-btn').addEventListener('click', () => { startGame(2); });
+    document.getElementById('restart-btn').addEventListener('click', () => startGame(numPlayers));
+    
+    const instructionsScreen = document.getElementById('instructions-screen');
+    document.getElementById('instructions-btn').addEventListener('click', () => {
+        startScreen.classList.add('hidden');
+        instructionsScreen.classList.remove('hidden');
+    });
+    document.getElementById('close-instructions-btn').addEventListener('click', () => {
+        instructionsScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+    });
+
+    document.getElementById('high-scores-btn').addEventListener('click', () => {
+        startScreen.classList.add('hidden');
+        highScoreScreen.classList.remove('hidden');
+    });
+    document.getElementById('close-scores-btn').addEventListener('click', () => {
+        highScoreScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+    });
+
+    document.getElementById('pause-btn').addEventListener('click', () => {
+        if (state === 'PLAYING') {
+            state = 'PAUSED';
+            pauseScreen.classList.remove('hidden');
+        }
+    });
+    document.getElementById('resume-btn').addEventListener('click', () => {
+        state = 'PLAYING';
+        pauseScreen.classList.add('hidden');
+    });
+    document.getElementById('home-btn').addEventListener('click', () => {
+        state = 'START';
+        pauseScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+    });
+
+    function startGame(players) {
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        resetGame(players);
+        state = 'PLAYING';
+    }
+
+    function gameOver() {
+        state = 'GAMEOVER';
+        saveHighScore();
+        
+        document.getElementById('final-distance').innerText = Math.floor(Math.max(...bikes.map(b => b.distance)));
+        document.getElementById('final-flips').innerText = bikes.reduce((sum, b) => sum + b.flips, 0);
+        document.getElementById('final-score').innerText = Math.floor(Math.max(...bikes.map(b => b.score)));
+        gameOverScreen.classList.remove('hidden');
+        
+        if (navigator.vibrate) navigator.vibrate(200);
+    }
+
+    // --- Physics & Logic Loop ---
+    function updatePhysics() {
+        if (state !== 'PLAYING') return;
+
+        let allDead = true;
+        let aliveBikes = bikes.filter(b=>!b.dead);
+
+        // Level Transition Check
+        if (aliveBikes.length > 0) {
+            let maxPos = Math.max(...aliveBikes.map(b => b.x));
+            if (maxPos >= 14900) finishLineObj.visible = true;
+            finishLineObj.position.set(15000, -getElevation(15000), 0);
+
+            if (maxPos >= 15000) {
+                state = 'LEVEL_TRANSITION';
+                document.getElementById('level-title').innerText = `ZONE ${currentLevel} COMPLETE!`;
+                document.getElementById('level-complete-screen').classList.remove('hidden');
+                
+                setTimeout(() => {
+                    currentLevel++;
+                    terrainSeed1 = Math.random() * 1000;
+                    terrainSeed2 = Math.random() * 1000;
+                    lastPowerupX = 0;
+                    
+                    activePowerups.forEach(p => {
+                        scene.remove(p.mesh);
+                        p.mesh.traverse((child) => {
+                            if (child.isMesh) {
+                                child.geometry.dispose();
+                                child.material.dispose();
+                            }
+                        });
+                    });
+                    activePowerups = [];
+                    terrainChunks.forEach(c => scene.remove(c.group));
+                    terrainChunks = [];
+                    finishLineObj.visible = false;
+
+                    let nextColor = SKY_COLORS[(currentLevel - 1) % SKY_COLORS.length];
+                    scene.fog.color.setHex(nextColor);
+                    renderer.setClearColor(nextColor);
+                    
+                    bikes.forEach(b => {
+                        b.baseDistance += 1500;
+                        b.x = (b.id * 50); 
+                        b.y = getElevation(b.x) - WHEEL_RADIUS;
+                        b.vx = 0;
+                        b.vy = 0;
+                        b.angle = 0;
+                        b.lives = 3;
+                        b.invulnerable = 60;
+                        if (b.dead && !bikes.every(bk=>bk.dead)) {
+                            b.dead = false; 
+                            b.meshData.root.visible = true;
+                        }
+                    });
+
+                    // SNAP CAMERA AND LIGHTS SO THEY DON'T FLOAT OVER EMPTY SPACE
+                    let camStartX = 50;
+                    let camStartY = -getElevation(camStartX);
+                    camera3D.position.set(camStartX, camStartY + 150, 300);
+                    camera3D.lookAt(camStartX + 50, camStartY, 0);
+                    dirLight.position.set(camera3D.position.x + 100, 500, 300);
+                    dirLight.target.position.set(camera3D.position.x, 0, 0);
+                    
+                    document.getElementById('level-complete-screen').classList.add('hidden');
+                    state = 'PLAYING';
+                }, 2500);
+                return;
+            }
+        }
+
+        bikes.forEach(bike => {
+            if (bike.dead) {
+                bike.meshData.root.visible = false;
+                return;
+            }
+            allDead = false;
+            bike.meshData.root.visible = true;
+
+            // Invulnerability flashing
+            if (bike.invulnerable > 0) {
+                bike.invulnerable--;
+                let visibleState = (Math.floor(Date.now() / 100) % 2 === 0);
+                bike.meshData.root.children.forEach(c => {
+                    if(c !== bike.meshData.shieldMesh) c.visible = visibleState;
+                });
+            } else {
+                bike.meshData.root.children.forEach(c => {
+                    if(c !== bike.meshData.shieldMesh) c.visible = true;
+                });
+            }
+
+            // Powerups Effects
+            if (bike.speedBoost > 0) bike.speedBoost--;
+            if (bike.shield > 0) bike.shield--;
+            if (bike.float > 0) bike.float--;
+
+            bike.meshData.shieldMesh.visible = (bike.shield > 0);
+            if (bike.speedBoost > 0) {
+                bike.meshData.body.material.emissive.setHex(0xfbbf24);
+                bike.meshData.body.material.emissiveIntensity = 0.5;
+            } else {
+                bike.meshData.body.material.emissiveIntensity = 0;
+            }
+
+            let currentGrav = bike.float > 0 ? GRAVITY * 0.4 : GRAVITY + (currentLevel * 0.015);
+            let currentMaxSpeed = bike.speedBoost > 0 ? MAX_SPEED * 1.5 : MAX_SPEED;
+            let currentPower = bike.speedBoost > 0 ? ENGINE_POWER * 1.5 : ENGINE_POWER;
+
+            let gas = false, left = false, right = false;
+            if (bike.id === 0) {
+                gas = keys['ArrowUp'] || keys['Space'] || touchInput.gas;
+                left = keys['ArrowLeft'] || touchInput.left;
+                right = keys['ArrowRight'] || touchInput.right;
+            } else if (bike.id === 1) {
+                gas = keys['KeyW'];
+                left = keys['KeyA'];
+                right = keys['KeyD'];
+            }
+
+            bike.vy += currentGrav;
+            bike.x += bike.vx;
+            bike.y += bike.vy;
+
+            let currentRunDist = Math.max(0, bike.x / 10);
+            if (bike.baseDistance + currentRunDist > bike.distance) {
+                bike.distance = bike.baseDistance + currentRunDist;
+            }
+            bike.score = (bike.distance * 10) + (bike.flips * 2000); 
+
+            let deltaX = 25; 
+            let frontY = getElevation(bike.x + deltaX);
+            let backY = getElevation(bike.x - deltaX);
+            
+            let trueGroundY = (frontY + backY) / 2; 
+            let groundSlope = Math.atan2(frontY - backY, deltaX * 2);
+
+            if (bike.y + WHEEL_RADIUS >= trueGroundY) {
+                let angleDiff = (bike.angle - groundSlope + Math.PI) % (2 * Math.PI) - Math.PI;
+                angleDiff = angleDiff < -Math.PI ? angleDiff + 2 * Math.PI : angleDiff;
+
+                if (Math.abs(angleDiff) > Math.PI / 1.4) {
+                    if (bike.invulnerable > 0) {
+                        // pass
+                    } else if (bike.shield > 0) {
+                        bike.y -= 40; 
+                        bike.vy = -12;
+                        bike.angle = groundSlope;
+                        bike.shield = 0; 
+                    } else {
+                        playSound('crash');
+                        bike.lives--;
+                        
+                        if (bike.lives <= 0) {
+                            bike.dead = true;
+                        } else {
+                            let leader = bikes.filter(b=>!b.dead).reduce((prev, curr) => (prev.x > curr.x) ? prev : curr, bike);
+                            if (bike.id !== leader.id && (leader.x - bike.x) > 300) {
+                                bike.x = leader.x - 100; 
+                            }
+                            bike.y = getElevation(bike.x) - 150;
+                            bike.vx = Math.max(10, leader.vx); 
+                            bike.vy = 0;
+                            bike.angle = 0;
+                            bike.isGrounded = false;
+                            bike.invulnerable = 150; 
+                        }
+                        return;
+                    }
+                }
+
+                bike.y = trueGroundY - WHEEL_RADIUS;
+                bike.isGrounded = true;
+                bike.angle = groundSlope;
+                bike.angularVelocity = 0;
+                
+                if (Math.abs(bike.totalRotation) > Math.PI * 1.5) {
+                    let flipsDone = Math.floor((Math.abs(bike.totalRotation) + Math.PI*0.5) / (Math.PI * 2));
+                    if (flipsDone > 0) {
+                        bike.flips += flipsDone;
+                        playSound('coin');
+                    }
+                }
+                bike.totalRotation = 0;
+
+                let speed = Math.sqrt(bike.vx * bike.vx + bike.vy * bike.vy);
+                let direction = bike.vx >= 0 ? 1 : -1;
+                
+                if (gas) {
+                    speed += currentPower;
+                    bike.wheelSpin += 0.5;
+                }
+                speed *= FRICTION;
+                if (speed > currentMaxSpeed) speed = currentMaxSpeed;
+
+                bike.vx = Math.cos(groundSlope) * speed * direction;
+                bike.vy = Math.sin(groundSlope) * speed * direction;
+                bike.wheelSpin += bike.vx * 0.05;
+
+            } else {
+                bike.isGrounded = false;
+                bike.vx *= AIR_RESISTANCE;
+                bike.vy *= AIR_RESISTANCE;
+
+                if (left) bike.angularVelocity -= ROTATION_SPEED * 0.45;
+                if (right) bike.angularVelocity += ROTATION_SPEED * 0.45;
+
+                bike.angularVelocity *= 0.95;
+                bike.angle += bike.angularVelocity;
+                bike.totalRotation += bike.angularVelocity;
+                
+                if(gas) bike.wheelSpin += 0.3;
+            }
+
+            bike.meshData.root.position.set(bike.x, -bike.y - 0.5, bike.zDepth);
+            bike.meshData.root.rotation.z = -bike.angle;
+            bike.meshData.wFront.rotation.z = -bike.wheelSpin;
+            bike.meshData.wBack.rotation.z = -bike.wheelSpin;
+            
+            // Rider lean animation
+            let targetTorsoRot = -Math.PI / 6; 
+            if (left) targetTorsoRot = Math.PI / 8; 
+            if (right) targetTorsoRot = -Math.PI / 2.5; 
+            if (bike.isGrounded && !gas) targetTorsoRot = -Math.PI / 8;
+            
+            bike.meshData.upperBody.rotation.z += (targetTorsoRot - bike.meshData.upperBody.rotation.z) * 0.2;
+
+            // Pedaling animation (Legs moving up and down)
+            if (gas && bike.isGrounded) {
+                let pedalCycle = Date.now() * 0.015;
+                bike.meshData.legL.rotation.z = -Math.PI/6 + Math.sin(pedalCycle) * 0.5;
+                bike.meshData.legL.position.y = 14 + Math.cos(pedalCycle) * 2;
+                bike.meshData.legR.rotation.z = -Math.PI/6 + Math.sin(pedalCycle + Math.PI) * 0.5;
+                bike.meshData.legR.position.y = 14 + Math.cos(pedalCycle + Math.PI) * 2;
+            } else {
+                bike.meshData.legL.rotation.z = -Math.PI/6;
+                bike.meshData.legL.position.y = 14;
+                bike.meshData.legR.rotation.z = -Math.PI/6;
+                bike.meshData.legR.position.y = 14;
+            }
+        });
+
+        if (allDead) {
+            gameOver();
+            return;
+        }
+
+        // Handle Powerups
+        activePowerups.forEach(p => {
+            if (p.collected) return;
+            p.mesh.rotation.y += 0.05;
+            let py = getElevation(p.x) - 20 + Math.sin(Date.now()*0.005)*10; 
+            p.mesh.position.y = -py;
+
+            bikes.forEach(bike => {
+                if (bike.dead) return;
+                let dist = Math.hypot(bike.x - p.x, bike.y - py);
+                if (dist < 50) {
+                    p.collected = true;
+                    p.mesh.visible = false;
+                    POWERUP_DEFS[p.type].effect(bike);
+                }
+            });
+        });
+
+        // Cleanup passed powerups
+        let camXTarget = camera3D.position.x;
+        for (let i = activePowerups.length - 1; i >= 0; i--) {
+            if (activePowerups[i].collected || activePowerups[i].x < camXTarget - 1000) {
+                let pMesh = activePowerups[i].mesh;
+                scene.remove(pMesh);
+                pMesh.traverse((child) => {
+                    if (child.isMesh) {
+                        child.geometry.dispose();
+                        child.material.dispose();
+                    }
+                });
+                activePowerups.splice(i, 1);
+            }
+        }
+
+        // --- 3D Camera & Light Dynamic Follow ---
+        if (aliveBikes.length > 0) {
+            let leader = aliveBikes.reduce((prev, curr) => (prev.x > curr.x) ? prev : curr, aliveBikes[0]);
+            let trailer = aliveBikes.reduce((prev, curr) => (prev.x < curr.x) ? prev : curr, aliveBikes[0]);
+
+            let midX = (leader.x + trailer.x) / 2;
+            let midY = (leader.y + trailer.y) / 2;
+            
+            let spreadX = Math.abs(leader.x - trailer.x);
+            let spreadY = Math.abs(leader.y - trailer.y);
+            
+            let targetZ = 300 + Math.max(spreadX * 0.8, spreadY * 1.5);
+            let targetX = midX + 100;
+            let targetY = -midY + 150;
+
+            camera3D.position.x += (targetX - camera3D.position.x) * 0.05;
+            camera3D.position.y += (targetY - camera3D.position.y) * 0.05;
+            camera3D.position.z += (targetZ - camera3D.position.z) * 0.05;
+            
+            camera3D.lookAt(midX + 50, -midY, 0);
+            
+            dirLight.position.set(camera3D.position.x + 100, 500, 300);
+            dirLight.target.position.set(camera3D.position.x, 0, 0);
+            dirLight.target.updateMatrixWorld();
+
+            updateTerrainChunks(camera3D.position.x);
+            spawnPowerups(camera3D.position.x);
+        }
+    }
+
+    function updateHUD() {
+        let maxScore = Math.max(...bikes.map(b => b.score));
+        let maxDist = Math.max(...bikes.map(b => b.distance));
+        let totalFlips = bikes.reduce((sum, b) => sum + b.flips, 0);
+
+        scoreDisplay.innerHTML = `SCORE: ${Math.floor(maxScore || 0)}<br>
+                                  <span class="text-lg text-yellow-400">${Math.floor(maxDist || 0)}m</span><br>
+                                  <span class="text-sm text-purple-300 shadow-sm">ZONE ${currentLevel}</span>`;
+        flipsDisplay.innerHTML = `FLIPS: ${totalFlips}`;
+
+        const livesDisplay = document.getElementById('lives-display');
+        livesDisplay.innerHTML = bikes.map(b => {
+            if (b.dead) return `<span style="color:${b.colorHtml}">P${b.id+1}: DEAD</span>`;
+            return `<span style="color:${b.colorHtml}">P${b.id+1}: ${'❤️'.repeat(Math.max(0, b.lives))}</span>`;
+        }).join('<br>');
+    }
+
+    // --- Main Rendering Loop ---
+    function gameLoop() {
+        if (state === 'PLAYING') {
+            updatePhysics();
+            updateHUD();
+        }
+
+        renderer.render(scene, camera3D);
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Start render loop immediately so background is visible
+    gameLoop();
+</script>
+</body>
+</html>

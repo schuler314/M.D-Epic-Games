@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Sea Catch</title>
+    <!-- Load React, ReactDOM, and Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ensure the iframe/body has no margins and takes full height */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0f172a; /* matches slate-900 */
+        }
+        #root {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- GAME CONSTANTS ---
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 600;
+        const WATER_LEVEL = 150;
+        const BASE_BOAT_SPEED = 5;
+        const BASE_HOOK_DROP_SPEED = 6;
+        const BASE_HOOK_REEL_SPEED = 8;
+
+        const FISH_TYPES = [
+          { name: 'Minnow', color: '#10B981', w: 30, h: 15, points: 10, speed: 2, depth: [200, 300], probability: 0.5 },
+          { name: 'Salmon', color: '#F97316', w: 45, h: 20, points: 20, speed: 3, depth: [300, 450], probability: 0.3 },
+          { name: 'Tuna', color: '#3B82F6', w: 60, h: 25, points: 50, speed: 4, depth: [450, 550], probability: 0.1 },
+          { name: 'Golden', color: '#EAB308', w: 40, h: 20, points: 100, speed: 6, depth: [250, 580], probability: 0.05 },
+          { name: 'Boot', color: '#8B4513', w: 25, h: 30, points: -20, speed: 1.5, depth: [200, 580], probability: 0.15, isTrash: true }
+        ];
+
+        const POWERUP_TYPES = [
+          { type: 'TIME', color: '#06B6D4', symbol: '⏱️', text: '+15s', duration: 0 },
+          { type: 'SPEED', color: '#F59E0B', symbol: '⚡', text: 'Fast Reel!', duration: 10000 },
+          { type: 'DOUBLE', color: '#8B5CF6', symbol: '2x', text: 'Double Pts!', duration: 10000 }
+        ];
+
+        // --- LOCAL STORAGE DATABASE (IndexedDB) ---
+        const initDB = async () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('FishingGameDB', 1);
+                request.onupgradeneeded = (e) => {
+                    e.target.result.createObjectStore('data');
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        };
+
+        const saveHighScoreLocally = async (score) => {
+            try {
+                const db = await initDB();
+                const tx = db.transaction('data', 'readwrite');
+                tx.objectStore('data').put(score, 'highScore');
+            } catch (e) { console.error("Local save failed", e); }
+        };
+
+        const getHighScoreLocally = async () => {
+            try {
+                const db = await initDB();
+                return new Promise((resolve) => {
+                    const request = db.transaction('data', 'readonly').objectStore('data').get('highScore');
+                    request.onsuccess = () => resolve(request.result || 0);
+                });
+            } catch (e) { return 0; }
+        };
+
+        // --- AUDIO SYSTEM (Web Audio API) ---
+        let audioCtx = null;
+        const playSound = (type) => {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            
+            switch (type) {
+                case 'catch':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                    break;
+                case 'trash':
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                    break;
+                case 'powerup':
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.setValueAtTime(600, now + 0.1);
+                    osc.frequency.setValueAtTime(800, now + 0.2);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                    break;
+                case 'levelup':
+                    osc.type = 'sine';
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.type = 'sine';
+                        o.frequency.value = freq;
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        g.gain.setValueAtTime(0, now + i * 0.15);
+                        g.gain.linearRampToValueAtTime(0.1, now + i * 0.15 + 0.05);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.4);
+                        o.start(now + i * 0.15);
+                        o.stop(now + i * 0.15 + 0.4);
+                    });
+                    break;
+                default: break;
+            }
+        };
+
+        function App() {
+          const canvasRef = useRef(null);
+          
+          // React State
+          const [gameState, setGameState] = useState('MENU');
+          const [numPlayers, setNumPlayers] = useState(1);
+          const [level, setLevel] = useState(1);
+          const [timeLeft, setTimeLeft] = useState(60);
+          const [targetScore, setTargetScore] = useState(300);
+          const [scores, setScores] = useState([0, 0]);
+          const [highScore, setHighScore] = useState(0);
+
+          // Load High Score on Mount
+          useEffect(() => {
+              getHighScoreLocally().then(score => setHighScore(score));
+          }, []);
+
+          // Mutable Game State
+          const gameRef = useRef({
+            keys: { 
+                p1Left: false, p1Right: false, p1Drop: false,
+                p2Left: false, p2Right: false, p2Drop: false
+            },
+            players: [],
+            fishes: [],
+            powerups: [],
+            particles: [],
+            bubbles: [],
+            level: 1,
+            time: 60,
+            maxTime: 60,
+            targetScore: 300,
+            frame: 0
+          });
+
+          const initPlayers = (playersCount) => {
+              const p1 = { id: 0, x: GAME_WIDTH / 3, y: WATER_LEVEL, width: 80, height: 30, dir: 1, color: '#3B82F6', hook: { x: 0, y: WATER_LEVEL, state: 'IDLE', caught: null }, score: 0, activePowerups: {} };
+              const p2 = { id: 1, x: (GAME_WIDTH / 3) * 2, y: WATER_LEVEL, width: 80, height: 30, dir: -1, color: '#EF4444', hook: { x: 0, y: WATER_LEVEL, state: 'IDLE', caught: null }, score: 0, activePowerups: {} };
+              return playersCount === 2 ? [p1, p2] : [{...p1, x: GAME_WIDTH/2}];
+          };
+
+          const startGame = (players) => {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            setNumPlayers(players);
+            setLevel(1);
+            setTimeLeft(60);
+            setTargetScore(300);
+            setScores([0, 0]);
+            
+            gameRef.current = {
+              ...gameRef.current,
+              players: initPlayers(players),
+              fishes: [],
+              powerups: [],
+              particles: [],
+              bubbles: [],
+              level: 1,
+              time: 60,
+              maxTime: 60,
+              targetScore: 300,
+              frame: 0
+            };
+            setGameState('PLAYING');
+          };
+
+          const spawnFloatingText = useCallback((x, y, text, color) => {
+            gameRef.current.particles.push({ x, y, text, color, life: 1.0, lifeSpeed: 0.015, velocityY: -1.5 });
+          }, []);
+
+          // Main Game Loop
+          useEffect(() => {
+            if (gameState !== 'PLAYING') return;
+
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            let animationFrameId;
+            let lastTime = performance.now();
+            let secondTimer = 0;
+
+            const update = (dt) => {
+              const state = gameRef.current;
+              state.frame++;
+
+              // Level Scaling
+              const levelMultiplier = 1 + (state.level * 0.15);
+
+              // Spawn Entities
+              if (state.frame % Math.max(20, 45 - state.level * 2) === 0 && state.fishes.length < 15 + state.level * 2) {
+                const type = FISH_TYPES[Math.floor(Math.random() * FISH_TYPES.length)];
+                const dir = Math.random() > 0.5 ? 1 : -1;
+                state.fishes.push({
+                    ...type,
+                    speed: type.speed * levelMultiplier,
+                    x: dir === 1 ? -100 : GAME_WIDTH + 100,
+                    y: type.depth[0] + Math.random() * (type.depth[1] - type.depth[0]),
+                    direction: dir,
+                    phase: Math.random() * Math.PI * 2
+                });
+              }
+
+              if (state.frame % 300 === 0 && Math.random() > 0.3) {
+                  const pType = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+                  state.powerups.push({
+                      ...pType,
+                      x: Math.random() > 0.5 ? -50 : GAME_WIDTH + 50,
+                      y: 200 + Math.random() * 300,
+                      direction: Math.random() > 0.5 ? 1 : -1,
+                      speed: 2,
+                      wobblePhase: Math.random() * Math.PI * 2
+                  });
+              }
+
+              if (Math.random() > 0.9) {
+                state.bubbles.push({
+                  x: Math.random() * GAME_WIDTH, y: GAME_HEIGHT + 10,
+                  size: Math.random() * 4 + 2, speed: Math.random() * 2 + 1, wobble: Math.random() * Math.PI * 2
+                });
+              }
+
+              // Process Players
+              state.players.forEach((p, idx) => {
+                  // Controls
+                  const isLeft = idx === 0 ? state.keys.p1Left : state.keys.p2Left;
+                  const isRight = idx === 0 ? state.keys.p1Right : state.keys.p2Right;
+                  const isDrop = idx === 0 ? state.keys.p1Drop : state.keys.p2Drop;
+
+                  if (isLeft) { p.x -= BASE_BOAT_SPEED; p.dir = -1; }
+                  if (isRight) { p.x += BASE_BOAT_SPEED; p.dir = 1; }
+                  p.x = Math.max(p.width / 2, Math.min(GAME_WIDTH - p.width / 2, p.x));
+
+                  // Hook Logic
+                  const rodTipX = p.x + (p.dir * 30);
+                  const reelMod = p.activePowerups['SPEED'] && p.activePowerups['SPEED'] > Date.now() ? 2 : 1;
+                  const ptsMod = p.activePowerups['DOUBLE'] && p.activePowerups['DOUBLE'] > Date.now() ? 2 : 1;
+
+                  if (p.hook.state === 'IDLE') {
+                      p.hook.x = rodTipX;
+                      p.hook.y = WATER_LEVEL - 10;
+                      if (isDrop) p.hook.state = 'DROPPING';
+                  } else if (p.hook.state === 'DROPPING') {
+                      p.hook.x = rodTipX;
+                      p.hook.y += BASE_HOOK_DROP_SPEED;
+                      if (p.hook.y >= GAME_HEIGHT - 20) p.hook.state = 'REELING';
+                  } else if (p.hook.state === 'REELING') {
+                      p.hook.x = rodTipX;
+                      const weightMod = p.hook.caught ? (p.hook.caught.isTrash ? 0.4 : 0.7) : 1;
+                      p.hook.y -= BASE_HOOK_REEL_SPEED * weightMod * reelMod;
+
+                      if (p.hook.y <= WATER_LEVEL - 10) {
+                          if (p.hook.caught) {
+                              if (p.hook.caught.type) { // It's a Powerup
+                                  playSound('powerup');
+                                  if (p.hook.caught.type === 'TIME') {
+                                      state.time = Math.min(state.time + 15, state.maxTime);
+                                      setTimeLeft(Math.floor(state.time));
+                                  } else {
+                                      p.activePowerups[p.hook.caught.type] = Date.now() + p.hook.caught.duration;
+                                  }
+                                  spawnFloatingText(p.x, p.y - 60, p.hook.caught.text, p.hook.caught.color);
+                              } else { // It's a Fish
+                                  let pts = p.hook.caught.points;
+                                  if (pts > 0) pts *= ptsMod;
+                                  p.score += pts;
+                                  
+                                  if (p.hook.caught.isTrash) playSound('trash');
+                                  else playSound('catch');
+
+                                  const color = pts > 0 ? '#10B981' : '#EF4444';
+                                  spawnFloatingText(p.x, p.y - 40, `${pts > 0 ? '+' : ''}${pts}`, color);
+                              }
+                              p.hook.caught = null;
+                          }
+                          p.hook.state = 'IDLE';
+                      }
+                  }
+              });
+
+              // Update sync to React state
+              setScores([state.players[0].score, state.players[1]?.score || 0]);
+
+              // Move entities and check collisions
+              [state.fishes, state.powerups].forEach((arr, isPowerup) => {
+                  for (let i = arr.length - 1; i >= 0; i--) {
+                      const item = arr[i];
+
+                      // Check if caught
+                      let isCaughtBy = state.players.find(p => p.hook.caught === item);
+                      if (isCaughtBy) {
+                          item.x = isCaughtBy.hook.x;
+                          item.y = isCaughtBy.hook.y + (item.h ? item.h/2 : 0);
+                          item.isCaught = true;
+                          continue;
+                      }
+
+                      // Move
+                      item.x += item.speed * item.direction;
+                      if (!isPowerup) item.phase += 0.1;
+                      else item.y += Math.sin(state.frame * 0.05 + item.wobblePhase) * 1;
+
+                      // Despawn
+                      if ((item.direction === 1 && item.x > GAME_WIDTH + 150) || 
+                          (item.direction === -1 && item.x < -150)) {
+                          arr.splice(i, 1);
+                          continue;
+                      }
+
+                      // Collision with hooks (any contact)
+                      if (!item.isCaught) {
+                          state.players.forEach(p => {
+                              if (!p.hook.caught) {
+                                  // Determine dimensions (Powerups are a fixed 30x30 circle, fish have w/h)
+                                  const w = isPowerup ? 30 : item.w;
+                                  const h = isPowerup ? 30 : item.h;
+                                  
+                                  // Rectangular collision check with generous padding (10px) to ensure any visual contact works
+                                  const hitX = Math.abs(p.hook.x - item.x) < (w / 2 + 10);
+                                  const hitY = Math.abs(p.hook.y - item.y) < (h / 2 + 10);
+                                  
+                                  if (hitX && hitY) {
+                                      p.hook.caught = item;
+                                      item.isCaught = true;
+                                      p.hook.state = 'REELING';
+                                      for(let b=0; b<5; b++) state.bubbles.push({ x: p.hook.x, y: p.hook.y, size: 3, speed: 4, wobble: 0 });
+                                  }
+                              }
+                          });
+                      }
+                  }
+              });
+
+              // Bubbles & Particles
+              for (let i = state.bubbles.length - 1; i >= 0; i--) {
+                const b = state.bubbles[i];
+                b.y -= b.speed;
+                b.x += Math.sin(state.frame * 0.05 + b.wobble) * 1;
+                if (b.y < WATER_LEVEL) state.bubbles.splice(i, 1);
+              }
+              for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.y += p.velocityY;
+                p.life -= p.lifeSpeed;
+                if (p.life <= 0) state.particles.splice(i, 1);
+              }
+
+              // Level logic
+              const totalScore = state.players.reduce((sum, p) => sum + p.score, 0);
+              if (totalScore >= state.targetScore) {
+                  playSound('levelup');
+                  setGameState('LEVEL_TRANSITION');
+              }
+            };
+
+            const draw = () => {
+              const state = gameRef.current;
+              
+              // Sky & Sun
+              ctx.fillStyle = ctx.createLinearGradient(0, 0, 0, WATER_LEVEL);
+              ctx.fillStyle.addColorStop(0, '#87CEEB'); ctx.fillStyle.addColorStop(1, '#E0F6FF');
+              ctx.fillRect(0, 0, GAME_WIDTH, WATER_LEVEL);
+              ctx.fillStyle = '#FDE047'; ctx.beginPath(); ctx.arc(GAME_WIDTH - 80, 60, 40, 0, Math.PI * 2); ctx.fill();
+
+              // Mountains
+              ctx.fillStyle = '#94A3B8'; ctx.beginPath();
+              ctx.moveTo(0, WATER_LEVEL); ctx.lineTo(150, 50); ctx.lineTo(350, WATER_LEVEL);
+              ctx.lineTo(500, 80); ctx.lineTo(GAME_WIDTH, WATER_LEVEL); ctx.fill();
+
+              // Water & Waves
+              ctx.fillStyle = ctx.createLinearGradient(0, WATER_LEVEL, 0, GAME_HEIGHT);
+              ctx.fillStyle.addColorStop(0, '#0EA5E9'); ctx.fillStyle.addColorStop(1, '#082F49');
+              ctx.fillRect(0, WATER_LEVEL, GAME_WIDTH, GAME_HEIGHT - WATER_LEVEL);
+              ctx.strokeStyle = '#38BDF8'; ctx.lineWidth = 2; ctx.beginPath();
+              for(let w = 0; w < GAME_WIDTH; w+=20) ctx.lineTo(w, WATER_LEVEL + Math.sin(state.frame * 0.05 + w * 0.05) * 4);
+              ctx.stroke();
+
+              // Bubbles
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+              state.bubbles.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2); ctx.fill(); });
+
+              // Powerups
+              state.powerups.forEach(p => {
+                  ctx.save();
+                  ctx.translate(p.x, p.y);
+                  ctx.fillStyle = p.color;
+                  ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
+                  ctx.fillStyle = '#FFF'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline='middle';
+                  ctx.fillText(p.symbol, 0, 0);
+                  ctx.restore();
+              });
+
+              // Fishes
+              state.fishes.forEach(fish => {
+                ctx.save();
+                ctx.translate(fish.x, fish.y);
+                if (fish.direction === -1) ctx.scale(-1, 1);
+
+                if (fish.isTrash) {
+                    ctx.fillStyle = fish.color; ctx.beginPath();
+                    ctx.moveTo(10, -15); ctx.lineTo(10, 5); ctx.lineTo(15, 10); ctx.lineTo(-5, 10);
+                    ctx.lineTo(-5, 5); ctx.lineTo(-2, -5); ctx.lineTo(-5, -15); ctx.fill();
+                } else {
+                    const wiggle = Math.sin(fish.phase) * 5;
+                    ctx.fillStyle = fish.color; ctx.beginPath();
+                    ctx.moveTo(-fish.w/2 + 5, 0); ctx.lineTo(-fish.w/2 - 10, -10 + wiggle); ctx.lineTo(-fish.w/2 - 10, 10 + wiggle); ctx.fill();
+                    ctx.beginPath(); ctx.ellipse(0, 0, fish.w/2, fish.h/2, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.arc(fish.w/2 - 8, -3, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(fish.w/2 - 7, -3, 1.5, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.beginPath(); ctx.ellipse(0, 0, fish.w/4, fish.h/4, 0, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.restore();
+              });
+
+              // Players (Lines, Hooks, Boats)
+              state.players.forEach(p => {
+                  const rodTipX = p.x + (p.dir * 35);
+                  const rodTipY = p.y - 15;
+                  
+                  // Line & Hook
+                  ctx.strokeStyle = '#E2E8F0'; ctx.lineWidth = p.activePowerups['SPEED'] > Date.now() ? 3 : 1;
+                  ctx.beginPath(); ctx.moveTo(rodTipX, rodTipY); ctx.lineTo(p.hook.x, p.hook.y); ctx.stroke();
+                  ctx.strokeStyle = '#9CA3AF'; ctx.lineWidth = 2; ctx.beginPath();
+                  ctx.arc(p.hook.x - 3, p.hook.y + 4, 4, 0, Math.PI, false); ctx.lineTo(p.hook.x + 1, p.hook.y - 4); ctx.stroke();
+
+                  // Boat & Fisherman
+                  ctx.save();
+                  ctx.translate(p.x, p.y);
+                  
+                  // Powerup Aura
+                  if (p.activePowerups['DOUBLE'] > Date.now()) {
+                      ctx.fillStyle = 'rgba(139, 92, 246, 0.3)';
+                      ctx.beginPath(); ctx.ellipse(0, 0, 60, 30, 0, 0, Math.PI*2); ctx.fill();
+                  }
+
+                  ctx.fillStyle = '#78350F'; ctx.beginPath();
+                  ctx.moveTo(-p.width/2, -5); ctx.lineTo(p.width/2, -5); ctx.lineTo(p.width/2 - 10, 15); ctx.lineTo(-p.width/2 + 10, 15); ctx.fill();
+                  
+                  ctx.fillStyle = '#FCA5A5'; ctx.beginPath(); ctx.arc(-10 * p.dir, -15, 6, 0, Math.PI*2); ctx.fill();
+                  ctx.fillStyle = p.color; ctx.fillRect(-14 * p.dir, -10, 8, 12); // Colored body
+                  ctx.fillStyle = '#F59E0B'; ctx.beginPath(); ctx.arc(-10 * p.dir, -17, 7, Math.PI, 0); ctx.fill();
+                  ctx.fillRect(-15 * p.dir, -17, 10, 2);
+                  
+                  ctx.strokeStyle = '#4B5563'; ctx.lineWidth = 3; ctx.beginPath();
+                  ctx.moveTo(-10 * p.dir, -5); ctx.lineTo(35 * p.dir, -15); ctx.stroke();
+                  ctx.restore();
+              });
+
+              // Particles
+              ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
+              state.particles.forEach(p => {
+                  ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+                  ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+                  ctx.fillText(p.text, p.x, p.y); ctx.shadowBlur = 0;
+              });
+              ctx.globalAlpha = 1.0;
+            };
+
+            const loop = (timestamp) => {
+              const dt = timestamp - lastTime;
+              lastTime = timestamp;
+
+              // Timer update
+              secondTimer += dt;
+              if (secondTimer >= 1000) {
+                  gameRef.current.time -= 1;
+                  setTimeLeft(Math.floor(gameRef.current.time));
+                  secondTimer = 0;
+
+                  if (gameRef.current.time <= 0) {
+                      const finalScore = gameRef.current.players.reduce((s, p) => s + p.score, 0);
+                      if (finalScore > highScore) {
+                          setHighScore(finalScore);
+                          saveHighScoreLocally(finalScore);
+                      }
+                      setGameState('GAMEOVER');
+                      return;
+                  }
+              }
+
+              update(dt);
+              draw();
+              animationFrameId = requestAnimationFrame(loop);
+            };
+            
+            animationFrameId = requestAnimationFrame(loop);
+            return () => cancelAnimationFrame(animationFrameId);
+          }, [gameState, spawnFloatingText, highScore]);
+
+          // Keyboard Mapping
+          useEffect(() => {
+            const handleKeyDown = (e) => {
+              if (gameState === 'PLAYING' && (e.key === 'p' || e.key === 'Escape')) {
+                  setGameState('PAUSED');
+                  return;
+              }
+
+              const keys = gameRef.current.keys;
+              // P1 Controls
+              if (e.key === 'a' || e.key === 'A') keys.p1Left = true;
+              if (e.key === 'd' || e.key === 'D') keys.p1Right = true;
+              if (e.key === 's' || e.key === 'S' || e.key === 'w' || e.key === 'W') { keys.p1Drop = true; e.preventDefault(); }
+              
+              // P2 / General Controls
+              if (e.key === 'ArrowLeft') { if(numPlayers===2) keys.p2Left=true; else keys.p1Left=true; }
+              if (e.key === 'ArrowRight') { if(numPlayers===2) keys.p2Right=true; else keys.p1Right=true; }
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === ' ') { 
+                  if(numPlayers===2) keys.p2Drop=true; else keys.p1Drop=true; 
+                  e.preventDefault(); 
+              }
+            };
+
+            const handleKeyUp = (e) => {
+              const keys = gameRef.current.keys;
+              if (e.key === 'a' || e.key === 'A') keys.p1Left = false;
+              if (e.key === 'd' || e.key === 'D') keys.p1Right = false;
+              if (e.key === 's' || e.key === 'S' || e.key === 'w' || e.key === 'W') keys.p1Drop = false;
+              
+              if (e.key === 'ArrowLeft') { keys.p2Left = false; keys.p1Left = false; }
+              if (e.key === 'ArrowRight') { keys.p2Right = false; keys.p1Right = false; }
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === ' ') { keys.p2Drop = false; keys.p1Drop = false; }
+            };
+
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
+          }, [gameState, numPlayers]);
+
+          const startNextLevel = () => {
+              const state = gameRef.current;
+              state.level++;
+              state.maxTime = 60 + (state.level - 1) * 15;
+              state.time = state.maxTime; // Refill the clock for the new level
+              state.targetScore += 300 * state.level;
+              
+              // Clear entities from previous level
+              state.fishes = [];
+              state.powerups = [];
+              state.particles = [];
+              state.bubbles = [];
+              
+              // Reset players
+              state.players.forEach(p => {
+                  p.hook.state = 'IDLE';
+                  p.hook.caught = null;
+                  p.hook.y = WATER_LEVEL - 10;
+                  p.activePowerups = {}; 
+              });
+              
+              setLevel(state.level);
+              setTargetScore(state.targetScore);
+              setTimeLeft(Math.floor(state.time));
+              setGameState('PLAYING');
+          };
+
+          return (
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 font-sans text-slate-100 select-none">
+              <div className="max-w-[800px] w-full relative rounded-xl overflow-hidden shadow-2xl shadow-cyan-900/20 bg-slate-800 border-4 border-slate-700">
+                
+                {/* HUD */}
+                {(gameState === 'PLAYING' || gameState === 'PAUSED') && (
+                  <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none z-10">
+                    <div className="flex gap-4">
+                        <div className="bg-slate-900/80 px-4 py-2 rounded-lg border border-blue-500/50 backdrop-blur-sm">
+                          <p className="text-blue-400 text-xs font-bold uppercase">P1 Score</p>
+                          <p className="text-2xl font-black text-white">{scores[0]}</p>
+                        </div>
+                        {numPlayers === 2 && (
+                            <div className="bg-slate-900/80 px-4 py-2 rounded-lg border border-red-500/50 backdrop-blur-sm">
+                              <p className="text-red-400 text-xs font-bold uppercase">P2 Score</p>
+                              <p className="text-2xl font-black text-white">{scores[1]}</p>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="flex flex-col items-center pointer-events-auto">
+                        <div className="bg-slate-900/80 px-6 py-2 rounded-lg border border-yellow-500/50 backdrop-blur-sm text-center mb-2">
+                          <p className="text-yellow-400 text-xs font-bold uppercase">Lvl {level} Target</p>
+                          <p className="text-xl font-black text-white">{targetScore}</p>
+                        </div>
+                        <button 
+                          onClick={() => setGameState('PAUSED')}
+                          className="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-full shadow border border-slate-500 transition"
+                        >
+                            ⏸️ Pause
+                        </button>
+                    </div>
+
+                    <div className="bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-600/50 backdrop-blur-sm text-right">
+                      <p className="text-amber-400 text-xs font-bold uppercase">Time</p>
+                      <p className={`text-2xl font-black ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                        {timeLeft}s
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Canvas */}
+                <canvas ref={canvasRef} width={GAME_WIDTH} height={GAME_HEIGHT} className="w-full h-auto block bg-slate-800" style={{ aspectRatio: '800/600' }} />
+
+                {/* OVERLAYS */}
+                {gameState === 'MENU' && (
+                  <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm z-20">
+                    <div className="text-7xl mb-2">🎣</div>
+                    <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-blue-600 mb-2">
+                      Deep Sea Catch
+                    </h1>
+                    <p className="text-yellow-400 font-bold tracking-widest uppercase mb-8">Local High Score: {highScore}</p>
+                    
+                    <div className="flex gap-4 mb-6">
+                        <button onClick={() => startGame(1)} className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform transition active:scale-95 border-2 border-blue-400">
+                          1 Player Start
+                        </button>
+                        <button onClick={() => startGame(2)} className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform transition active:scale-95 border-2 border-red-400">
+                          2 Player Co-op
+                        </button>
+                    </div>
+
+                    <button onClick={() => setGameState('INSTRUCTIONS')} className="text-slate-300 hover:text-white underline decoration-slate-500 underline-offset-4">
+                        How to Play
+                    </button>
+                  </div>
+                )}
+
+                {gameState === 'INSTRUCTIONS' && (
+                    <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md z-20">
+                        <h2 className="text-4xl font-black text-cyan-400 mb-6">How to Play</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left max-w-2xl w-full">
+                            <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
+                                <h3 className="font-bold text-xl text-white mb-2">Controls</h3>
+                                <p className="text-slate-300 mb-2"><strong className="text-blue-400">Player 1:</strong> <kbd className="bg-slate-700 px-1 rounded">A</kbd> <kbd className="bg-slate-700 px-1 rounded">D</kbd> to move, <kbd className="bg-slate-700 px-1 rounded">W</kbd> / <kbd className="bg-slate-700 px-1 rounded">S</kbd> to drop hook.</p>
+                                <p className="text-slate-300"><strong className="text-red-400">Player 2:</strong> <kbd className="bg-slate-700 px-1 rounded">←</kbd> <kbd className="bg-slate-700 px-1 rounded">→</kbd> to move, <kbd className="bg-slate-700 px-1 rounded">↑</kbd> / <kbd className="bg-slate-700 px-1 rounded">↓</kbd> to drop hook.</p>
+                                <p className="text-slate-400 text-sm mt-4">* In 1-player mode, arrow keys or spacebar also work.</p>
+                            </div>
+                            <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
+                                <h3 className="font-bold text-xl text-white mb-2">Powerups & Mechanics</h3>
+                                <p className="text-slate-300 mb-2">Catch fish to increase score. Reach the <strong>Target Score</strong> to level up and gain +20 seconds!</p>
+                                <ul className="text-slate-300 text-sm space-y-1">
+                                    <li>⏱️ <strong>Time:</strong> Adds 15 seconds instantly.</li>
+                                    <li>⚡ <strong>Speed:</strong> Reels hook 2x faster (10s).</li>
+                                    <li>2x <strong>Multiplier:</strong> Double points (10s).</li>
+                                    <li>🥾 <strong>Trash:</strong> Avoid boots! (-20 pts).</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button onClick={() => setGameState('MENU')} className="mt-8 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-10 rounded-full text-lg shadow-lg transition">
+                            Back to Menu
+                        </button>
+                    </div>
+                )}
+
+                {gameState === 'PAUSED' && (
+                    <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md z-30">
+                        <h2 className="text-5xl font-black text-white mb-8">Game Paused</h2>
+                        <div className="flex flex-col gap-4 w-64">
+                            <button onClick={() => setGameState('PLAYING')} className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-3 px-6 rounded-xl text-xl shadow-lg transition">
+                                Resume
+                            </button>
+                            <button onClick={() => setGameState('MENU')} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl text-xl shadow-lg transition">
+                                Quit to Home
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {gameState === 'LEVEL_TRANSITION' && (
+                    <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md z-30">
+                        <h2 className="text-6xl font-black text-yellow-400 mb-4 animate-bounce">Level {level} Cleared!</h2>
+                        <div className="bg-slate-800 p-6 rounded-2xl border-2 border-yellow-500/50 mb-8 w-80 shadow-2xl">
+                            <p className="text-slate-300 mb-2 font-bold uppercase tracking-wider">Target Reached</p>
+                            <p className="text-5xl font-black text-white mb-6">{targetScore}</p>
+                            <div className="flex justify-between text-sm text-cyan-300 font-bold uppercase border-t border-slate-700 pt-4">
+                                <span>Next Target:</span>
+                                <span>{targetScore + 300 * (level + 1)}</span>
+                            </div>
+                        </div>
+                        <button onClick={startNextLevel} className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-black py-4 px-12 rounded-full text-2xl shadow-[0_0_20px_rgba(234,179,8,0.3)] transform transition active:scale-95">
+                            Start Level {level + 1}
+                        </button>
+                    </div>
+                )}
+
+                {gameState === 'GAMEOVER' && (
+                  <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md z-20">
+                    <h2 className="text-4xl font-black text-red-400 mb-2">Time's Up!</h2>
+                    <p className="text-slate-400 mb-6">You reached Level {level}</p>
+                    
+                    <div className="bg-slate-800 border-2 border-slate-700 rounded-2xl p-8 mb-8 shadow-2xl">
+                      <p className="text-sm uppercase tracking-widest text-cyan-500 font-bold mb-2">Total Score</p>
+                      <p className="text-7xl font-black text-white">{scores.reduce((a,b)=>a+b,0)}</p>
+                      {scores.reduce((a,b)=>a+b,0) >= highScore && scores.reduce((a,b)=>a+b,0) > 0 && (
+                          <p className="text-yellow-400 font-bold animate-pulse mt-2">New High Score!</p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-4">
+                        <button onClick={() => startGame(numPlayers)} className="bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transition">
+                          Play Again
+                        </button>
+                        <button onClick={() => setGameState('MENU')} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transition">
+                          Home Screen
+                        </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

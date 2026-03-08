@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Naval Combat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; color: white; user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        .btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; cursor: pointer; pointer-events: auto; text-align: center; }
+        .btn-primary { background: linear-gradient(to right, #2563eb, #3b82f6); color: white; box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-danger { background: linear-gradient(to right, #dc2626, #ef4444); color: white; }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+        .powerup-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 0.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; cursor: pointer; pointer-events: auto; transition: all 0.2s; }
+        .powerup-btn:hover { background: rgba(51, 65, 85, 0.9); border-color: #64748b; }
+        .powerup-btn.active { border-color: #3b82f6; background: rgba(37, 99, 235, 0.2); box-shadow: 0 0 15px rgba(37, 99, 235, 0.5); }
+        .powerup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .powerup-count { background: #ef4444; color: white; font-size: 0.75rem; font-weight: bold; border-radius: 9999px; padding: 0.1rem 0.4rem; position: absolute; top: -5px; right: -5px; }
+        
+        /* Grid crosshair cursor when hovering canvas */
+        #canvas-container canvas { cursor: crosshair; }
+        
+        /* Hide scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="ui-layer" class="flex flex-col">
+    <!-- Main Menu -->
+    <div id="screen-home" class="absolute inset-0 flex items-center justify-center pointer-events-auto">
+        <div class="glass-panel p-10 max-w-md w-full text-center flex flex-col gap-6">
+            <div>
+                <h1 class="text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">NAVAL COMBAT</h1>
+                <p class="text-blue-200 tracking-widest text-sm">TACTICAL 3D WARFARE</p>
+            </div>
+            <div class="flex flex-col gap-4 mt-4">
+                <button class="btn btn-primary" onclick="startGame(1)">1 Player (Infinite Levels)</button>
+                <button class="btn btn-primary" onclick="startGame(2)">2 Player (Pass & Play)</button>
+                <button class="btn btn-secondary" onclick="showScreen('screen-instructions')">How to Play</button>
+                <button class="btn btn-secondary" onclick="showScreen('screen-highscores'); loadHighScores();">Local High Scores</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div id="screen-instructions" class="absolute inset-0 flex items-center justify-center hidden pointer-events-auto">
+        <div class="glass-panel p-8 max-w-lg w-full flex flex-col gap-4">
+            <h2 class="text-3xl font-bold border-b border-gray-600 pb-2 mb-2">Commander's Manual</h2>
+            <div class="overflow-y-auto max-h-96 pr-2 text-gray-300 text-sm space-y-3">
+                <p><strong class="text-white">Objective:</strong> Destroy the enemy's entire fleet before they destroy yours.</p>
+                <p><strong class="text-white">Gameplay:</strong> Click on the enemy grid to launch a missile. Red pegs indicate a HIT. White pegs indicate a MISS. Completely hit a ship to sink it.</p>
+                <p><strong class="text-white">1 Player Mode:</strong> Face an increasingly difficult AI across infinite levels. Winning a level grants you points and random powerups.</p>
+                <p><strong class="text-white">2 Player Mode:</strong> Pass and play on the same device. The screen will hide the board during transitions.</p>
+                <h3 class="text-xl font-bold text-blue-400 mt-4">Powerups</h3>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong class="text-yellow-400">Airstrike:</strong> Bombs an entire random row automatically.</li>
+                    <li><strong class="text-green-400">Sonar:</strong> Click a target to safely reveal a 3x3 area without using a turn.</li>
+                    <li><strong class="text-purple-400">Double Tap:</strong> Grants an immediate extra shot this turn.</li>
+                </ul>
+            </div>
+            <button class="btn btn-secondary mt-4" onclick="showScreen('screen-home')">Back to Base</button>
+        </div>
+    </div>
+
+    <!-- High Scores -->
+    <div id="screen-highscores" class="absolute inset-0 flex items-center justify-center hidden pointer-events-auto">
+        <div class="glass-panel p-8 max-w-md w-full flex flex-col gap-4">
+            <h2 class="text-3xl font-bold border-b border-gray-600 pb-2 text-center text-cyan-400">Hall of Fame</h2>
+            <p class="text-xs text-center text-gray-400 mb-2">Saved locally to this device</p>
+            <div class="overflow-y-auto h-64 pr-2">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-gray-400 text-sm border-b border-gray-700">
+                            <th class="pb-2">Rank</th>
+                            <th class="pb-2">Name</th>
+                            <th class="pb-2 text-right">Score</th>
+                            <th class="pb-2 text-right">Level</th>
+                        </tr>
+                    </thead>
+                    <tbody id="highscore-list">
+                        <!-- Scores injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-secondary mt-4" onclick="showScreen('screen-home')">Back to Base</button>
+        </div>
+    </div>
+
+    <!-- Fleet Setup / Transition Screen -->
+    <div id="screen-intermission" class="absolute inset-0 flex items-center justify-center hidden pointer-events-auto bg-slate-900/95 z-50">
+        <div class="glass-panel p-10 max-w-md w-full text-center flex flex-col gap-6">
+            <h2 id="intermission-title" class="text-4xl font-bold text-white">Player 1's Turn</h2>
+            <p id="intermission-desc" class="text-gray-300">Commanding Officer, prepare your strategy.</p>
+            
+            <div id="setup-controls" class="hidden flex-col gap-4 mt-4">
+                <p class="text-sm text-blue-300 mb-2">Your fleet has been auto-deployed. You can reshuffle if you don't like the positions.</p>
+                <button class="btn btn-secondary" onclick="gameLogic.reshuffleCurrentPlayer()">Reshuffle Fleet</button>
+            </div>
+
+            <button id="intermission-btn" class="btn btn-primary mt-4 text-lg" onclick="endIntermission()">Begin Command</button>
+        </div>
+    </div>
+
+    <!-- Game HUD -->
+    <div id="screen-hud" class="absolute inset-0 hidden flex-col justify-between pointer-events-none p-4">
+        <!-- Top Bar -->
+        <div class="flex justify-between items-start pointer-events-auto">
+            <div class="glass-panel px-4 py-2 flex flex-col">
+                <span id="hud-turn" class="text-xl font-bold text-blue-400">Player 1</span>
+                <span id="hud-status" class="text-sm text-gray-300">Select a target coordinate...</span>
+            </div>
+            
+            <div class="flex gap-4">
+                <div id="score-container" class="glass-panel px-4 py-2 flex flex-col items-end">
+                    <span class="text-xs text-gray-400 uppercase">Score</span>
+                    <span id="hud-score" class="text-xl font-mono font-bold">0</span>
+                    <span id="hud-level" class="text-xs text-cyan-300">Level 1</span>
+                </div>
+                <button class="btn btn-secondary !p-2" onclick="togglePause()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Bar (Powerups & View Toggle) -->
+        <div class="flex justify-between items-end pointer-events-auto">
+            <!-- Powerups -->
+            <div class="flex gap-3" id="powerup-container">
+                <button class="powerup-btn relative" onclick="activatePowerup('airstrike')" id="btn-powerup-airstrike" title="Airstrike (Random Row)">
+                    <span class="text-2xl">✈️</span>
+                    <span class="powerup-count" id="count-airstrike">0</span>
+                </button>
+                <button class="powerup-btn relative" onclick="activatePowerup('sonar')" id="btn-powerup-sonar" title="Sonar (Reveal 3x3)">
+                    <span class="text-2xl">📡</span>
+                    <span class="powerup-count" id="count-sonar">0</span>
+                </button>
+                <button class="powerup-btn relative" onclick="activatePowerup('doubletap')" id="btn-powerup-doubletap" title="Double Tap (Extra Shot)">
+                    <span class="text-2xl">⚡</span>
+                    <span class="powerup-count" id="count-doubletap">0</span>
+                </button>
+            </div>
+            
+            <!-- View Toggle -->
+            <button class="btn btn-secondary flex items-center gap-2" id="btn-view-toggle" onclick="toggleBoardView()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <span>View My Fleet</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="screen-pause" class="absolute inset-0 flex items-center justify-center hidden pointer-events-auto bg-black/60 z-50">
+        <div class="glass-panel p-8 max-w-sm w-full text-center flex flex-col gap-4">
+            <h2 class="text-3xl font-bold mb-4">PAUSED</h2>
+            <button class="btn btn-primary" onclick="togglePause()">Resume Operations</button>
+            <button class="btn btn-secondary mt-2" onclick="quitGame()">Abort Mission (Home)</button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="screen-gameover" class="absolute inset-0 flex items-center justify-center hidden pointer-events-auto bg-black/80 z-50">
+        <div class="glass-panel p-10 max-w-md w-full text-center flex flex-col gap-6">
+            <h2 id="gameover-title" class="text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400">DEFEAT</h2>
+            <p id="gameover-stats" class="text-lg text-gray-300">Final Score: 0<br>Reached Level 1</p>
+            
+            <div id="highscore-entry" class="hidden flex-col gap-3 mt-4">
+                <p class="text-cyan-300 font-bold text-sm uppercase">New High Score!</p>
+                <input type="text" id="player-name" placeholder="Enter Commander Name" class="p-3 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500" maxlength="12">
+            </div>
+
+            <button class="btn btn-primary mt-4" onclick="handleGameOverAction()" id="gameover-btn">Save & Continue</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * AUDIO SYSTEM (Web Audio API)
+ * Generates synthetic retro sound effects.
+ */
+const AudioSys = {
+    ctx: null,
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    },
+    playOscillator(type, freq1, freq2, duration, vol = 0.1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.frequency.setValueAtTime(freq1, this.ctx.currentTime);
+        if (freq2) {
+            osc.frequency.exponentialRampToValueAtTime(freq2, this.ctx.currentTime + duration);
+        }
+        
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    playNoise(duration, vol = 0.2) {
+        if (!this.ctx) return;
+        const bufferSize = this.ctx.sampleRate * duration;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        
+        noise.start();
+    },
+    shoot() { this.playOscillator('square', 400, 100, 0.3, 0.05); },
+    hit() { 
+        this.playOscillator('sawtooth', 150, 40, 0.5, 0.2); 
+        setTimeout(() => this.playNoise(0.4, 0.3), 50);
+    },
+    miss() { 
+        this.playOscillator('sine', 300, 200, 0.3, 0.1); 
+        setTimeout(() => this.playNoise(0.2, 0.05), 100);
+    },
+    sink() {
+        this.playOscillator('sawtooth', 100, 20, 1.0, 0.3);
+        this.playNoise(1.0, 0.5);
+    },
+    powerup() {
+        this.playOscillator('sine', 400, 800, 0.4, 0.1);
+        setTimeout(() => this.playOscillator('sine', 600, 1200, 0.4, 0.1), 100);
+    },
+    error() { this.playOscillator('square', 150, 100, 0.2, 0.1); },
+    win() {
+        [300, 400, 500, 600, 800].forEach((f, i) => {
+            setTimeout(() => this.playOscillator('square', f, f, 0.2, 0.1), i * 150);
+        });
+    }
+};
+
+/**
+ * DATABASE SYSTEM (IndexedDB)
+ * Saves high scores locally as requested, bypassing standard localStorage.
+ */
+const DBManager = {
+    db: null,
+    init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('NavalCombatDB', 1);
+            request.onerror = (e) => reject("DB Error");
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('scores')) {
+                    const store = db.createObjectStore('scores', { keyPath: 'id', autoIncrement: true });
+                    store.createIndex('score', 'score', { unique: false });
+                }
+            };
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve();
+            };
+        });
+    },
+    saveScore(name, score, level) {
+        if (!this.db) return;
+        const tx = this.db.transaction(['scores'], 'readwrite');
+        const store = tx.objectStore('scores');
+        store.add({ name: name || 'Unknown', score, level, date: new Date().getTime() });
+    },
+    getHighScores() {
+        return new Promise((resolve) => {
+            if (!this.db) return resolve([]);
+            const tx = this.db.transaction(['scores'], 'readonly');
+            const store = tx.objectStore('scores');
+            const request = store.getAll();
+            request.onsuccess = () => {
+                let scores = request.result;
+                scores.sort((a, b) => b.score - a.score);
+                resolve(scores.slice(0, 10)); // Top 10
+            };
+        });
+    }
+};
+
+/**
+ * 3D SCENE & RENDERER (Three.js)
+ */
+const Scene3D = {
+    scene: null, camera: null, renderer: null, raycaster: null, mouse: null,
+    boardGroup: null, shipsGroup: null, pegsGroup: null, particles: [],
+    waterMaterial: null, hoverMesh: null,
+    isInitialized: false,
+    
+    init() {
+        if (this.isInitialized) return;
+        
+        const container = document.getElementById('canvas-container');
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color('#0f172a'); // Match tailwind slate-900
+        this.scene.fog = new THREE.FogExp2('#0f172a', 0.02);
+
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 12, 12);
+        this.camera.lookAt(0, 0, 0);
+
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(this.renderer.domElement);
+
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2(-2, -2); // Start offscreen
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        this.scene.add(dirLight);
+
+        // Board setup
+        this.boardGroup = new THREE.Group();
+        this.shipsGroup = new THREE.Group();
+        this.pegsGroup = new THREE.Group();
+        this.scene.add(this.boardGroup);
+        this.scene.add(this.shipsGroup);
+        this.scene.add(this.pegsGroup);
+
+        // Water base
+        const waterGeo = new THREE.PlaneGeometry(10, 10);
+        this.waterMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1e3a8a, // blue-900
+            transparent: true, opacity: 0.8,
+            roughness: 0.2, metalness: 0.1
+        });
+        const water = new THREE.Mesh(waterGeo, this.waterMaterial);
+        water.rotation.x = -Math.PI / 2;
+        water.position.y = -0.1;
+        this.boardGroup.add(water);
+
+        // Grid Lines
+        const gridHelper = new THREE.GridHelper(10, 10, 0x3b82f6, 0x1e40af);
+        gridHelper.position.y = 0.01;
+        this.boardGroup.add(gridHelper);
+
+        // Invisible plane for raycasting
+        const hitPlaneGeo = new THREE.PlaneGeometry(10, 10);
+        const hitPlaneMat = new THREE.MeshBasicMaterial({ visible: false });
+        this.hitPlane = new THREE.Mesh(hitPlaneGeo, hitPlaneMat);
+        this.hitPlane.rotation.x = -Math.PI / 2;
+        this.boardGroup.add(this.hitPlane);
+
+        // Hover indicator
+        const hoverGeo = new THREE.PlaneGeometry(1, 1);
+        const hoverMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+        this.hoverMesh = new THREE.Mesh(hoverGeo, hoverMat);
+        this.hoverMesh.rotation.x = -Math.PI / 2;
+        this.hoverMesh.position.y = 0.02;
+        this.hoverMesh.visible = false;
+        this.boardGroup.add(this.hoverMesh);
+
+        // Events
+        window.addEventListener('resize', () => this.onWindowResize());
+        container.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        container.addEventListener('click', (e) => this.onClick(e));
+        container.addEventListener('touchstart', (e) => {
+            if(e.touches.length > 0) {
+                e.clientX = e.touches[0].clientX;
+                e.clientY = e.touches[0].clientY;
+                this.onMouseMove(e);
+            }
+        });
+        container.addEventListener('touchend', (e) => {
+            this.onClick(e); // Simplistic touch handling
+        });
+
+        this.isInitialized = true;
+        this.animate();
+    },
+
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    },
+
+    getGridFromPosition(x, z) {
+        let gridX = Math.floor(x + 5);
+        let gridZ = Math.floor(z + 5);
+        if (gridX < 0) gridX = 0; if (gridX > 9) gridX = 9;
+        if (gridZ < 0) gridZ = 0; if (gridZ > 9) gridZ = 9;
+        return { x: gridX, y: gridZ }; // y is z in 2D array
+    },
+
+    getPositionFromGrid(gx, gy) {
+        return { x: gx - 4.5, z: gy - 4.5 };
+    },
+
+    onMouseMove(event) {
+        if (!gameLogic.isPlaying || gameLogic.isPaused || gameLogic.isTransitioning) return;
+        
+        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObject(this.hitPlane);
+
+        if (intersects.length > 0 && gameLogic.canPlayerInteract()) {
+            const p = intersects[0].point;
+            const grid = this.getGridFromPosition(p.x, p.z);
+            const pos = this.getPositionFromGrid(grid.x, grid.y);
+            
+            this.hoverMesh.position.set(pos.x, 0.02, pos.z);
+            this.hoverMesh.visible = true;
+            
+            // Adjust hover color based on powerup
+            if (gameLogic.activePowerup === 'sonar') {
+                this.hoverMesh.scale.set(3, 3, 1);
+                this.hoverMesh.material.color.setHex(0x34d399); // green
+            } else {
+                this.hoverMesh.scale.set(1, 1, 1);
+                this.hoverMesh.material.color.setHex(0xffffff);
+            }
+        } else {
+            this.hoverMesh.visible = false;
+        }
+    },
+
+    onClick(event) {
+        if (!gameLogic.isPlaying || gameLogic.isPaused || gameLogic.isTransitioning) return;
+        
+        // Ensure audio context is initialized on first user interaction
+        AudioSys.init();
+
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObject(this.hitPlane);
+
+        if (intersects.length > 0 && gameLogic.canPlayerInteract()) {
+            const p = intersects[0].point;
+            const grid = this.getGridFromPosition(p.x, p.z);
+            gameLogic.handlePlayerClick(grid.x, grid.y);
+        }
+    },
+
+    clearBoard() {
+        while(this.shipsGroup.children.length > 0){ 
+            this.shipsGroup.remove(this.shipsGroup.children[0]); 
+        }
+        while(this.pegsGroup.children.length > 0){ 
+            this.pegsGroup.remove(this.pegsGroup.children[0]); 
+        }
+        this.particles = [];
+        this.hoverMesh.visible = false;
+    },
+
+    renderShips(board, revealAll = false) {
+        while(this.shipsGroup.children.length > 0){ 
+            this.shipsGroup.remove(this.shipsGroup.children[0]); 
+        }
+        
+        const shipGeo = new THREE.BoxGeometry(0.8, 0.5, 0.8);
+        
+        board.ships.forEach(ship => {
+            if (revealAll || ship.isSunk || board.isPlayerBoard) {
+                const matColor = ship.isSunk ? 0x475569 : (board.isPlayerBoard ? 0x94a3b8 : 0xef4444);
+                const shipMat = new THREE.MeshStandardMaterial({ color: matColor, roughness: 0.5 });
+                
+                // Group segments for a single ship look
+                ship.segments.forEach(seg => {
+                    const mesh = new THREE.Mesh(shipGeo, shipMat);
+                    const pos = this.getPositionFromGrid(seg.x, seg.y);
+                    mesh.position.set(pos.x, 0.25, pos.z);
+                    this.shipsGroup.add(mesh);
+                });
+            }
+        });
+    },
+
+    renderPegs(board) {
+        while(this.pegsGroup.children.length > 0){ 
+            this.pegsGroup.remove(this.pegsGroup.children[0]); 
+        }
+        
+        const hitGeo = new THREE.SphereGeometry(0.3, 16, 16);
+        const missGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 16);
+        
+        const hitMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x7f1d1d }); // Red
+        const missMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // White
+        
+        for(let x=0; x<10; x++) {
+            for(let y=0; y<10; y++) {
+                const state = board.grid[x][y];
+                if (state === 2 || state === 3) {
+                    const mesh = new THREE.Mesh(state === 3 ? hitGeo : missGeo, state === 3 ? hitMat : missMat);
+                    const pos = this.getPositionFromGrid(x, y);
+                    mesh.position.set(pos.x, state === 3 ? 0.3 : 0.1, pos.z);
+                    this.pegsGroup.add(mesh);
+                }
+            }
+        }
+    },
+
+    spawnExplosion(gx, gy, isHit) {
+        const pos = this.getPositionFromGrid(gx, gy);
+        const color = isHit ? 0xff7700 : 0xaaaaaa;
+        const particleGeo = new THREE.SphereGeometry(0.1, 8, 8);
+        const particleMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1 });
+        
+        for(let i=0; i<10; i++) {
+            const mesh = new THREE.Mesh(particleGeo, particleMat);
+            mesh.position.set(pos.x, 0.2, pos.z);
+            
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.1,
+                Math.random() * 0.1 + 0.05,
+                (Math.random() - 0.5) * 0.1
+            );
+            
+            this.particles.push({ mesh, velocity, life: 1.0 });
+            this.scene.add(mesh);
+        }
+    },
+
+    highlightCells(cells, colorHex, duration) {
+        // Simple visual effect for sonar/airstrike
+        cells.forEach(c => {
+            const pos = this.getPositionFromGrid(c.x, c.y);
+            const geo = new THREE.PlaneGeometry(0.9, 0.9);
+            const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(pos.x, 0.05, pos.z);
+            this.scene.add(mesh);
+            
+            // Fade out
+            setTimeout(() => {
+                let op = 0.8;
+                const interval = setInterval(() => {
+                    op -= 0.1;
+                    mesh.material.opacity = op;
+                    if(op <= 0) {
+                        clearInterval(interval);
+                        this.scene.remove(mesh);
+                    }
+                }, 50);
+            }, duration);
+        });
+    },
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        
+        // Update particles
+        for(let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.mesh.position.add(p.velocity);
+            p.life -= 0.03;
+            p.mesh.material.opacity = p.life;
+            p.mesh.scale.setScalar(p.life * 2);
+            if(p.life <= 0) {
+                this.scene.remove(p.mesh);
+                this.particles.splice(i, 1);
+            }
+        }
+
+        // Slight water movement
+        if (this.waterMaterial) {
+            this.waterMaterial.opacity = 0.8 + Math.sin(Date.now() * 0.002) * 0.05;
+        }
+
+        this.renderer.render(this.scene, this.camera);
+    }
+};
+
+/**
+ * GAME LOGIC CLASSES
+ */
+class Ship {
+    constructor(id, length) {
+        this.id = id;
+        this.length = length;
+        this.segments = []; // {x, y, hit: bool}
+        this.isSunk = false;
+    }
+}
+
+class Board {
+    constructor(isPlayerBoard) {
+        this.isPlayerBoard = isPlayerBoard;
+        // 0: empty, 1: ship, 2: miss, 3: hit
+        this.grid = Array(10).fill().map(() => Array(10).fill(0));
+        this.ships = [];
+        this.shipLengths = [5, 4, 3, 3, 2];
+        this.randomize();
+    }
+
+    randomize() {
+        this.grid = Array(10).fill().map(() => Array(10).fill(0));
+        this.ships = [];
+        
+        this.shipLengths.forEach((len, idx) => {
+            let placed = false;
+            let ship = new Ship(idx, len);
+            
+            while (!placed) {
+                const isHorizontal = Math.random() > 0.5;
+                const x = Math.floor(Math.random() * (isHorizontal ? 10 - len + 1 : 10));
+                const y = Math.floor(Math.random() * (isHorizontal ? 10 : 10 - len + 1));
+                
+                let canPlace = true;
+                // Check overlap and padding (1 cell gap standard)
+                for (let i = 0; i < len; i++) {
+                    const cx = isHorizontal ? x + i : x;
+                    const cy = isHorizontal ? y : y + i;
+                    if (this.grid[cx][cy] !== 0) { canPlace = false; break; }
+                }
+                
+                if (canPlace) {
+                    for (let i = 0; i < len; i++) {
+                        const cx = isHorizontal ? x + i : x;
+                        const cy = isHorizontal ? y : y + i;
+                        this.grid[cx][cy] = 1;
+                        ship.segments.push({ x: cx, y: cy, hit: false });
+                    }
+                    this.ships.push(ship);
+                    placed = true;
+                }
+            }
+        });
+    }
+
+    receiveAttack(x, y) {
+        if (x < 0 || x > 9 || y < 0 || y > 9) return { result: 'invalid' };
+        const state = this.grid[x][y];
+        if (state === 2 || state === 3) return { result: 'already_hit' };
+
+        if (state === 1) {
+            this.grid[x][y] = 3; // Hit
+            let hitShip = null;
+            let sunk = false;
+            
+            for (let s of this.ships) {
+                const seg = s.segments.find(seg => seg.x === x && seg.y === y);
+                if (seg) {
+                    seg.hit = true;
+                    s.isSunk = s.segments.every(seg => seg.hit);
+                    hitShip = s;
+                    sunk = s.isSunk;
+                    break;
+                }
+            }
+
+            return { result: 'hit', sunk, ship: hitShip };
+        } else {
+            this.grid[x][y] = 2; // Miss
+            return { result: 'miss' };
+        }
+    }
+
+    allSunk() {
+        return this.ships.every(s => s.isSunk);
+    }
+}
+
+/**
+ * MAIN GAME CONTROLLER
+ */
+const gameLogic = {
+    mode: 1, // 1 = 1P vs AI, 2 = 2P Pass & Play
+    level: 1,
+    score: 0,
+    player1: { board: null, powerups: { airstrike: 1, sonar: 1, doubletap: 0 }, isAI: false },
+    player2: { board: null, powerups: { airstrike: 0, sonar: 0, doubletap: 0 }, isAI: true },
+    currentPlayer: 1,
+    isPlaying: false,
+    isPaused: false,
+    isTransitioning: false,
+    viewingOwnBoard: false,
+    
+    // State for Turn execution
+    activePowerup: null,
+    extraTurn: false,
+    
+    // AI Memory
+    aiMemory: { lastHit: null, potentialTargets: [] },
+
+    initGame(mode) {
+        this.mode = mode;
+        this.level = 1;
+        this.score = 0;
+        this.player1 = { board: new Board(true), powerups: { airstrike: 1, sonar: 1, doubletap: 0 }, isAI: false };
+        this.player2 = { board: new Board(mode === 2), powerups: { airstrike: 0, sonar: 0, doubletap: 0 }, isAI: mode === 1 };
+        
+        if (mode === 2) {
+            this.player1.powerups = { airstrike: 1, sonar: 1, doubletap: 1 };
+            this.player2.powerups = { airstrike: 1, sonar: 1, doubletap: 1 };
+        }
+
+        this.currentPlayer = 1;
+        this.isPlaying = true;
+        this.isPaused = false;
+        this.aiMemory = { lastHit: null, potentialTargets: [] };
+        
+        Scene3D.init(); // Ensure scene is up
+        
+        // Start flow
+        this.startIntermission(true); // true = setup phase
+    },
+
+    startNextLevel() {
+        this.level++;
+        this.score += 500; // Level clear bonus
+        
+        // Reward powerup
+        const pTypes = ['airstrike', 'sonar', 'doubletap'];
+        const reward = pTypes[Math.floor(Math.random() * pTypes.length)];
+        this.player1.powerups[reward]++;
+        
+        this.player2.board.randomize(); // Reset AI
+        this.player1.board.randomize(); // Reshuffle player for fairness/freshness
+        this.currentPlayer = 1;
+        this.aiMemory = { lastHit: null, potentialTargets: [] };
+        
+        this.startIntermission(true);
+    },
+
+    startIntermission(isSetup = false) {
+        this.isTransitioning = true;
+        this.viewingOwnBoard = false;
+        Scene3D.clearBoard(); // Hide 3D scene elements during transition
+        
+        const ui = document.getElementById('screen-intermission');
+        const title = document.getElementById('intermission-title');
+        const desc = document.getElementById('intermission-desc');
+        const setupControls = document.getElementById('setup-controls');
+        const btn = document.getElementById('intermission-btn');
+        
+        ui.classList.remove('hidden');
+        hideScreensExcept('screen-intermission');
+
+        title.textContent = `Player ${this.currentPlayer}'s Turn`;
+        
+        if (isSetup) {
+            desc.textContent = "Commanding Officer, deploy your fleet.";
+            setupControls.classList.remove('hidden');
+            setupControls.classList.add('flex');
+            btn.textContent = "Confirm Deployment";
+            
+            // Show current player's board in background slightly
+            Scene3D.renderShips(this.getCurrentPlayerData().board, true);
+        } else {
+            desc.textContent = "Pass device if necessary. Prepare for tactical strike.";
+            setupControls.classList.add('hidden');
+            setupControls.classList.remove('flex');
+            btn.textContent = "Begin Command";
+        }
+    },
+
+    reshuffleCurrentPlayer() {
+        this.getCurrentPlayerData().board.randomize();
+        Scene3D.renderShips(this.getCurrentPlayerData().board, true);
+        AudioSys.playOscillator('sine', 600, 300, 0.2);
+    },
+
+    endIntermission() {
+        document.getElementById('screen-intermission').classList.add('hidden');
+        showScreen('screen-hud');
+        this.isTransitioning = false;
+        this.updateHUD();
+        this.renderCurrentView();
+        
+        // If AI turn, execute immediately
+        if (this.getCurrentPlayerData().isAI) {
+            setTimeout(() => this.executeAITurn(), 1000);
+        }
+    },
+
+    getCurrentPlayerData() {
+        return this.currentPlayer === 1 ? this.player1 : this.player2;
+    },
+    
+    getOpponentData() {
+        return this.currentPlayer === 1 ? this.player2 : this.player1;
+    },
+
+    toggleBoardView() {
+        this.viewingOwnBoard = !this.viewingOwnBoard;
+        const btn = document.getElementById('btn-view-toggle');
+        if (this.viewingOwnBoard) {
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-secondary');
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> <span>Return to Attack</span>`;
+        } else {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-secondary');
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> <span>View My Fleet</span>`;
+        }
+        this.renderCurrentView();
+    },
+
+    renderCurrentView() {
+        if (this.viewingOwnBoard) {
+            Scene3D.renderShips(this.getCurrentPlayerData().board, true);
+            Scene3D.renderPegs(this.getCurrentPlayerData().board);
+        } else {
+            Scene3D.renderShips(this.getOpponentData().board, false);
+            Scene3D.renderPegs(this.getOpponentData().board);
+        }
+    },
+
+    updateHUD() {
+        const turnText = document.getElementById('hud-turn');
+        const statusText = document.getElementById('hud-status');
+        
+        turnText.textContent = `Player ${this.currentPlayer}`;
+        turnText.className = `text-xl font-bold ${this.currentPlayer === 1 ? 'text-blue-400' : 'text-red-400'}`;
+        
+        statusText.textContent = this.activePowerup ? `Active: ${this.activePowerup.toUpperCase()} - Select target!` : "Select a target coordinate...";
+
+        document.getElementById('hud-score').textContent = this.score;
+        document.getElementById('hud-level').textContent = `Level ${this.level}`;
+        
+        // Hide score in 2P mode
+        document.getElementById('score-container').style.display = this.mode === 2 ? 'none' : 'flex';
+
+        // Update powerup buttons
+        const pData = this.getCurrentPlayerData().powerups;
+        ['airstrike', 'sonar', 'doubletap'].forEach(type => {
+            const btn = document.getElementById(`btn-powerup-${type}`);
+            const count = document.getElementById(`count-${type}`);
+            count.textContent = pData[type];
+            btn.disabled = pData[type] <= 0 || this.viewingOwnBoard;
+            if (this.activePowerup === type) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+    },
+
+    setPowerup(type) {
+        if (this.viewingOwnBoard) return;
+        const pData = this.getCurrentPlayerData().powerups;
+        if (pData[type] <= 0) {
+            AudioSys.error();
+            return;
+        }
+
+        if (this.activePowerup === type) {
+            this.activePowerup = null; // Toggle off
+        } else {
+            this.activePowerup = type;
+            AudioSys.powerup();
+        }
+        
+        if (this.activePowerup === 'doubletap') {
+            // Apply immediately
+            this.extraTurn = true;
+            pData['doubletap']--;
+            this.activePowerup = null;
+            this.updateHUD();
+            document.getElementById('hud-status').textContent = "DOUBLE TAP ACTIVE! Two shots remaining.";
+            return;
+        }
+        
+        this.updateHUD();
+        // Hover visual changes are handled in Scene3D.onMouseMove
+    },
+
+    canPlayerInteract() {
+        return !this.getCurrentPlayerData().isAI && !this.viewingOwnBoard && !this.isTransitioning && !this.isPaused;
+    },
+
+    handlePlayerClick(x, y) {
+        if (this.activePowerup === 'airstrike') {
+            this.executeAirstrike(y); // passing row (z/y axis)
+            return;
+        } else if (this.activePowerup === 'sonar') {
+            this.executeSonar(x, y);
+            return;
+        }
+
+        // Standard attack
+        this.processAttack(x, y);
+    },
+
+    executeAirstrike(row) {
+        this.getCurrentPlayerData().powerups['airstrike']--;
+        this.activePowerup = null;
+        this.updateHUD();
+        
+        AudioSys.playOscillator('sawtooth', 200, 50, 1.0, 0.3); // Incoming plane
+        
+        // Highlight row
+        const cells = [];
+        for(let i=0; i<10; i++) cells.push({x: i, y: row});
+        Scene3D.highlightCells(cells, 0xef4444, 1000);
+
+        setTimeout(() => {
+            for(let x=0; x<10; x++) {
+                const res = this.getOpponentData().board.receiveAttack(x, row);
+                if (res.result === 'hit') {
+                    Scene3D.spawnExplosion(x, row, true);
+                    if (this.currentPlayer === 1) this.score += 10;
+                } else if (res.result === 'miss') {
+                    Scene3D.spawnExplosion(x, row, false);
+                }
+            }
+            this.renderCurrentView();
+            this.checkPostAttackState(false); // Check if game over, else switch turn
+        }, 1000);
+    },
+
+    executeSonar(x, y) {
+        this.getCurrentPlayerData().powerups['sonar']--;
+        this.activePowerup = null;
+        this.updateHUD();
+        
+        AudioSys.playOscillator('sine', 800, 800, 0.5, 0.1); // Ping
+        
+        const cells = [];
+        let shipsFound = false;
+        const oppBoard = this.getOpponentData().board;
+
+        for(let dx=-1; dx<=1; dx++) {
+            for(let dy=-1; dy<=1; dy++) {
+                const nx = x + dx; const ny = y + dy;
+                if(nx>=0 && nx<=9 && ny>=0 && ny<=9) {
+                    cells.push({x:nx, y:ny});
+                    if (oppBoard.grid[nx][ny] === 1 || oppBoard.grid[nx][ny] === 3) {
+                        shipsFound = true;
+                    }
+                }
+            }
+        }
+
+        const color = shipsFound ? 0xef4444 : 0x3b82f6; // Red if ship, blue if empty
+        Scene3D.highlightCells(cells, color, 1500);
+
+        // Sonar doesn't use a turn
+    },
+
+    processAttack(x, y) {
+        const result = this.getOpponentData().board.receiveAttack(x, y);
+        
+        if (result.result === 'invalid' || result.result === 'already_hit') {
+            AudioSys.error();
+            return;
+        }
+
+        AudioSys.shoot();
+        setTimeout(() => {
+            if (result.result === 'hit') {
+                AudioSys.hit();
+                Scene3D.spawnExplosion(x, y, true);
+                if (result.sunk) {
+                    setTimeout(() => AudioSys.sink(), 400);
+                    if (this.currentPlayer === 1) this.score += 50;
+                } else {
+                    if (this.currentPlayer === 1) this.score += 10;
+                }
+                
+                // AI Memory processing
+                if (this.getCurrentPlayerData().isAI) {
+                    this.updateAIMemory(x, y, result.sunk);
+                }
+
+            } else {
+                AudioSys.miss();
+                Scene3D.spawnExplosion(x, y, false);
+            }
+
+            this.updateHUD();
+            this.renderCurrentView();
+            this.checkPostAttackState(result.result === 'hit');
+
+        }, 300); // Slight delay for visual
+    },
+
+    updateAIMemory(x, y, sunk) {
+        if (sunk) {
+            this.aiMemory.potentialTargets = []; // Clear current hunt
+            this.aiMemory.lastHit = null;
+            // Scan board for other orphaned hits just in case
+            for(let i=0; i<10; i++) {
+                for(let j=0; j<10; j++) {
+                    if(this.getOpponentData().board.grid[i][j] === 3) {
+                         // Very basic fallback
+                    }
+                }
+            }
+        } else {
+            if (!this.aiMemory.lastHit) {
+                this.aiMemory.lastHit = {x, y};
+            }
+            // Add adjacents
+            const dirs = [[0,1], [1,0], [0,-1], [-1,0]];
+            dirs.forEach(d => {
+                const nx = x + d[0]; const ny = y + d[1];
+                if (nx>=0 && nx<=9 && ny>=0 && ny<=9 && this.getOpponentData().board.grid[nx][ny] < 2) {
+                    this.aiMemory.potentialTargets.push({x: nx, y: ny});
+                }
+            });
+        }
+    },
+
+    executeAITurn() {
+        if (!this.isPlaying || this.isPaused) return;
+
+        let targetX, targetY;
+        const oppBoard = this.getOpponentData().board;
+
+        // Difficulty scaling: Level 1 is random. Level > 1 uses memory.
+        if (this.level > 1 && this.aiMemory.potentialTargets.length > 0) {
+            // Pick from potential targets, ensuring validity
+            let valid = false;
+            while (!valid && this.aiMemory.potentialTargets.length > 0) {
+                const t = this.aiMemory.potentialTargets.pop(); // Take last added (DFS style hunt)
+                if (oppBoard.grid[t.x][t.y] < 2) {
+                    targetX = t.x;
+                    targetY = t.y;
+                    valid = true;
+                }
+            }
+            if (!valid) {
+                // Fallback to random if queue was depleted with invalid targets
+                this.getRandomAITarget(oppBoard, (x, y) => { targetX = x; targetY = y; });
+            }
+        } else {
+            this.getRandomAITarget(oppBoard, (x, y) => { targetX = x; targetY = y; });
+        }
+
+        // Slight random chance to use Airstrike if level > 2
+        if (this.level > 2 && this.getCurrentPlayerData().powerups.airstrike > 0 && Math.random() < 0.1) {
+            this.activePowerup = 'airstrike';
+            this.executeAirstrike(targetY);
+            return;
+        }
+
+        this.processAttack(targetX, targetY);
+    },
+
+    getRandomAITarget(board, callback) {
+        let valid = false;
+        while (!valid) {
+            const x = Math.floor(Math.random() * 10);
+            const y = Math.floor(Math.random() * 10);
+            if (board.grid[x][y] < 2) {
+                callback(x, y);
+                valid = true;
+            }
+        }
+    },
+
+    checkPostAttackState(wasHit) {
+        if (this.getOpponentData().board.allSunk()) {
+            this.handleWin();
+            return;
+        }
+
+        if (this.extraTurn) {
+            this.extraTurn = false;
+            this.updateHUD();
+            if (this.getCurrentPlayerData().isAI) {
+                setTimeout(() => this.executeAITurn(), 1000);
+            }
+            return;
+        }
+
+        // Standard rules: hit grants another turn? No, modern standard is strict alternation unless specified.
+        // Let's do strict alternation to balance the game, unless powerups are used.
+        this.switchTurn();
+    },
+
+    switchTurn() {
+        this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+        
+        if (this.mode === 2) {
+            // Local 2P: show transition screen to hide board
+            setTimeout(() => this.startIntermission(false), 1500);
+        } else {
+            // 1P vs AI
+            this.updateHUD();
+            this.renderCurrentView();
+            if (this.getCurrentPlayerData().isAI) {
+                setTimeout(() => this.executeAITurn(), 1000);
+            }
+        }
+    },
+
+    handleWin() {
+        this.isPlaying = false;
+        AudioSys.win();
+        
+        if (this.mode === 1 && this.currentPlayer === 1) {
+            // Won level against AI
+            setTimeout(() => {
+                this.startNextLevel();
+            }, 3000);
+        } else {
+            // Game Over (Player 1 lost to AI, or 2P game ended)
+            setTimeout(() => {
+                this.showGameOver();
+            }, 2000);
+        }
+    },
+
+    showGameOver() {
+        hideScreensExcept('screen-gameover');
+        const title = document.getElementById('gameover-title');
+        const stats = document.getElementById('gameover-stats');
+        const entry = document.getElementById('highscore-entry');
+        
+        if (this.mode === 1) {
+            title.textContent = "MISSION FAILED";
+            title.className = "text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400";
+            stats.innerHTML = `Final Score: <span class="text-white font-mono">${this.score}</span><br>Reached Level ${this.level}`;
+            entry.classList.remove('hidden');
+            entry.classList.add('flex');
+            document.getElementById('gameover-btn').textContent = "Save Record";
+        } else {
+            title.textContent = `PLAYER ${this.currentPlayer} WINS`;
+            title.className = "text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300";
+            stats.innerHTML = "Tactical Supremacy Achieved.";
+            entry.classList.add('hidden');
+            entry.classList.remove('flex');
+            document.getElementById('gameover-btn').textContent = "Return to Base";
+        }
+    }
+};
+
+/**
+ * UI CONTROLLERS
+ */
+function hideScreensExcept(id) {
+    const screens = ['screen-home', 'screen-instructions', 'screen-highscores', 'screen-intermission', 'screen-hud', 'screen-pause', 'screen-gameover'];
+    screens.forEach(s => {
+        const el = document.getElementById(s);
+        if (s === id) {
+            el.classList.remove('hidden');
+            if (s === 'screen-hud') el.classList.add('flex');
+        } else {
+            el.classList.add('hidden');
+            if (s === 'screen-hud') el.classList.remove('flex');
+        }
+    });
+}
+
+function showScreen(id) {
+    hideScreensExcept(id);
+    AudioSys.init(); // Warm up audio
+}
+
+function startGame(mode) {
+    AudioSys.init();
+    gameLogic.initGame(mode);
+}
+
+function endIntermission() {
+    AudioSys.playOscillator('square', 600, 400, 0.1);
+    gameLogic.endIntermission();
+}
+
+function activatePowerup(type) {
+    gameLogic.setPowerup(type);
+}
+
+function toggleBoardView() {
+    gameLogic.toggleBoardView();
+}
+
+function togglePause() {
+    if (!gameLogic.isPlaying) return;
+    gameLogic.isPaused = !gameLogic.isPaused;
+    
+    const pauseMenu = document.getElementById('screen-pause');
+    if (gameLogic.isPaused) {
+        pauseMenu.classList.remove('hidden');
+    } else {
+        pauseMenu.classList.add('hidden');
+        // If AI's turn was interrupted, resume it
+        if (gameLogic.getCurrentPlayerData().isAI) {
+            setTimeout(() => gameLogic.executeAITurn(), 500);
+        }
+    }
+}
+
+function quitGame() {
+    gameLogic.isPlaying = false;
+    gameLogic.isPaused = false;
+    Scene3D.clearBoard();
+    showScreen('screen-home');
+}
+
+function handleGameOverAction() {
+    if (gameLogic.mode === 1) {
+        const nameInput = document.getElementById('player-name').value.trim() || 'Commander';
+        DBManager.saveScore(nameInput, gameLogic.score, gameLogic.level);
+    }
+    quitGame();
+}
+
+async function loadHighScores() {
+    const list = document.getElementById('highscore-list');
+    list.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-4">Loading data matrix...</td></tr>';
+    
+    try {
+        const scores = await DBManager.getHighScores();
+        list.innerHTML = '';
+        if (scores.length === 0) {
+            list.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-4">No records found.</td></tr>';
+            return;
+        }
+        
+        scores.forEach((s, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-gray-800 text-sm";
+            tr.innerHTML = `
+                <td class="py-2 text-gray-400">#${idx + 1}</td>
+                <td class="py-2 font-bold text-white">${s.name}</td>
+                <td class="py-2 text-right font-mono text-cyan-300">${s.score}</td>
+                <td class="py-2 text-right text-gray-400">Lv ${s.level}</td>
+            `;
+            list.appendChild(tr);
+        });
+    } catch (e) {
+        list.innerHTML = '<tr><td colspan="4" class="text-center text-red-500 py-4">Database link severed.</td></tr>';
+    }
+}
+
+// Initialize Database on load
+window.onload = () => {
+    DBManager.init().catch(console.error);
+    // Render blank scene for background
+    Scene3D.init();
+};
+
+</script>
+</body>
+</html>
