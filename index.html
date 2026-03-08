@@ -16,6 +16,17 @@
             overflow-x: hidden; /* Prevent horizontal scrolling */
         }
 
+        /* Responsive Device Container Constraints */
+        #device-container {
+            container-type: inline-size;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 0 auto;
+        }
+
+        .view-desktop { width: 100%; }
+        .view-pad { width: 768px; max-width: 100%; }
+        .view-phone { width: 390px; max-width: 100%; }
+
         /* Container-Query Responsive Grid */
         .responsive-grid {
             display: grid;
@@ -44,7 +55,7 @@
         /* GAME CARD COMPONENT STYLES                                 */
         /* ========================================================== */
         
-        /* Base Styling (Desktop & Tablet) */
+        /* Base Styling (Desktop) */
         .game-card {
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             background: rgba(255, 255, 255, 0.05);
@@ -109,10 +120,12 @@
             transform: scale(1.05) rotate(-2deg);
         }
 
-        /* Container Query for Phone View (Compact Mode) */
-        @container (max-width: 500px) {
+        /* Container Query for Tablet & Phone Views (Compact Mode) */
+        /* Increased max-width to 800px so Tablet mode also triggers condensed cards */
+        @container (max-width: 800px) {
             .responsive-grid {
-                grid-template-columns: 1fr;
+                /* Fits 2 compact cards on tablet, 1 compact card on phone */
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
                 gap: 1rem;
             }
             .game-card {
@@ -124,7 +137,7 @@
                 gap: 1rem;
             }
             .game-card:hover {
-                transform: translateY(-5px) scale(1.02); /* Less bounce on small screens */
+                transform: translateY(-5px) scale(1.02); /* Less bounce on smaller screens */
             }
             .game-icon {
                 width: 4.5rem;
@@ -167,45 +180,55 @@
 <body class="relative">
 
     <!-- HUB VIEW -->
-    <div id="hub-view" class="relative min-h-screen">
-        <!-- Background Decoration -->
+    <div id="hub-view" class="relative min-h-screen w-full">
+        <!-- Background Decoration (Kept fullscreen so it doesn't shrink with the container) -->
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
 
-        <!-- Navigation / Header -->
-        <nav class="p-6 text-center pt-12 md:pt-20">
-            <h1 class="text-[clamp(2.5rem,8cqw,4.5rem)] font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 title-glow mb-2 leading-tight">
-                M.D Epic Games
-            </h1>
-            <p class="text-[clamp(1.1rem,4cqw,1.5rem)] text-cyan-100 font-semibold tracking-wide">
-                The Ultimate Gaming Hub! 🎮✨
-            </p>
-        </nav>
+        <!-- Device View Switcher UI -->
+        <div class="fixed top-4 right-4 z-[100] flex gap-2 bg-black/60 p-1.5 rounded-full backdrop-blur-md border border-white/20 shadow-xl">
+            <button id="btn-desktop" onclick="switchView('desktop')" class="px-4 py-2 rounded-full text-white text-sm font-bold bg-white/20 transition-colors">🖥️ Desktop</button>
+            <button id="btn-pad" onclick="switchView('pad')" class="px-4 py-2 rounded-full text-white/60 text-sm font-bold hover:bg-white/10 transition-colors"><span class="inline-block -rotate-90">📱</span> Tablet</button>
+            <button id="btn-phone" onclick="switchView('phone')" class="px-4 py-2 rounded-full text-white/60 text-sm font-bold hover:bg-white/10 transition-colors">📱 Phone</button>
+        </div>
 
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-6 py-12">
-            
-            <!-- Search and Filter -->
-            <div class="flex justify-center mb-12">
-                <div class="relative w-full max-w-md">
-                    <input type="text" id="searchInput" placeholder="Search for a game..." 
-                           class="w-full px-6 py-4 rounded-full bg-white/10 border-2 border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:bg-white/20 transition-all text-lg font-semibold shadow-lg">
-                    <span class="absolute right-6 top-4 text-2xl">🔍</span>
+        <!-- Scalable Device Container -->
+        <div id="device-container" class="view-desktop">
+            <!-- Navigation / Header -->
+            <nav class="p-6 text-center pt-20 md:pt-24">
+                <h1 class="text-[clamp(2.5rem,8cqw,4.5rem)] font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 title-glow mb-2 leading-tight">
+                    M.D Epic Games
+                </h1>
+                <p class="text-[clamp(1.1rem,4cqw,1.5rem)] text-cyan-100 font-semibold tracking-wide">
+                    The Ultimate Gaming Hub! 🎮✨
+                </p>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="w-full px-6 py-12 max-w-7xl mx-auto">
+                
+                <!-- Search and Filter -->
+                <div class="flex justify-center mb-12">
+                    <div class="relative w-full max-w-md">
+                        <input type="text" id="searchInput" placeholder="Search for a game..." 
+                               class="w-full px-6 py-4 rounded-full bg-white/10 border-2 border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:bg-white/20 transition-all text-lg font-semibold shadow-lg">
+                        <span class="absolute right-6 top-4 text-2xl">🔍</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Game Grid -->
-            <div id="gamesContainer" class="responsive-grid">
-                <!-- Games will be injected here by JavaScript -->
-            </div>
+                <!-- Game Grid -->
+                <div id="gamesContainer" class="responsive-grid">
+                    <!-- Games will be injected here by JavaScript -->
+                </div>
 
-        </main>
+            </main>
 
-        <!-- Footer -->
-        <footer class="text-center py-8 text-white/60 font-semibold">
-            <p>© 2026 M.D Epic Games. Ready, Set, PLAY!</p>
-        </footer>
+            <!-- Footer -->
+            <footer class="text-center py-8 text-white/60 font-semibold">
+                <p>© 2026 M.D Epic Games. Ready, Set, PLAY!</p>
+            </footer>
+        </div> <!-- End Device Container -->
     </div> <!-- End Hub View -->
 
     <!-- GAME PLAYER VIEW -->
@@ -224,10 +247,32 @@
     </div> <!-- End Game View -->
 
     <script>
+        // --- View Switcher Logic ---
+        function switchView(view) {
+            const container = document.getElementById('device-container');
+            const btns = {
+                desktop: document.getElementById('btn-desktop'),
+                pad: document.getElementById('btn-pad'),
+                phone: document.getElementById('btn-phone')
+            };
+
+            // Apply the constrained width class
+            container.className = `view-${view}`;
+
+            // Update button UI styles
+            Object.keys(btns).forEach(key => {
+                if(key === view) {
+                    btns[key].className = "px-4 py-2 rounded-full text-white text-sm font-bold bg-white/20 transition-colors";
+                } else {
+                    btns[key].className = "px-4 py-2 rounded-full text-white/60 text-sm font-bold hover:bg-white/10 transition-colors";
+                }
+            });
+        }
+
         // --- Game Player Logic ---
         function openGame(url, title) {
             document.body.style.overflow = 'hidden'; // Stop background scrolling
-            document.getElementById('hub-view').style.display = 'none';
+            document.getElementById('hub-view').style.display = 'none'; // This naturally hides the toggle buttons too!
             document.getElementById('game-view').classList.remove('hidden');
             document.getElementById('playing-title').innerText = title;
             
