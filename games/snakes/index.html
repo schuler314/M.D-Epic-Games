@@ -2,1211 +2,1008 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infinite Snake Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gravity Switch 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --text: #f8fafc;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: var(--font);
-            overflow: hidden;
-            touch-action: none;
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* UI Overlays */
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 23, 42, 0.85);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            backdrop-filter: blur(5px);
-            transition: opacity 0.3s;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .panel {
-            background: var(--surface);
-            padding: 2.5rem;
-            border-radius: 1rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-            text-align: center;
-            max-width: 500px;
-            width: 90%;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            margin-top: 0;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(to right, #4ade80, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p.subtitle {
-            color: #94a3b8;
-            margin-bottom: 1.5rem;
-        }
-
-        .difficulty-selector {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: center;
-            margin-bottom: 1.5rem;
-            background: #0f172a;
-            padding: 0.5rem;
-            border-radius: 0.75rem;
-            border: 1px solid #334155;
-        }
-
-        .diff-btn {
-            background: transparent;
-            color: #94a3b8;
-            margin: 0;
-            padding: 0.5rem 1rem;
-            font-size: 1rem;
-            width: auto;
-            flex: 1;
-            border-radius: 0.5rem;
-        }
-
-        .diff-btn:hover {
-            background: #1e293b;
-            transform: none;
-        }
-
-        .diff-btn.active {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        .instructions {
-            background: rgba(15, 23, 42, 0.5);
-            border: 1px solid #334155;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-            color: #cbd5e1;
-            text-align: left;
-        }
-
-        .instructions h3 {
-            margin-top: 0;
-            margin-bottom: 0.5rem;
-            color: #f8fafc;
-            font-size: 1.1rem;
-            text-align: center;
-        }
-
-        .instructions ul {
-            margin: 0;
-            padding-left: 1.5rem;
-        }
-
-        .instructions li {
-            margin-bottom: 0.25rem;
-        }
-
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            margin: 0.5rem;
-            transition: all 0.2s;
-            width: calc(100% - 1rem);
-            max-width: 300px;
-        }
-
-        button:hover {
-            background: var(--primary-hover);
-            transform: translateY(-2px);
-        }
-
-        button.danger { background: var(--danger); }
-        button.danger:hover { background: #dc2626; }
+        body { margin: 0; overflow: hidden; background: #050508; font-family: 'Orbitron', sans-serif; touch-action: none; user-select: none; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; }
+        canvas { width: 100vw; height: 100vh; display: block; }
         
-        button.success { background: var(--success); }
-        button.success:hover { background: #16a34a; }
-
-        select, input[type="file"] {
-            padding: 0.75rem;
-            margin: 0.5rem;
-            border-radius: 0.5rem;
-            border: 1px solid #475569;
-            background: #0f172a;
-            color: white;
-            font-size: 1rem;
-            width: calc(100% - 1rem);
-            max-width: 300px;
-        }
-
-        /* HUD */
-        #hud {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            pointer-events: none;
-            z-index: 5;
-            display: flex;
-            justify-content: space-between;
-            width: calc(100% - 40px);
-        }
-
-        .score-box {
-            background: rgba(30, 41, 59, 0.8);
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border: 1px solid #334155;
-        }
-
-        #controls-help {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: rgba(255,255,255,0.5);
-            pointer-events: none;
-            font-size: 0.9rem;
-        }
-
-        #btn-pause {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: auto;
-            margin: 0;
-            z-index: 6;
-            background: rgba(30, 41, 59, 0.8);
-            border: 1px solid #475569;
-        }
-
-        .table-container {
-            max-height: 250px;
-            overflow-y: auto;
-            margin-bottom: 1rem;
-            background: #0f172a;
-            border-radius: 0.5rem;
-            padding: 0.5rem;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            color: white;
-        }
+        .ui-layer { position: absolute; inset: 0; pointer-events: none; display: flex; flex-col; justify-content: center; align-items: center; z-index: 10; }
+        .panel { background: rgba(10, 10, 20, 0.85); backdrop-filter: blur(10px); border: 2px solid #0ff; border-radius: 1rem; padding: 2rem; pointer-events: auto; box-shadow: 0 0 30px rgba(0, 255, 255, 0.2); max-width: 90vw; text-align: center; }
+        .hidden { display: none !important; }
         
-        th, td {
-            padding: 0.5rem;
-            text-align: left;
-            border-bottom: 1px solid #334155;
-        }
+        button { cursor: pointer; transition: all 0.2s; font-family: 'Orbitron', sans-serif; }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 15px currentColor; }
+        button:active { transform: scale(0.95); }
         
-        th { color: #94a3b8; }
-
-        /* Level Up Notification */
-        #notification {
-            position: absolute;
-            top: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 2rem;
-            font-weight: bold;
-            color: #fbbf24;
-            text-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.5s;
-            z-index: 5;
-        }
+        .glow-text-cyan { text-shadow: 0 0 10px #0ff, 0 0 20px #0ff; color: white; }
+        .glow-text-pink { text-shadow: 0 0 10px #f0f, 0 0 20px #f0f; color: white; }
+        
+        #portrait-warning { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; padding: 2rem; }
+        @media screen and (orientation: portrait) { .mobile-mode #portrait-warning { display: flex; } }
     </style>
 </head>
 <body>
 
-    <!-- HUD -->
-    <div id="hud" class="hidden">
-        <div id="p1-score" class="score-box" style="color: #4ade80;">P1: 0 (Lvl 1)</div>
-        <div id="p2-score" class="score-box hidden" style="color: #3b82f6;">P2: 0 (Lvl 1)</div>
-    </div>
-    <button id="btn-pause" class="hidden" onclick="togglePause()">Pause (Esc)</button>
-    <div id="notification">LEVEL UP!</div>
-    
-    <div id="controls-help" class="hidden">
-        P1: Left/Right Arrows to steer, Up to boost<br>
-        <span id="p2-controls" class="hidden">P2: A/D to steer, W to boost</span>
-    </div>
+<div id="game-container"></div>
 
-    <!-- Main Menu -->
-    <div id="menu-main" class="overlay">
-        <div class="panel">
-            <h1>Snake Simulator</h1>
-            <p class="subtitle">Infinite World. Infinite Enemies.</p>
-            
-            <div class="instructions">
-                <h3>How to Play</h3>
-                <ul>
-                    <li><strong>P1 Controls:</strong> ⬅️ ➡️ to steer, ⬆️ to boost.</li>
-                    <li><strong>P2 Controls:</strong> A / D to steer, W to boost.</li>
-                    <li><strong>Goal:</strong> Eat food to grow. Avoid hitting other snakes!</li>
-                    <li><strong>Note:</strong> Boosting shrinks your snake.</li>
-                    <li><strong>Powerups:</strong> <span style="color:#fbbf24">S</span>hield, <span style="color:#38bdf8">⚡</span>Speed, <span style="color:#c084fc">M</span>agnet, <span style="color:#f472b6">2x</span>Score</li>
-                </ul>
-            </div>
-            
-            <div class="difficulty-selector">
-                <button class="diff-btn" id="diff-easy" onclick="setDifficulty('easy')">Easy</button>
-                <button class="diff-btn active" id="diff-medium" onclick="setDifficulty('medium')">Medium</button>
-                <button class="diff-btn" id="diff-hard" onclick="setDifficulty('hard')">Hard</button>
-            </div>
-            
-            <button onclick="startGame(1)">1 Player</button>
-            <button onclick="startGame(2)">2 Players</button>
-            <button class="success" onclick="showScores()">High Scores Data</button>
+<!-- Portrait Warning for Mobile -->
+<div id="portrait-warning">
+    <svg class="w-24 h-24 mb-6 text-cyan-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+    <h2 class="text-3xl font-bold mb-4 glow-text-cyan">Rotate Device</h2>
+    <p class="text-lg text-gray-300">Please use horizontal (landscape) orientation for a wider screen to play.</p>
+</div>
+
+<!-- Main UI -->
+<div id="ui-main" class="ui-layer">
+    <div class="panel flex flex-col items-center">
+        <h1 class="text-5xl md:text-7xl font-black mb-2 glow-text-cyan">GRAVITY</h1>
+        <h1 class="text-4xl md:text-6xl font-black mb-8 glow-text-pink">SWITCH 3D</h1>
+        
+        <div class="flex gap-4 mb-6 flex-wrap justify-center">
+            <button onclick="setDevice('desktop')" id="btn-desktop" class="px-6 py-2 border-2 border-cyan-500 text-cyan-500 rounded hover:bg-cyan-500 hover:text-white">Desktop</button>
+            <button onclick="setDevice('gamepad')" id="btn-gamepad" class="px-6 py-2 border-2 border-purple-500 text-purple-500 rounded hover:bg-purple-500 hover:text-white">Gamepad</button>
+            <button onclick="setDevice('mobile')" id="btn-mobile" class="px-6 py-2 border-2 border-pink-500 text-pink-500 rounded hover:bg-pink-500 hover:text-white">Mobile/Tablet</button>
+        </div>
+
+        <div id="player-select" class="hidden flex gap-4 mb-8 w-full justify-center">
+            <button onclick="startGame(1)" class="px-8 py-4 bg-cyan-600 text-white font-bold rounded text-xl flex-1 border border-cyan-300">1 PLAYER</button>
+            <button onclick="startGame(2)" class="px-8 py-4 bg-pink-600 text-white font-bold rounded text-xl flex-1 border border-pink-300">2 PLAYERS</button>
+        </div>
+
+        <div class="flex gap-4 w-full">
+            <button onclick="showInstructions()" class="px-4 py-2 bg-gray-700 text-white rounded flex-1">How to Play</button>
+            <button onclick="showHighScores()" class="px-4 py-2 bg-gray-700 text-white rounded flex-1">High Scores</button>
         </div>
     </div>
+</div>
 
-    <!-- Pause Menu -->
-    <div id="menu-pause" class="overlay hidden">
-        <div class="panel">
-            <h2>Game Paused</h2>
-            <button onclick="togglePause()">Resume</button>
-            <button class="danger" onclick="quitGame()">Quit to Main Menu</button>
+<!-- Instructions UI -->
+<div id="ui-instructions" class="ui-layer hidden">
+    <div class="panel max-w-2xl">
+        <h2 class="text-3xl font-bold mb-4 glow-text-cyan">INSTRUCTIONS</h2>
+        <div id="inst-text" class="text-left text-gray-200 space-y-4 mb-6 text-lg">
+            <!-- Populated dynamically based on device -->
+        </div>
+        <h3 class="text-xl text-yellow-400 mt-4 mb-2">Powerups:</h3>
+        <div class="flex gap-4 justify-center mb-6">
+            <div class="text-green-400">♦ Speed Boost (Break Walls)</div>
+            <div class="text-blue-400">♦ Shield (Absorb 1 Hit)</div>
+        </div>
+        <button onclick="showMain()" class="px-8 py-3 bg-cyan-600 text-white font-bold rounded">BACK</button>
+    </div>
+</div>
+
+<!-- High Scores UI -->
+<div id="ui-scores" class="ui-layer hidden">
+    <div class="panel w-96">
+        <h2 class="text-3xl font-bold mb-4 glow-text-cyan">HIGH SCORES</h2>
+        <p class="text-xs text-gray-400 mb-4">Saved locally to your device drive.</p>
+        <div id="score-list" class="space-y-2 mb-6 text-left">
+            Loading...
+        </div>
+        <button onclick="showMain()" class="px-8 py-3 bg-cyan-600 text-white font-bold rounded">BACK</button>
+    </div>
+</div>
+
+<!-- Pause Menu -->
+<div id="ui-pause" class="ui-layer hidden">
+    <div class="panel">
+        <h2 class="text-4xl font-bold mb-6 glow-text-cyan">PAUSED</h2>
+        <div class="flex flex-col gap-4">
+            <button onclick="resumeGame()" class="px-8 py-3 bg-green-600 text-white font-bold rounded text-xl">RESUME</button>
+            <button onclick="quitGame()" class="px-8 py-3 bg-red-600 text-white font-bold rounded text-xl">QUIT TO MENU</button>
         </div>
     </div>
+</div>
 
-    <!-- Game Over Menu -->
-    <div id="menu-gameover" class="overlay hidden">
-        <div class="panel">
-            <h2 id="gameover-title" style="color: var(--danger);">Game Over</h2>
-            <p id="gameover-stats">Score: 0 | Level: 1</p>
-            <input type="text" id="player-name" placeholder="Enter Name for High Score" maxlength="15" style="width: 80%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 0.25rem;">
-            <button onclick="saveScoreAndRestart()">Submit & Play Again</button>
-            <button class="danger" onclick="quitGame()">Main Menu</button>
+<!-- Game Over -->
+<div id="ui-gameover" class="ui-layer hidden">
+    <div class="panel">
+        <h2 class="text-5xl font-bold mb-2 glow-text-pink">SYSTEM FAILURE</h2>
+        <p class="text-2xl text-white mb-6">Score: <span id="final-score" class="font-bold text-cyan-300">0</span></p>
+        <div class="flex gap-4 justify-center">
+            <button onclick="startGame(window.lastPlayerCount)" class="px-8 py-3 bg-cyan-600 text-white font-bold rounded text-xl">RESTART</button>
+            <button onclick="quitGame()" class="px-8 py-3 bg-gray-600 text-white font-bold rounded text-xl">MENU</button>
         </div>
     </div>
+</div>
 
-    <!-- High Scores Menu -->
-    <div id="menu-scores" class="overlay hidden">
-        <div class="panel" style="max-width: 600px;">
-            <h2>Local High Scores</h2>
-            <p style="font-size: 0.85rem; color: #94a3b8;">Scores are kept in memory. Save them to your computer's drive to keep them permanently offline.</p>
-            
-            <div class="table-container">
-                <table id="scores-table">
-                    <thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>Level</th><th>Date</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-            
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button class="success" style="width: auto; margin: 0;" onclick="downloadHighScores()">Save to Disk</button>
-                <label for="upload-scores" style="display: inline-block; background: var(--primary); color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: bold; margin: 0;">
-                    Load from Disk
-                </label>
-                <input type="file" id="upload-scores" class="hidden" accept=".json" onchange="uploadHighScores(event)">
-            </div>
-            <br>
-            <button onclick="hideScores()" style="margin-top: 1rem;">Back to Menu</button>
-        </div>
+<!-- Level Transition Notification -->
+<div id="ui-transition" class="ui-layer hidden bg-black/80 backdrop-blur-md flex flex-col items-center justify-center z-50">
+    <h2 class="text-6xl md:text-8xl font-black text-white glow-text-cyan mb-6 text-center" id="transition-title">SECTOR CLEARED</h2>
+    <p class="text-2xl md:text-4xl text-pink-400 font-bold animate-pulse tracking-widest">INITIATING NEXT JUMP...</p>
+</div>
+
+<!-- HUD -->
+<div id="ui-hud" class="absolute top-0 left-0 w-full p-4 pointer-events-none hidden flex justify-between items-start z-10">
+    <div class="flex flex-col gap-1">
+        <div class="text-3xl font-black glow-text-cyan drop-shadow-md">SCORE: <span id="hud-score">0</span></div>
+        <div class="text-xl font-bold text-white drop-shadow-md">LEVEL: <span id="hud-level">1</span></div>
+        <div class="text-xl font-bold drop-shadow-md" id="hud-lives"></div>
     </div>
+    <button onclick="pauseGame()" class="pointer-events-auto w-12 h-12 bg-black/50 border-2 border-cyan-500 rounded text-cyan-500 text-2xl flex items-center justify-center hover:bg-cyan-900">||</button>
+</div>
 
-    <canvas id="gameCanvas"></canvas>
+<!-- Mobile Touch Zones -->
+<div id="touch-zones" class="absolute inset-0 z-0 hidden">
+    <div id="touch-left" class="absolute top-0 left-0 w-1/2 h-full"></div>
+    <div id="touch-right" class="absolute top-0 right-0 w-1/2 h-full"></div>
+</div>
 
 <script>
-/** * Infinite Snake Simulator 
- * Core Logic & Systems
- */
-
-// --- Audio System ---
-class AudioSystem {
-    constructor() {
-        this.ctx = null;
-        this.enabled = true;
-    }
-    init() {
-        if (!this.ctx) {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (this.ctx.state === 'suspended') {
-            this.ctx.resume();
-        }
-    }
-    playTone(freq, type, duration, vol = 0.1) {
-        if (!this.ctx || !this.enabled) return;
-        try {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
+    // ==========================================
+    // AUDIO SYNTHESIZER
+    // ==========================================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const sfx = {
+        playTone: (freq, type, duration, vol=0.1, slideFreq=null) => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
             osc.type = type;
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-            
-            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-            
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            if(slideFreq) {
+                osc.frequency.exponentialRampToValueAtTime(slideFreq, audioCtx.currentTime + duration);
+            }
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(audioCtx.destination);
             osc.start();
-            osc.stop(this.ctx.currentTime + duration);
-        } catch(e) {}
-    }
-    eat() { this.playTone(600, 'sine', 0.1, 0.15); }
-    powerup() {
-        this.playTone(400, 'square', 0.1, 0.1);
-        setTimeout(() => this.playTone(600, 'square', 0.1, 0.1), 100);
-        setTimeout(() => this.playTone(800, 'square', 0.2, 0.15), 200);
-    }
-    levelUp() {
-        this.playTone(300, 'triangle', 0.2, 0.2);
-        setTimeout(() => this.playTone(400, 'triangle', 0.2, 0.2), 200);
-        setTimeout(() => this.playTone(500, 'triangle', 0.4, 0.2), 400);
-    }
-    die() {
-        this.playTone(200, 'sawtooth', 0.3, 0.3);
-        setTimeout(() => this.playTone(150, 'sawtooth', 0.5, 0.3), 150);
-    }
-}
-const audio = new AudioSystem();
-
-// --- Globals & Constants ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d', { alpha: false });
-let WORLD_SIZE = 4000;
-let BASE_AI_COUNT = 30;
-
-let gameLoopId;
-let lastTime = 0;
-let gameState = 'menu'; // menu, playing, paused, gameover
-
-let difficultyMap = {
-    'easy': { speedScale: 0.8, aiCount: 15, aiAgro: 0.3 },
-    'medium': { speedScale: 1.0, aiCount: 30, aiAgro: 0.6 },
-    'hard': { speedScale: 1.3, aiCount: 50, aiAgro: 0.9 }
-};
-let currentDiff = 'medium';
-
-function setDifficulty(diff) {
-    currentDiff = diff;
-    document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`diff-${diff}`).classList.add('active');
-}
-
-// High Score Data System (In-Memory, exportable to local drive)
-let highScores = [];
-
-// Game Entities
-let snakes = [];
-let foods = [];
-let powerups = [];
-let numPlayers = 1;
-let level = 1;
-
-// Inputs
-const keys = {};
-window.addEventListener('keydown', e => {
-    keys[e.code] = true;
-    if (e.code === 'Escape' && (gameState === 'playing' || gameState === 'paused')) {
-        togglePause();
-    }
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
-window.addEventListener('resize', resizeCanvas);
-
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-resizeCanvas();
-
-// --- Utility Functions ---
-function rand(min, max) { return Math.random() * (max - min) + min; }
-function dist(x1, y1, x2, y2) { return Math.hypot(x2 - x1, y2 - y1); }
-function normalizeAngle(a) {
-    while(a < -Math.PI) a += Math.PI * 2;
-    while(a > Math.PI) a -= Math.PI * 2;
-    return a;
-}
-
-// --- Classes ---
-
-class Food {
-    constructor(x, y, value, color) {
-        this.x = x || rand(100, WORLD_SIZE - 100);
-        this.y = y || rand(100, WORLD_SIZE - 100);
-        this.value = value || 10;
-        this.radius = Math.min(15, 3 + this.value / 5);
-        this.color = color || `hsl(${rand(0,360)}, 80%, 60%)`;
-        this.wobble = rand(0, Math.PI);
-    }
-    draw(ctx, time) {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        let r = this.radius + Math.sin(time * 5 + this.wobble) * 1.5;
-        ctx.arc(this.x, this.y, Math.max(2, r), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-    }
-}
-
-class Powerup {
-    // Types: 0: Shield, 1: Speed, 2: Magnet, 3: Multiplier
-    constructor(x, y) {
-        this.x = x || rand(200, WORLD_SIZE - 200);
-        this.y = y || rand(200, WORLD_SIZE - 200);
-        this.radius = 12;
-        this.type = Math.floor(rand(0, 4));
-        
-        switch(this.type) {
-            case 0: this.color = '#fbbf24'; this.icon = 'S'; break; // Shield
-            case 1: this.color = '#38bdf8'; this.icon = '⚡'; break; // Speed
-            case 2: this.color = '#c084fc'; this.icon = 'M'; break; // Magnet
-            case 3: this.color = '#f472b6'; this.icon = '2x'; break; // Multiplier
-        }
-    }
-    draw(ctx, time) {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        let r = this.radius + Math.sin(time * 8) * 2;
-        ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#000';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.icon, this.x, this.y);
-        
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-    }
-}
-
-class Snake {
-    constructor(x, y, color, isPlayer, playerIndex) {
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        this.isPlayer = isPlayer;
-        this.playerIndex = playerIndex; // 1 or 2
-        
-        this.angle = rand(0, Math.PI * 2);
-        this.baseSpeed = 200; // pixels per second
-        this.speed = this.baseSpeed;
-        this.turnSpeed = 3.5;
-        
-        this.history = []; // stores {x, y}
-        this.length = 20;  // Initial segments
-        this.segmentSpacing = 5; // Distance between segments in history array
-        
-        this.score = 0;
-        this.isDead = false;
-        this.boosting = false;
-        this.boostCostTimer = 0;
-
-        // Active Powerups
-        this.effects = {
-            shield: 0,
-            speed: 0,
-            magnet: 0,
-            multiplier: 0
-        };
-
-        // AI specific
-        this.targetAngle = this.angle;
-        this.aiThinkTimer = 0;
-        
-        // Populate initial history to avoid appearing bunched up
-        for(let i=0; i<this.length * this.segmentSpacing; i++) {
-            this.history.push({
-                x: this.x - Math.cos(this.angle) * i * (this.speed/60),
-                y: this.y - Math.sin(this.angle) * i * (this.speed/60)
-            });
-        }
-    }
-
-    get Radius() {
-        return Math.min(25, 10 + this.length / 20);
-    }
-
-    update(dt) {
-        if (this.isDead) return;
-
-        // Decrease powerup timers
-        for (let key in this.effects) {
-            if (this.effects[key] > 0) this.effects[key] -= dt;
-        }
-
-        this.boosting = false;
-        let currentTurnSpeed = this.turnSpeed;
-        let currentSpeed = this.baseSpeed * (this.isPlayer ? 1 : difficultyMap[currentDiff].speedScale);
-
-        // Input & AI Control
-        if (this.isPlayer) {
-            if (this.playerIndex === 1) {
-                if (keys['ArrowLeft']) this.angle -= currentTurnSpeed * dt;
-                if (keys['ArrowRight']) this.angle += currentTurnSpeed * dt;
-                if (keys['ArrowUp'] && this.length > 15) this.boosting = true;
-            } else if (this.playerIndex === 2) {
-                if (keys['KeyA']) this.angle -= currentTurnSpeed * dt;
-                if (keys['KeyD']) this.angle += currentTurnSpeed * dt;
-                if (keys['KeyW'] && this.length > 15) this.boosting = true;
-            }
-        } else {
-            this.updateAI(dt);
-        }
-
-        // Apply Boosting
-        if (this.boosting && !this.effects.speed) {
-            currentSpeed *= 1.8;
-            this.boostCostTimer += dt;
-            if (this.boostCostTimer > 0.2) {
-                this.length--;
-                this.score = Math.max(0, this.score - 5);
-                this.boostCostTimer = 0;
-                // Drop food behind
-                let tail = this.history[this.length * this.segmentSpacing - 1];
-                if (tail) foods.push(new Food(tail.x, tail.y, 5, this.color));
-            }
-        }
-
-        // Apply Speed Powerup
-        if (this.effects.speed > 0) currentSpeed *= 1.8;
-
-        // Move Head
-        this.x += Math.cos(this.angle) * currentSpeed * dt;
-        this.y += Math.sin(this.angle) * currentSpeed * dt;
-
-        // Bounds Checking (Die if hit border)
-        if (this.x < 0 || this.x > WORLD_SIZE || this.y < 0 || this.y > WORLD_SIZE) {
-            this.die();
-            return;
-        }
-
-        // Update History
-        this.history.unshift({x: this.x, y: this.y});
-        
-        // Trim history
-        let maxHistory = this.length * this.segmentSpacing;
-        if (this.history.length > maxHistory) {
-            this.history.length = maxHistory;
-        }
-
-        // Magnet Powerup Logic
-        if (this.effects.magnet > 0) {
-            let pullRange = 250;
-            for (let f of foods) {
-                let d = dist(this.x, this.y, f.x, f.y);
-                if (d < pullRange) {
-                    f.x += (this.x - f.x) * 5 * dt;
-                    f.y += (this.y - f.y) * 5 * dt;
-                }
-            }
-        }
-
-        this.checkCollisions();
-    }
-
-    updateAI(dt) {
-        this.aiThinkTimer -= dt;
-        let agro = difficultyMap[currentDiff].aiAgro;
-
-        if (this.aiThinkTimer <= 0) {
-            this.aiThinkTimer = rand(0.2, 0.6);
-            
-            // 1. Find nearest food
-            let nearestFood = null;
-            let minDist = 800;
-            for (let f of foods) {
-                let d = dist(this.x, this.y, f.x, f.y);
-                if (d < minDist) { minDist = d; nearestFood = f; }
-            }
-
-            // 2. Avoid walls
-            let margin = 200;
-            let wallAvoid = false;
-            let targetX = this.x + Math.cos(this.angle) * 100;
-            let targetY = this.y + Math.sin(this.angle) * 100;
-
-            if (this.x < margin || this.x > WORLD_SIZE - margin || this.y < margin || this.y > WORLD_SIZE - margin) {
-                wallAvoid = true;
-                this.targetAngle = Math.atan2(WORLD_SIZE/2 - this.y, WORLD_SIZE/2 - this.x);
-            } 
-            else if (nearestFood && Math.random() < agro) {
-                this.targetAngle = Math.atan2(nearestFood.y - this.y, nearestFood.x - this.x);
-            } else {
-                this.targetAngle += rand(-1, 1);
-            }
-            
-            // 3. Randomly boost if chasing food on hard
-            if (nearestFood && agro > 0.8 && minDist < 300 && this.length > 20 && Math.random() < 0.2) {
-                this.boosting = true;
-            }
-        }
-
-        // Steer towards target angle smoothly
-        let diff = normalizeAngle(this.targetAngle - this.angle);
-        this.angle += Math.sign(diff) * Math.min(Math.abs(diff), this.turnSpeed * dt);
-    }
-
-    checkCollisions() {
-        let r = this.Radius;
-
-        // Food Collection
-        for (let i = foods.length - 1; i >= 0; i--) {
-            let f = foods[i];
-            if (dist(this.x, this.y, f.x, f.y) < r + f.radius) {
-                foods.splice(i, 1);
-                let val = f.value * (this.effects.multiplier > 0 ? 2 : 1);
-                this.score += val;
-                this.length += Math.ceil(val / 5);
-                if (this.isPlayer) audio.eat();
-            }
-        }
-
-        // Powerup Collection
-        for (let i = powerups.length - 1; i >= 0; i--) {
-            let p = powerups[i];
-            if (dist(this.x, this.y, p.x, p.y) < r + p.radius) {
-                if (p.type === 0) this.effects.shield = 5;
-                if (p.type === 1) this.effects.speed = 5;
-                if (p.type === 2) this.effects.magnet = 10;
-                if (p.type === 3) this.effects.multiplier = 10;
-                powerups.splice(i, 1);
-                if (this.isPlayer) audio.powerup();
-            }
-        }
-
-        // Snake vs Snake Body Collisions
-        if (this.effects.shield > 0) return; // Invincible
-
-        for (let other of snakes) {
-            if (other === this || other.isDead) continue;
-            
-            // Quick AABB check
-            if (Math.abs(this.x - other.x) > 1000 || Math.abs(this.y - other.y) > 1000) continue;
-
-            // Check head against every segment of the other snake
-            let hit = false;
-            let otherR = other.Radius;
-            
-            // Start checking from segment index 2 to allow heads to slightly overlap during head-on
-            for (let i = 2 * other.segmentSpacing; i < other.history.length; i += other.segmentSpacing) {
-                let seg = other.history[i];
-                if (!seg) break;
-                
-                if (dist(this.x, this.y, seg.x, seg.y) < r * 0.8 + otherR * 0.8) {
-                    hit = true;
-                    break;
-                }
-            }
-
-            if (hit) {
-                this.die();
-                break;
-            }
-        }
-    }
-
-    die() {
-        if (this.isDead) return;
-        this.isDead = true;
-        if (this.isPlayer) audio.die();
-
-        // Convert body to food
-        for (let i = 0; i < this.history.length; i += this.segmentSpacing * 2) {
-            let seg = this.history[i];
-            if (seg && Math.random() < 0.8) {
-                foods.push(new Food(seg.x, seg.y, Math.min(20, 5 + this.length / 10), this.color));
-            }
-        }
-        this.history = [];
-    }
-
-    draw(ctx, time) {
-        if (this.isDead || this.history.length === 0) return;
-
-        let r = this.Radius;
-
-        // Draw Shield effect
-        if (this.effects.shield > 0) {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, r * 1.5, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(251, 191, 36, ${0.3 + Math.sin(time*10)*0.1})`;
-            ctx.fill();
-        }
-
-        // Draw Body
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        
-        // Multiplier / Speed visual FX
-        let isGlow = this.effects.multiplier > 0 || this.effects.speed > 0;
-        
-        for (let i = this.history.length - 1; i >= 0; i -= this.segmentSpacing) {
-            let seg = this.history[i];
-            if (!seg) continue;
-            
-            // Taper tail
-            let segRatio = 1 - (i / this.history.length);
-            let currentR = Math.max(3, r * segRatio);
-
-            ctx.beginPath();
-            ctx.arc(seg.x, seg.y, currentR, 0, Math.PI * 2);
-            ctx.fillStyle = this.color;
-            ctx.fill();
-            
-            if (isGlow && i % (this.segmentSpacing * 3) === 0) {
-                 ctx.strokeStyle = '#fff';
-                 ctx.lineWidth = 1;
-                 ctx.stroke();
-            }
-        }
-
-        // Draw Head
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Eyes
-        ctx.fillStyle = '#fff';
-        let eyeOffset = r * 0.5;
-        let eyeR = r * 0.3;
-        
-        let ex1 = this.x + Math.cos(this.angle - 0.5) * eyeOffset;
-        let ey1 = this.y + Math.sin(this.angle - 0.5) * eyeOffset;
-        let ex2 = this.x + Math.cos(this.angle + 0.5) * eyeOffset;
-        let ey2 = this.y + Math.sin(this.angle + 0.5) * eyeOffset;
-
-        ctx.beginPath(); ctx.arc(ex1, ey1, eyeR, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(ex2, ey2, eyeR, 0, Math.PI * 2); ctx.fill();
-
-        // Pupils
-        ctx.fillStyle = '#000';
-        ctx.beginPath(); ctx.arc(ex1 + Math.cos(this.angle)*2, ey1 + Math.sin(this.angle)*2, eyeR*0.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(ex2 + Math.cos(this.angle)*2, ey2 + Math.sin(this.angle)*2, eyeR*0.5, 0, Math.PI * 2); ctx.fill();
-        
-        // Draw Name/Arrow for Players
-        if (this.isPlayer) {
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`P${this.playerIndex}`, this.x, this.y - r - 10);
-        }
-    }
-}
-
-
-// --- Main Game Logic ---
-
-function initGame(players) {
-    audio.init();
-    numPlayers = players;
-    
-    snakes = [];
-    foods = [];
-    powerups = [];
-    level = 1;
-    
-    // Spawn Players
-    let p1Color = '#4ade80'; // Green
-    let p2Color = '#3b82f6'; // Blue
-    
-    snakes.push(new Snake(WORLD_SIZE/2 - 200, WORLD_SIZE/2, p1Color, true, 1));
-    if (numPlayers === 2) {
-        snakes.push(new Snake(WORLD_SIZE/2 + 200, WORLD_SIZE/2, p2Color, true, 2));
-    }
-
-    // Spawn AI
-    spawnAI(difficultyMap[currentDiff].aiCount);
-
-    // Initial Food
-    for(let i=0; i<300; i++) foods.push(new Food());
-    
-    // UI Update
-    document.getElementById('p1-score').classList.remove('hidden');
-    if (numPlayers === 2) document.getElementById('p2-score').classList.remove('hidden');
-    else document.getElementById('p2-score').classList.add('hidden');
-    
-    document.getElementById('controls-help').classList.remove('hidden');
-    if(numPlayers === 2) document.getElementById('p2-controls').classList.remove('hidden');
-    else document.getElementById('p2-controls').classList.add('hidden');
-
-    document.getElementById('hud').classList.remove('hidden');
-    document.getElementById('btn-pause').classList.remove('hidden');
-    
-    hideMenus();
-    gameState = 'playing';
-    lastTime = performance.now();
-    
-    if (!gameLoopId) requestAnimationFrame(gameLoop);
-}
-
-function spawnAI(count) {
-    const aiColors = ['#f87171', '#fb923c', '#facc15', '#a3e635', '#2dd4bf', '#818cf8', '#c084fc', '#f472b6'];
-    for(let i=0; i<count; i++) {
-        let x = rand(200, WORLD_SIZE-200);
-        let y = rand(200, WORLD_SIZE-200);
-        snakes.push(new Snake(x, y, aiColors[Math.floor(Math.random()*aiColors.length)], false, 0));
-    }
-}
-
-function update(dt) {
-    // Check level up (based on total player score)
-    let totalScore = 0;
-    snakes.forEach(s => { if(s.isPlayer) totalScore += s.score; });
-    
-    if (totalScore >= level * 1000) {
-        level++;
-        audio.levelUp();
-        showNotification(`LEVEL ${level}! Enemies increased.`);
-        spawnAI(5); // Add 5 more AI
-        difficultyMap[currentDiff].speedScale += 0.05; // Slightly faster AI
-    }
-
-    // Update Entities
-    snakes.forEach(s => s.update(dt));
-    
-    // Maintain population
-    let aliveAI = snakes.filter(s => !s.isPlayer && !s.isDead).length;
-    if (aliveAI < difficultyMap[currentDiff].aiCount) {
-        spawnAI(1);
-    }
-
-    // Maintain food and powerups
-    if (foods.length < 300) foods.push(new Food());
-    if (Math.random() < 0.005 && powerups.length < 10) powerups.push(new Powerup());
-
-    // Update UI Scores
-    let p1 = snakes.find(s => s.isPlayer && s.playerIndex === 1);
-    let p2 = snakes.find(s => s.isPlayer && s.playerIndex === 2);
-    
-    if (p1) document.getElementById('p1-score').innerText = `P1: ${Math.round(p1.score)} (Lvl ${level})`;
-    if (p2) document.getElementById('p2-score').innerText = `P2: ${Math.round(p2.score)} (Lvl ${level})`;
-
-    // Check Game Over
-    let playersAlive = snakes.filter(s => s.isPlayer && !s.isDead).length;
-    if (playersAlive === 0) {
-        triggerGameOver();
-    }
-}
-
-function drawWorld(camX, camY, clipX, clipY, clipW, clipH, time) {
-    ctx.save();
-    
-    // Setup Viewport clipping
-    ctx.beginPath();
-    ctx.rect(clipX, clipY, clipW, clipH);
-    ctx.clip();
-    
-    // Clear background for this viewport
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(clipX, clipY, clipW, clipH);
-
-    // Apply Camera translation
-    ctx.translate(clipX - camX + clipW/2, clipY - camY + clipH/2);
-
-    // Draw grid bounds
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-    
-    // Draw Grid Lines
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    let startX = Math.floor(Math.max(0, camX - clipW/2) / 100) * 100;
-    let endX = Math.min(WORLD_SIZE, camX + clipW/2);
-    let startY = Math.floor(Math.max(0, camY - clipH/2) / 100) * 100;
-    let endY = Math.min(WORLD_SIZE, camY + clipH/2);
-
-    for (let x = startX; x <= endX; x += 100) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
-    for (let y = startY; y <= endY; y += 100) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
-    ctx.stroke();
-
-    // Optimize drawing: only draw entities within camera view + margin
-    let margin = 100;
-    let vLeft = camX - clipW/2 - margin;
-    let vRight = camX + clipW/2 + margin;
-    let vTop = camY - clipH/2 - margin;
-    let vBottom = camY + clipH/2 + margin;
-
-    function inView(x, y) { return x > vLeft && x < vRight && y > vTop && y < vBottom; }
-
-    foods.forEach(f => { if(inView(f.x, f.y)) f.draw(ctx, time); });
-    powerups.forEach(p => { if(inView(p.x, p.y)) p.draw(ctx, time); });
-    
-    // Draw snakes (draw dead ones first, then AI, then players on top)
-    snakes.sort((a, b) => (a.isPlayer === b.isPlayer) ? 0 : a.isPlayer ? 1 : -1);
-    snakes.forEach(s => {
-        // Quick bounds check for snake (rough approximation)
-        if (inView(s.x, s.y) || s.history.some(seg => inView(seg.x, seg.y))) {
-            s.draw(ctx, time);
-        }
-    });
-
-    ctx.restore();
-}
-
-function draw() {
-    let time = performance.now() / 1000;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    let p1 = snakes.find(s => s.isPlayer && s.playerIndex === 1);
-    let p2 = snakes.find(s => s.isPlayer && s.playerIndex === 2);
-
-    if (numPlayers === 1 || !p2) {
-        // Single screen centered on P1 (or center of world if dead)
-        let cx = p1 ? p1.x : WORLD_SIZE/2;
-        let cy = p1 ? p1.y : WORLD_SIZE/2;
-        drawWorld(cx, cy, 0, 0, canvas.width, canvas.height, time);
-    } else {
-        // Split Screen
-        let w = canvas.width / 2;
-        let cx1 = p1 ? p1.x : WORLD_SIZE/2;
-        let cy1 = p1 ? p1.y : WORLD_SIZE/2;
-        let cx2 = p2 ? p2.x : WORLD_SIZE/2;
-        let cy2 = p2 ? p2.y : WORLD_SIZE/2;
-
-        drawWorld(cx1, cy1, 0, 0, w, canvas.height, time);
-        drawWorld(cx2, cy2, w, 0, w, canvas.height, time);
-
-        // Divider
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(w - 2, 0, 4, canvas.height);
-    }
-}
-
-function gameLoop(timestamp) {
-    if (!lastTime) lastTime = timestamp;
-    const dt = Math.min((timestamp - lastTime) / 1000, 0.1); // Cap dt to prevent massive jumps on lag
-    lastTime = timestamp;
-
-    if (gameState === 'playing') {
-        update(dt);
-        draw();
-    }
-    
-    gameLoopId = requestAnimationFrame(gameLoop);
-}
-
-// --- UI & State Management ---
-
-function showNotification(msg) {
-    const notif = document.getElementById('notification');
-    notif.innerText = msg;
-    notif.style.opacity = 1;
-    setTimeout(() => { notif.style.opacity = 0; }, 2000);
-}
-
-function togglePause() {
-    if (gameState === 'playing') {
-        gameState = 'paused';
-        document.getElementById('menu-pause').classList.remove('hidden');
-    } else if (gameState === 'paused') {
-        gameState = 'playing';
-        document.getElementById('menu-pause').classList.add('hidden');
-        lastTime = performance.now(); // reset timer
-    }
-}
-
-function triggerGameOver() {
-    gameState = 'gameover';
-    
-    let maxScore = 0;
-    snakes.forEach(s => {
-        if (s.isPlayer && s.score > maxScore) maxScore = s.score;
-    });
-
-    document.getElementById('gameover-stats').innerText = `Best Score: ${Math.round(maxScore)} | Level Reached: ${level}`;
-    document.getElementById('menu-gameover').classList.remove('hidden');
-    document.getElementById('btn-pause').classList.add('hidden');
-    document.getElementById('hud').classList.add('hidden');
-    document.getElementById('controls-help').classList.add('hidden');
-}
-
-function startGame(players) {
-    initGame(players);
-}
-
-function quitGame() {
-    gameState = 'menu';
-    hideMenus();
-    document.getElementById('menu-main').classList.remove('hidden');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function saveScoreAndRestart() {
-    let maxScore = 0;
-    snakes.forEach(s => {
-        if (s.isPlayer && s.score > maxScore) maxScore = s.score;
-    });
-    
-    let name = document.getElementById('player-name').value.trim() || 'Anonymous';
-    
-    // Add to in-memory array
-    highScores.push({
-        name: name,
-        score: Math.round(maxScore),
-        level: level,
-        date: new Date().toLocaleDateString()
-    });
-    
-    // Sort and keep top 50
-    highScores.sort((a, b) => b.score - a.score);
-    if(highScores.length > 50) highScores.length = 50;
-    
-    document.getElementById('player-name').value = '';
-    initGame(numPlayers); // restart with same player count
-}
-
-function hideMenus() {
-    document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
-}
-
-// --- Strict Local Drive Save System (No Cloud, No LocalStorage) ---
-
-function showScores() {
-    hideMenus();
-    document.getElementById('menu-scores').classList.remove('hidden');
-    renderScoresTable();
-}
-
-function hideScores() {
-    hideMenus();
-    document.getElementById('menu-main').classList.remove('hidden');
-}
-
-function renderScoresTable() {
-    const tbody = document.querySelector('#scores-table tbody');
-    tbody.innerHTML = '';
-    
-    if (highScores.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No local scores found. Play a game or load from disk.</td></tr>';
-        return;
-    }
-
-    highScores.forEach((s, index) => {
-        let tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>#${index + 1}</td>
-            <td>${escapeHTML(s.name)}</td>
-            <td style="color: #4ade80; font-weight: bold;">${s.score}</td>
-            <td>${s.level}</td>
-            <td style="font-size: 0.8rem; color: #94a3b8;">${s.date}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function downloadHighScores() {
-    if (highScores.length === 0) {
-        alert("No scores to save yet!");
-        return;
-    }
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(highScores, null, 2));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", "snake_highscores.json");
-    document.body.appendChild(dlAnchorElem);
-    dlAnchorElem.click();
-    dlAnchorElem.remove();
-}
-
-function uploadHighScores(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (Array.isArray(data)) {
-                // Merge and sort
-                highScores = [...highScores, ...data];
-                
-                // Deduplicate strictly by signature
-                const seen = new Set();
-                highScores = highScores.filter(s => {
-                    const sig = `${s.name}-${s.score}-${s.date}`;
-                    if(seen.has(sig)) return false;
-                    seen.add(sig);
-                    return true;
-                });
-                
-                highScores.sort((a, b) => b.score - a.score);
-                if(highScores.length > 50) highScores.length = 50;
-                
-                renderScoresTable();
-                alert("Scores loaded successfully!");
-            } else {
-                throw new Error("Invalid format");
-            }
-        } catch (err) {
-            alert("Error parsing save file. Ensure it is a valid snake_highscores.json file.");
-        }
-        event.target.value = ''; // Reset file input
+            osc.stop(audioCtx.currentTime + duration);
+        },
+        flip1: () => sfx.playTone(300, 'sine', 0.15, 0.1, 600),
+        flip2: () => sfx.playTone(600, 'sine', 0.15, 0.1, 300),
+        crash: () => {
+            sfx.playTone(100, 'sawtooth', 0.5, 0.2, 20);
+            sfx.playTone(150, 'square', 0.3, 0.2, 10);
+        },
+        powerup: () => {
+            sfx.playTone(400, 'square', 0.1, 0.1);
+            setTimeout(() => sfx.playTone(600, 'square', 0.1, 0.1), 100);
+            setTimeout(() => sfx.playTone(800, 'square', 0.2, 0.1), 200);
+        },
+        shieldBreak: () => sfx.playTone(800, 'sawtooth', 0.2, 0.1, 200)
     };
-    reader.readAsText(file);
-}
 
-function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
-        tag => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            "'": '&#39;',
-            '"': '&quot;'
-        }[tag] || tag)
-    );
-}
+    // ==========================================
+    // LOCAL STORAGE (IndexedDB Wrapper)
+    // ==========================================
+    const DB_NAME = 'GravitySwitchDB';
+    const STORE_NAME = 'highscores';
+    let db;
 
-// Initial draw to setup background on load
-ctx.fillStyle = '#0f172a';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const initDB = () => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            }
+        };
+        request.onsuccess = (e) => db = e.target.result;
+    };
+    initDB();
+
+    const saveScore = (score) => {
+        if (!db || score <= 0) return;
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).add({ score: Math.floor(score), date: new Date().toLocaleDateString() });
+    };
+
+    const loadScores = (callback) => {
+        if (!db) return callback([]);
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => {
+            let scores = req.result.sort((a, b) => b.score - a.score).slice(0, 5);
+            callback(scores);
+        };
+    };
+
+    // ==========================================
+    // UI & STATE MANAGEMENT
+    // ==========================================
+    let deviceMode = 'desktop'; // desktop or mobile
+    let gameState = 'menu'; // menu, playing, paused, gameover
+    window.lastPlayerCount = 1;
+
+    function hideAllUI() {
+        document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+    }
+
+    function setDevice(mode) {
+        deviceMode = mode;
+        document.getElementById('btn-desktop').className = mode === 'desktop' ? 'px-6 py-2 border-2 border-cyan-500 bg-cyan-500 text-white rounded' : 'px-6 py-2 border-2 border-cyan-500 text-cyan-500 rounded hover:bg-cyan-500 hover:text-white';
+        document.getElementById('btn-gamepad').className = mode === 'gamepad' ? 'px-6 py-2 border-2 border-purple-500 bg-purple-500 text-white rounded' : 'px-6 py-2 border-2 border-purple-500 text-purple-500 rounded hover:bg-purple-500 hover:text-white';
+        document.getElementById('btn-mobile').className = mode === 'mobile' ? 'px-6 py-2 border-2 border-pink-500 bg-pink-500 text-white rounded' : 'px-6 py-2 border-2 border-pink-500 text-pink-500 rounded hover:bg-pink-500 hover:text-white';
+        
+        document.getElementById('player-select').classList.remove('hidden');
+        document.body.className = mode === 'mobile' ? 'mobile-mode' : '';
+    }
+
+    function showMain() {
+        hideAllUI();
+        document.getElementById('ui-main').classList.remove('hidden');
+        gameState = 'menu';
+    }
+
+    function showInstructions() {
+        hideAllUI();
+        document.getElementById('ui-instructions').classList.remove('hidden');
+        const text = document.getElementById('inst-text');
+        if (deviceMode === 'desktop') {
+            text.innerHTML = `
+                <p><strong>Goal:</strong> Survive the endless futuristic trench. Avoid hitting the sides of platforms.</p>
+                <p><strong>1 Player:</strong> Press <kbd>SPACE</kbd> or <kbd>W</kbd> to flip gravity.</p>
+                <p><strong>2 Players:</strong><br/>
+                Player 1 (Orange): <kbd>SPACE</kbd> / <kbd>W</kbd><br/>
+                Player 2 (Green): <kbd>ENTER</kbd> / <kbd>UP Arrow</kbd></p>
+                <p>Camera dynamically zooms out if players separate!</p>
+            `;
+        } else if (deviceMode === 'gamepad') {
+            text.innerHTML = `
+                <p><strong>Goal:</strong> Survive the endless futuristic trench.</p>
+                <p><strong>1 Player:</strong> Press <kbd>A Button</kbd> to flip gravity.</p>
+                <p><strong>2 Players:</strong><br/>
+                Player 1 (Orange): <kbd>A Button</kbd> on Controller 1<br/>
+                Player 2 (Green): <kbd>A Button</kbd> on Controller 2</p>
+                <p>Make sure controllers are active.</p>
+            `;
+        } else {
+            text.innerHTML = `
+                <p><strong>Goal:</strong> Survive the endless futuristic trench.</p>
+                <p><strong>Ensure device is rotated horizontally (Landscape).</strong></p>
+                <p><strong>1 Player:</strong> Tap anywhere on the screen to flip gravity.</p>
+                <p><strong>2 Players:</strong><br/>
+                Player 1 (Orange): Tap <strong>LEFT</strong> half of screen.<br/>
+                Player 2 (Green): Tap <strong>RIGHT</strong> half of screen.</p>
+            `;
+        }
+    }
+
+    function showHighScores() {
+        hideAllUI();
+        document.getElementById('ui-scores').classList.remove('hidden');
+        const list = document.getElementById('score-list');
+        list.innerHTML = 'Loading...';
+        loadScores((scores) => {
+            if(scores.length === 0) {
+                list.innerHTML = '<p class="text-gray-400">No high scores yet.</p>';
+                return;
+            }
+            list.innerHTML = scores.map((s, i) => 
+                `<div class="flex justify-between border-b border-gray-700 py-2">
+                    <span class="text-cyan-400">#${i+1}</span>
+                    <span class="text-white font-bold">${s.score}</span>
+                    <span class="text-gray-500 text-sm">${s.date}</span>
+                </div>`
+            ).join('');
+        });
+    }
+
+    function pauseGame() {
+        if(gameState !== 'playing') return;
+        gameState = 'paused';
+        document.getElementById('ui-hud').classList.add('hidden');
+        document.getElementById('ui-pause').classList.remove('hidden');
+        document.getElementById('touch-zones').classList.add('hidden');
+    }
+
+    function resumeGame() {
+        gameState = 'playing';
+        hideAllUI();
+        document.getElementById('ui-hud').classList.remove('hidden');
+        if(deviceMode === 'mobile') document.getElementById('touch-zones').classList.remove('hidden');
+    }
+
+    function quitGame() {
+        if(score > 0) saveScore(score);
+        cleanWorld();
+        showMain();
+    }
+
+    // ==========================================
+    // THREE.JS ENGINE SETUP
+    // ==========================================
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050508, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('game-container').appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+    
+    // Grids
+    const gridHelperTop = new THREE.GridHelper(2000, 100, 0x00ffff, 0x004444);
+    gridHelperTop.position.y = 10;
+    scene.add(gridHelperTop);
+    
+    const gridHelperBottom = new THREE.GridHelper(2000, 100, 0xff00ff, 0x440044);
+    gridHelperBottom.position.y = -10;
+    scene.add(gridHelperBottom);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ==========================================
+    // GAME ENTITIES & LOGIC
+    // ==========================================
+    const WORLD_BASE_SPEED = 35; // Increased starting difficulty
+    const GRAVITY_FORCE = 80;
+    const FLOOR_Y = -4; // Increased trench gap width
+    const CEIL_Y = 4;
+    const PLATFORM_THICKNESS = 2;
+
+    let score = 0;
+    let currentLevel = 1;
+    let worldSpeed = WORLD_BASE_SPEED;
+    let players = [];
+    let platforms = [];
+    let powerups = [];
+    let enemies = [];
+    let particles = [];
+    let nextSpawnX = -10;
+    
+    // Materials
+    const matBottom = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x008888, wireframe: false });
+    const matTop = new THREE.MeshStandardMaterial({ color: 0xff00ff, emissive: 0x880088, wireframe: false });
+    const matShield = new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.5, wireframe: true });
+    const matSuperstar = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.6, wireframe: true });
+    
+    // Geometries
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const sphereGeo = new THREE.SphereGeometry(0.8, 16, 16);
+    const gemGeo = new THREE.OctahedronGeometry(0.6);
+    
+    // Humanoid Materials - Changed to bright matte white to prevent blending into the background
+    const suitMat = new THREE.MeshStandardMaterial({color: 0xffffff, metalness: 0.1, roughness: 0.8}); 
+
+    // Enemy generator
+    function createEnemyMesh() {
+        let group = new THREE.Group();
+        // Metallic core
+        let core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.9, roughness: 0.1}));
+        // Glowing red energy cage
+        let aura = new THREE.Mesh(new THREE.IcosahedronGeometry(0.65, 0), new THREE.MeshBasicMaterial({color: 0xff0000, wireframe: true, transparent: true, opacity: 0.6}));
+        // Pulsing light
+        let light = new THREE.PointLight(0xff0000, 2, 8);
+        group.add(core); 
+        group.add(aura); 
+        group.add(light);
+        return group;
+    }
+
+    function updateHUDLives() {
+        if(players.length > 0) {
+            let html = players.map(p => {
+                let color = p.id === 1 ? '#ff8800' : '#00ffaa';
+                return `<span style="color:${color}">P${p.id}: ${p.lives}</span>`;
+            }).join('<span class="text-gray-500 mx-2">|</span>');
+            document.getElementById('hud-lives').innerHTML = html;
+        }
+    }
+
+    class Player {
+        constructor(id, color, startY) {
+            this.id = id;
+            this.alive = true;
+            this.lives = 3;
+            
+            this.mesh = new THREE.Group();
+            this.mesh.position.set(0, startY, id === 1 ? -1 : 1);
+            scene.add(this.mesh);
+            
+            this.bootMat = new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: 1.0}); // Glowing boots/visor
+            
+            // Torso
+            this.body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 0.25), suitMat);
+            this.mesh.add(this.body);
+
+            // Head & Visor
+            this.headGroup = new THREE.Group();
+            this.headGroup.position.y = 0.45;
+            this.head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), suitMat);
+            this.visor = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.1, 0.22), this.bootMat);
+            this.visor.position.set(0.08, 0, 0); // Pointing forward
+            this.headGroup.add(this.head);
+            this.headGroup.add(this.visor);
+            this.mesh.add(this.headGroup);
+
+            // Arms (Swinging)
+            this.armL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.45), suitMat);
+            this.armL.position.set(0, 0.1, -0.2);
+            this.mesh.add(this.armL);
+            this.armR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.45), suitMat);
+            this.armR.position.set(0, 0.1, 0.2);
+            this.mesh.add(this.armR);
+
+            // Legs Group (to rotate around hip)
+            this.legL = new THREE.Group();
+            this.legL.position.set(0, -0.3, -0.1);
+            let upperLegL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35), suitMat);
+            upperLegL.position.y = -0.15;
+            this.legL.add(upperLegL);
+            let bootVisL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.2), this.bootMat);
+            bootVisL.position.set(0.05, -0.4, 0); 
+            this.legL.add(bootVisL);
+            this.mesh.add(this.legL);
+
+            // Leg R
+            this.legR = new THREE.Group();
+            this.legR.position.set(0, -0.3, 0.1);
+            let upperLegR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35), suitMat);
+            upperLegR.position.y = -0.15;
+            this.legR.add(upperLegR);
+            let bootVisR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.2), this.bootMat);
+            bootVisR.position.set(0.05, -0.4, 0);
+            this.legR.add(bootVisR);
+            this.mesh.add(this.legR);
+            
+            // Powerup visuals
+            this.shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 16), matShield);
+            this.shieldMesh.visible = false;
+            this.mesh.add(this.shieldMesh);
+
+            this.superstarMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 1), matSuperstar);
+            this.superstarMesh.visible = false;
+            this.mesh.add(this.superstarMesh);
+            
+            this.light = new THREE.PointLight(color, 1.5, 10);
+            this.mesh.add(this.light);
+
+            this.vy = 0;
+            this.gravityDir = startY < 0 ? -1 : 1; 
+            this.w = 1; this.h = 1.2; this.d = 1;
+            this.grounded = false;
+            this.runTime = 0;
+            
+            this.hasShield = false;
+            this.shieldTimer = 0; // For temporary respawn invincibility
+            this.boostTimer = 0;
+            this.superstarTimer = 0;
+            this.colorHex = color;
+            this.baseColor = new THREE.Color(color);
+        }
+
+        flip() {
+            if(!this.alive || !this.grounded) return; 
+            this.gravityDir *= -1;
+            this.vy = this.gravityDir > 0 ? 15 : -15; 
+            this.grounded = false;
+            sfx[this.gravityDir > 0 ? 'flip1' : 'flip2']();
+            createBurst(this.mesh.position, this.colorHex);
+        }
+
+        takeDamage(hitPos, isEnemy) {
+            if (this.superstarTimer > 0) {
+                // Invincible! Smash it.
+                createBurst(hitPos, 0xffffff, 20);
+                sfx.shieldBreak(); // Use break sound for smashing
+                return true; // Indicates we smashed it
+            } else if (this.shieldTimer > 0 || this.hasShield || this.boostTimer > 0) {
+                // Protected by shield/boost
+                if (!this.shieldTimer && !this.boostTimer) this.hasShield = false; // Only consume perm shield
+                createBurst(this.mesh.position, 0x00aaff, 30);
+                sfx.shieldBreak();
+                this.vy = this.gravityDir > 0 ? 15 : -15; // Bounce over
+                this.mesh.position.x -= 1; 
+                return true;
+            } else {
+                // Take Damage
+                if (this.lives > 1) {
+                    this.lives--;
+                    updateHUDLives();
+                    this.shieldTimer = 3.0; // 3 seconds invincibility
+                    sfx.crash();
+                    createBurst(this.mesh.position, this.colorHex, 20);
+                    this.vy = this.gravityDir > 0 ? 15 : -15; // Bounce over obstacle
+                    this.mesh.position.x -= 1; 
+                    return true;
+                } else {
+                    this.lives = 0;
+                    updateHUDLives();
+                    this.die();
+                    return false;
+                }
+            }
+        }
+
+        update(dt) {
+            if(!this.alive) return;
+
+            // Timers
+            if(this.boostTimer > 0) {
+                this.boostTimer -= dt;
+                createTrail(this.mesh.position, 0x00ff00);
+            }
+            if(this.shieldTimer > 0) this.shieldTimer -= dt;
+            if(this.superstarTimer > 0) {
+                this.superstarTimer -= dt;
+                // Rainbow color effect
+                let hue = (Date.now() % 1000) / 1000;
+                this.bootMat.color.setHSL(hue, 1.0, 0.5);
+                this.light.color.setHSL(hue, 1.0, 0.5);
+                createTrail(this.mesh.position, this.bootMat.color.getHex());
+            } else {
+                this.bootMat.color.copy(this.baseColor);
+                this.light.color.copy(this.baseColor);
+            }
+            
+            this.shieldMesh.visible = this.hasShield || this.shieldTimer > 0 || this.boostTimer > 0;
+            if(this.shieldMesh.visible) this.shieldMesh.rotation.y += dt * 2;
+
+            this.superstarMesh.visible = this.superstarTimer > 0;
+            if(this.superstarMesh.visible) {
+                this.superstarMesh.rotation.x += dt * 3;
+                this.superstarMesh.rotation.y += dt * 3;
+            }
+
+            // X movement
+            let currentSpeed = worldSpeed * (this.boostTimer > 0 ? 1.5 : 1.0);
+            this.mesh.position.x += currentSpeed * dt;
+
+            // Score Multiplier (Double points during speed mode)
+            let multiplier = (this.boostTimer > 0) ? 2 : 1;
+            score += (worldSpeed / 10) * dt * multiplier;
+
+            // Y movement (Physics)
+            this.vy += GRAVITY_FORCE * this.gravityDir * dt;
+            if (this.vy > 30) this.vy = 30;
+            if (this.vy < -30) this.vy = -30;
+            
+            let prevY = this.mesh.position.y;
+            this.mesh.position.y += this.vy * dt;
+
+            // Collision Detection - Walls
+            let hitWall = false;
+            this.grounded = false;
+            
+            for(let p of platforms) {
+                if (this.mesh.position.x + 0.3 > p.minX && this.mesh.position.x - 0.3 < p.maxX &&
+                    this.mesh.position.y + 0.6 > p.minY && this.mesh.position.y - 0.6 < p.maxY) {
+                    
+                    let fromAbove = prevY - 0.6 >= p.maxY - 0.3;
+                    let fromBelow = prevY + 0.6 <= p.minY + 0.3;
+                    
+                    if (fromAbove && this.vy < 0) { 
+                        this.mesh.position.y = p.maxY + 0.6;
+                        this.vy = 0;
+                        this.grounded = true;
+                    } else if (fromBelow && this.vy > 0) { 
+                        this.mesh.position.y = p.minY - 0.6;
+                        this.vy = 0;
+                        this.grounded = true;
+                    } else { 
+                        hitWall = true;
+                        this.mesh.position.x = p.minX - 0.31; 
+                    }
+                }
+            }
+
+            // Collision Detection - Enemies
+            for(let i=enemies.length-1; i>=0; i--) {
+                let en = enemies[i];
+                if (this.mesh.position.distanceTo(en.mesh.position) < 1.0) {
+                    let smashed = this.takeDamage(en.mesh.position, true);
+                    if (smashed || this.superstarTimer > 0) {
+                        scene.remove(en.mesh);
+                        enemies.splice(i, 1);
+                    }
+                }
+            }
+            
+            // Animation Logic
+            if (!this.grounded) {
+                this.mesh.rotation.x += 10 * dt * (this.gravityDir > 0 ? -1 : 1);
+                this.legL.rotation.z = 0; this.legR.rotation.z = 0;
+                this.armL.rotation.z = 0; this.armR.rotation.z = 0;
+            } else {
+                this.mesh.rotation.x = 0;
+                this.mesh.rotation.z = this.gravityDir === 1 ? Math.PI : 0;
+                this.runTime += dt * currentSpeed * 0.8;
+                
+                // Running cycle
+                this.legL.rotation.z = Math.sin(this.runTime) * 1.0;
+                this.legR.rotation.z = Math.sin(this.runTime + Math.PI) * 1.0;
+                this.armL.rotation.z = Math.sin(this.runTime + Math.PI) * 1.0;
+                this.armR.rotation.z = Math.sin(this.runTime) * 1.0;
+                
+                if(this.boostTimer > 0 || this.superstarTimer > 0) {
+                    // Lean forward when fast
+                    this.mesh.rotation.z += (this.gravityDir === 1 ? 0.3 : -0.3);
+                }
+            }
+
+            // Powerup Pickup
+            for(let i=powerups.length-1; i>=0; i--) {
+                let pu = powerups[i];
+                if(this.mesh.position.distanceTo(pu.mesh.position) < 1.5) {
+                    sfx.powerup();
+                    if(pu.type === 'shield') this.hasShield = true;
+                    if(pu.type === 'boost') this.boostTimer = 4.0; // Speed + Shield
+                    if(pu.type === 'superstar') { this.superstarTimer = 5.0; this.hasShield = true; }
+                    scene.remove(pu.mesh);
+                    powerups.splice(i, 1);
+                }
+            }
+
+            // Death conditions
+            if (this.mesh.position.y > 10 || this.mesh.position.y < -10 || this.mesh.position.x < camera.position.x - 20) {
+                this.lives = 0;
+                updateHUDLives();
+                this.die();
+            } else if (hitWall) {
+                // Pass wall collision point to damage handler
+                let wallPos = this.mesh.position.clone(); wallPos.x += 1;
+                this.takeDamage(wallPos, false);
+            }
+        }
+
+        die() {
+            if(!this.alive) return;
+            this.alive = false;
+            sfx.crash();
+            createBurst(this.mesh.position, this.colorHex, 50);
+            scene.remove(this.mesh);
+        }
+    }
+
+    // Procedural Generation Fix: Ensures a path always exists
+    function addPlatform(x, length, type) {
+        let y = type === 'bottom' ? FLOOR_Y : CEIL_Y;
+        let p = new THREE.Mesh(boxGeo, type === 'bottom' ? matBottom : matTop);
+        p.scale.set(length, PLATFORM_THICKNESS, 8); 
+        p.position.set(x + length/2, y, 0);
+        scene.add(p);
+        
+        platforms.push({
+            mesh: p,
+            minX: x, maxX: x + length,
+            minY: y - PLATFORM_THICKNESS/2, maxY: y + PLATFORM_THICKNESS/2
+        });
+    }
+
+    function spawnChunk() {
+        let leaderX = players.length > 0 ? Math.max(...players.map(p=>p.mesh.position.x)) : 0;
+        
+        while (nextSpawnX < leaderX + 200) {
+            let solidLength = 20 + Math.random() * 30;
+            // Gaps get wider as the level increases
+            let gapLength = 10 + (currentLevel * 3) + Math.random() * 15;
+            let gapType = Math.floor(Math.random() * 2); 
+            
+            // 1. Solid Section
+            addPlatform(nextSpawnX, solidLength, 'bottom');
+            addPlatform(nextSpawnX, solidLength, 'top');
+            
+            // Powerup Spawn (15% chance)
+            if(Math.random() < 0.15) {
+                let rand = Math.random();
+                let puType = rand > 0.6 ? 'shield' : (rand > 0.2 ? 'boost' : 'superstar');
+                let pGroup = new THREE.Group();
+                
+                if (puType === 'boost') {
+                    let pMesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.5, 8), new THREE.MeshStandardMaterial({color: 0x00ffaa, emissive: 0x00ffaa}));
+                    pMesh.rotation.z = -Math.PI / 2;
+                    pGroup.add(pMesh);
+                } else if (puType === 'superstar') {
+                    let pMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.8), new THREE.MeshStandardMaterial({color: 0xffff00, emissive: 0xffff00}));
+                    pGroup.add(pMesh);
+                } else {
+                    let pMesh1 = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.15, 8, 16), new THREE.MeshStandardMaterial({color: 0x00aaff, emissive: 0x00aaff}));
+                    let pMesh2 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshStandardMaterial({color: 0x00aaff, emissive: 0x00aaff}));
+                    pGroup.add(pMesh1); pGroup.add(pMesh2);
+                }
+                
+                // Track current player lanes to ensure items don't spawn out of reach
+                let activeZ = players.length > 0 ? players.map(p => p.mesh.position.z) : [-1];
+                let laneZ = activeZ[Math.floor(Math.random() * activeZ.length)];
+                let itemY = Math.random() > 0.5 ? CEIL_Y - 1.6 : FLOOR_Y + 1.6;
+                
+                pGroup.position.set(nextSpawnX + solidLength/2, itemY, laneZ);
+                scene.add(pGroup);
+                powerups.push({mesh: pGroup, type: puType});
+            }
+
+            // Enemy Spawn (Starts level 1, frequency scales with level)
+            if(Math.random() < 0.15 + (currentLevel * 0.05)) {
+                let enMesh = createEnemyMesh();
+                
+                // Track current player lanes for enemies too
+                let activeZ = players.length > 0 ? players.map(p => p.mesh.position.z) : [-1];
+                let enLaneZ = activeZ[Math.floor(Math.random() * activeZ.length)];
+                let enItemY = Math.random() > 0.5 ? CEIL_Y - 1.6 : FLOOR_Y + 1.6;
+                
+                enMesh.position.set(nextSpawnX + solidLength/2 + 5, enItemY, enLaneZ);
+                scene.add(enMesh);
+                enemies.push({mesh: enMesh});
+            }
+            
+            nextSpawnX += solidLength;
+            
+            // 2. Gap Section
+            if (gapType === 0) {
+                addPlatform(nextSpawnX, gapLength, 'bottom');
+            } else {
+                addPlatform(nextSpawnX, gapLength, 'top');
+            }
+            nextSpawnX += gapLength;
+        }
+    }
+
+    // Particles System
+    function createBurst(pos, colorHex, count=15) {
+        for(let i=0; i<count; i++) {
+            let p = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({color: colorHex}));
+            p.scale.set(0.3,0.3,0.3);
+            p.position.copy(pos);
+            p.velocity = new THREE.Vector3((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+            p.life = 1.0;
+            scene.add(p);
+            particles.push(p);
+        }
+    }
+
+    function createTrail(pos, colorHex) {
+        let p = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({color: colorHex, transparent:true, opacity:0.5}));
+        p.scale.set(0.5,0.5,0.5);
+        p.position.copy(pos);
+        p.velocity = new THREE.Vector3(-10, 0, 0);
+        p.life = 0.5;
+        scene.add(p);
+        particles.push(p);
+    }
+
+    function cleanWorld(keepPlayers = false) {
+        platforms.forEach(p => scene.remove(p.mesh)); platforms = [];
+        powerups.forEach(p => scene.remove(p.mesh)); powerups = [];
+        enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
+        particles.forEach(p => scene.remove(p)); particles = [];
+        if (!keepPlayers) {
+            players.forEach(p => { if(p.mesh) scene.remove(p.mesh); }); 
+            players = [];
+        }
+    }
+
+    function startNewLevel() {
+        document.getElementById('ui-transition').classList.add('hidden');
+        document.getElementById('ui-hud').classList.remove('hidden');
+        document.getElementById('hud-level').innerText = currentLevel;
+        
+        cleanWorld(true);
+        
+        camera.position.set(0, 0, 20);
+        camera.lookAt(5, 0, 0);
+        gridHelperTop.position.x = 0;
+        gridHelperBottom.position.x = 0;
+        
+        worldSpeed = WORLD_BASE_SPEED + ((currentLevel - 1) * 8); // Progressively harder
+        nextSpawnX = -20;
+        
+        // Setup Players for the new run
+        players.forEach(p => {
+            p.alive = true;
+            p.lives = 3;
+            // Re-align perfectly with surfaces
+            p.mesh.position.set(0, p.id === 1 ? FLOOR_Y + 1.6 : CEIL_Y - 1.6, p.id === 1 ? -1 : 1);
+            p.vy = 0;
+            p.gravityDir = p.id === 1 ? -1 : 1;
+            p.grounded = false;
+            p.hasShield = false;
+            p.boostTimer = 0;
+            p.superstarTimer = 0;
+            p.shieldTimer = 3.0; // Invincible start
+            if(!scene.children.includes(p.mesh)) scene.add(p.mesh);
+        });
+        updateHUDLives();
+        
+        // Initial solid chunk
+        addPlatform(-20, 100, 'bottom');
+        addPlatform(-20, 100, 'top');
+        nextSpawnX = 80;
+        
+        gameState = 'playing';
+    }
+
+    // ==========================================
+    // GAME LOOP & INPUT
+    // ==========================================
+    function startGame(numPlayers) {
+        window.lastPlayerCount = numPlayers;
+        cleanWorld(); // Full clear
+        
+        score = 0;
+        currentLevel = 1;
+        
+        players = [];
+        players.push(new Player(1, 0xff6600, 0)); // Start Y correctly set in startNewLevel
+        if (numPlayers === 2) {
+            players.push(new Player(2, 0x00ff00, 0));
+        }
+        
+        hideAllUI();
+        if(deviceMode === 'mobile') document.getElementById('touch-zones').classList.remove('hidden');
+        
+        startNewLevel();
+    }
+
+    // Inputs
+    window.addEventListener('keydown', (e) => {
+        if(gameState !== 'playing') return;
+        if(e.code === 'Space' || e.code === 'KeyW') { if(players[0]) players[0].flip(); e.preventDefault(); }
+        if(e.code === 'Enter' || e.code === 'ArrowUp') { if(players[1]) players[1].flip(); e.preventDefault(); }
+        if(e.code === 'Escape') pauseGame();
+    });
+
+    document.getElementById('touch-left').addEventListener('touchstart', (e) => {
+        e.preventDefault(); if(players[0]) players[0].flip();
+    });
+    document.getElementById('touch-right').addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        if(players[1]) players[1].flip(); 
+        else if(players[0]) players[0].flip(); // If 1P mode, right side also flips P1
+    });
+    // Universal tap for 1P mobile if they don't hit the specific div
+    document.addEventListener('touchstart', (e) => {
+        if(gameState === 'playing' && window.lastPlayerCount === 1 && e.target.tagName !== 'BUTTON' && !e.target.id.includes('touch')) {
+            if(players[0]) players[0].flip();
+        }
+    }, {passive: false});
+
+
+    function checkGamepads() {
+        if(gameState !== 'playing') return;
+        const gps = navigator.getGamepads();
+        
+        if(gps[0] && gps[0].buttons[0].pressed && !gps[0].prevPressed) {
+            if(players[0]) players[0].flip();
+        }
+        if(gps[0]) gps[0].prevPressed = gps[0].buttons[0].pressed;
+
+        if(gps[1] && gps[1].buttons[0].pressed && !gps[1].prevPressed) {
+            if(players[1]) players[1].flip();
+        }
+        if(gps[1]) gps[1].prevPressed = gps[1].buttons[0].pressed;
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.1); // cap dt to prevent physics glitches
+
+        if (gameState === 'playing') {
+            checkGamepads();
+            
+            document.getElementById('hud-score').innerText = Math.floor(score);
+
+            spawnChunk();
+
+            // Update Players
+            players.forEach(p => p.update(dt));
+            
+            // Check Game Over
+            if(players.every(p => !p.alive)) {
+                gameState = 'gameover';
+                document.getElementById('ui-hud').classList.add('hidden');
+                document.getElementById('touch-zones').classList.add('hidden');
+                document.getElementById('ui-gameover').classList.remove('hidden');
+                document.getElementById('final-score').innerText = Math.floor(score);
+                saveScore(score);
+            }
+
+            // Update Entities (Spin)
+            powerups.forEach(p => {
+                if (p.type === 'boost') p.mesh.rotation.x += 4 * dt; 
+                else if (p.type === 'superstar') { p.mesh.rotation.x += 2*dt; p.mesh.rotation.y += 2*dt; }
+                else { p.mesh.rotation.y += 2 * dt; p.mesh.rotation.x += 1 * dt; }
+            });
+
+            enemies.forEach(e => {
+                e.mesh.rotation.x += 1 * dt;
+                e.mesh.rotation.y += 3 * dt;
+            });
+
+            // Cleanup & Update Particles
+            for(let i=particles.length-1; i>=0; i--) {
+                let p = particles[i];
+                p.position.addScaledVector(p.velocity, dt);
+                p.life -= dt * 1.5;
+                p.material.opacity = p.life;
+                if(p.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Camera Logic & Level Progression
+            let alivePlayers = players.filter(p => p.alive);
+            if(alivePlayers.length > 0) {
+                let maxXs = alivePlayers.map(p => p.mesh.position.x);
+                let leaderX = Math.max(...maxXs);
+                let trailerX = Math.min(...maxXs);
+                
+                // Hard Level Break/Transition (Every 1000 units)
+                if (leaderX > 1000) {
+                    gameState = 'transition';
+                    document.getElementById('ui-hud').classList.add('hidden');
+                    document.getElementById('ui-transition').classList.remove('hidden');
+                    document.getElementById('transition-title').innerText = `LEVEL ${currentLevel} CLEARED`;
+                    
+                    setTimeout(() => {
+                        currentLevel++;
+                        startNewLevel();
+                    }, 2500);
+                    return; // Pause physics until next level starts
+                }
+
+                // Camera tracking midpoint for multiplayer support
+                let midX = (leaderX + trailerX) / 2;
+                let separation = leaderX - trailerX;
+                
+                // Track midpoint smoothly
+                camera.position.x += (midX + 6 - camera.position.x) * 5 * dt;
+                
+                // Dynamic Zoom: Ensure both players are visible based on separation
+                let targetZ = 18 + (separation * 1.0); 
+                targetZ = Math.min(Math.max(targetZ, 18), 60); // Clamp zoom, max 60 to fit large gaps
+                
+                camera.position.z += (targetZ - camera.position.z) * 2 * dt;
+                camera.position.y = 0; // lock Y
+                camera.lookAt(camera.position.x + 5, 0, 0);
+
+                // Parallax grids
+                gridHelperTop.position.x = camera.position.x;
+                gridHelperBottom.position.x = camera.position.x;
+            }
+
+            // World Cleanup (Behind Camera)
+            let cullX = camera.position.x - 30;
+            for(let i=platforms.length-1; i>=0; i--) {
+                if(platforms[i].maxX < cullX) {
+                    scene.remove(platforms[i].mesh);
+                    platforms.splice(i, 1);
+                }
+            }
+            for(let i=powerups.length-1; i>=0; i--) {
+                if(powerups[i].mesh.position.x < cullX) {
+                    scene.remove(powerups[i].mesh);
+                    powerups.splice(i, 1);
+                }
+            }
+            for(let i=enemies.length-1; i>=0; i--) {
+                if(enemies[i].mesh.position.x < cullX) {
+                    scene.remove(enemies[i].mesh);
+                    enemies.splice(i, 1);
+                }
+            }
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+    
+    // Init display
+    document.addEventListener("DOMContentLoaded", () => {
+        // Initial dummy camera setup for background menu render
+        camera.position.set(0,0,20);
+        camera.lookAt(10,0,0);
+    });
 
 </script>
 </body>
