@@ -131,64 +131,94 @@
         /* Mobile Touch Controls */
         .touch-container {
             position: absolute;
-            left: 0;
-            width: 100%;
-            padding: 0 50px;
+            bottom: 20px;
+            width: 50%;
+            padding: 0 15px;
             display: flex;
-            justify-content: flex-start;
             align-items: center;
-            gap: 40px;
+            gap: 15px;
             z-index: 20;
             pointer-events: none;
         }
-        #touch-controls-p1 { bottom: 30px; }
-        #touch-controls-p2 { top: 30px; transform: rotate(180deg); }
+        #touch-controls-p1 {
+            left: 0;
+            justify-content: flex-start;
+        }
+        #touch-controls-p2 {
+            right: 0;
+            justify-content: flex-start;
+            flex-direction: row-reverse; /* Puts Action button on the inside, D-Pad on the edge */
+        }
         
         .dpad {
             position: relative;
-            width: 160px;
-            height: 160px;
+            width: 140px;
+            height: 140px;
             pointer-events: auto;
         }
         .touch-btn {
             position: absolute;
-            width: 55px;
-            height: 55px;
-            background: rgba(255, 255, 255, 0.15);
-            border: 2px solid rgba(255,255,255,0.3);
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
+            font-size: 20px;
             user-select: none;
             touch-action: none;
-            color: rgba(255,255,255,0.8);
+            border: 2px solid;
         }
-        .touch-btn:active { background: rgba(255, 255, 255, 0.4); }
+        
+        /* Player 1 Colors (Blue) */
+        #touch-controls-p1 .touch-btn {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.6);
+            color: #93c5fd;
+        }
+        #touch-controls-p1 .touch-btn:active { background: rgba(59, 130, 246, 0.5); }
+        #touch-controls-p1 .action-btn {
+            background: rgba(59, 130, 246, 0.5);
+            border-color: #3b82f6;
+        }
+        #touch-controls-p1 .action-btn:active { background: rgba(59, 130, 246, 0.8); }
+
+        /* Player 2 Colors (Red) */
+        #touch-controls-p2 .touch-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #fca5a5;
+        }
+        #touch-controls-p2 .touch-btn:active { background: rgba(239, 68, 68, 0.5); }
+        #touch-controls-p2 .action-btn {
+            background: rgba(239, 68, 68, 0.5);
+            border-color: #ef4444;
+        }
+        #touch-controls-p2 .action-btn:active { background: rgba(239, 68, 68, 0.8); }
+
         .touch-btn.up { top: 0; left: 50%; transform: translateX(-50%); }
         .touch-btn.down { bottom: 0; left: 50%; transform: translateX(-50%); }
         .touch-btn.left { left: 0; top: 50%; transform: translateY(-50%); }
         .touch-btn.right { right: 0; top: 50%; transform: translateY(-50%); }
         
         .action-btn {
-            width: 90px;
-            height: 90px;
-            background: rgba(249, 115, 22, 0.5);
-            border: 3px solid #f97316;
+            width: 75px;
+            height: 75px;
+            border: 3px solid;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 1.2rem;
+            font-size: 1rem;
             font-weight: bold;
             color: white;
             user-select: none;
             pointer-events: auto;
             touch-action: none;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
         }
-        .action-btn:active { background: rgba(249, 115, 22, 0.8); transform: scale(0.95); }
+        .action-btn:active { transform: scale(0.95); }
 
         /* Portrait Orientation Warning */
         #portrait-warning { display: none; }
@@ -271,7 +301,7 @@
                 <h3 class="text-2xl text-orange-400 mb-2 uppercase font-black italic">Touch Controls</h3>
                 <p>Use the <strong>Virtual D-Pad</strong> to move your player.</p>
                 <p>Tap the <strong>ACTION Button</strong> to Shoot or Dunk.</p>
-                <p class="mt-2 text-gray-300 text-sm"><strong>Pro Tip:</strong> Playing 2-Player mode on a tablet will spawn a second set of controls at the top of the screen so two players can sit across from each other!</p>
+                <p class="mt-2 text-gray-300 text-sm"><strong>Pro Tip:</strong> Player 1 controls the left side, Player 2 controls the right side!</p>
             </div>
         </div>
         
@@ -307,7 +337,7 @@
             <div class="touch-btn left" id="t2-left">◀</div>
             <div class="touch-btn right" id="t2-right">▶</div>
         </div>
-        <div class="action-btn" style="background: rgba(239, 68, 68, 0.5); border-color: #ef4444;" id="t2-action">JUMP</div>
+        <div class="action-btn" id="t2-action">JUMP</div>
     </div>
 
     <!-- Pause Screen -->
