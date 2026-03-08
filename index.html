@@ -96,6 +96,9 @@
             width: 100%;
             padding: 0.75rem;
             font-size: 1.125rem;
+            cursor: pointer;
+            border: none;
+            outline: none;
         }
 
         .play-btn:hover {
@@ -207,33 +210,44 @@
         <!-- Player Toolbar -->
         <div class="bg-gray-900/90 backdrop-blur-md p-3 sm:p-4 flex justify-between items-center text-white shrink-0 border-b border-white/10 shadow-lg">
             <span id="playing-title" class="font-bold text-lg sm:text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 truncate pr-4">Game Title</span>
-            <button onclick="closeGame()" class="bg-pink-600 hover:bg-pink-500 text-white px-5 py-2 sm:px-6 sm:py-2 rounded-full font-bold transition-all hover:scale-105 shadow-[0_0_15px_rgba(219,39,119,0.4)] whitespace-nowrap flex items-center gap-2">
+            <button id="closeGameBtn" class="bg-pink-600 hover:bg-pink-500 text-white px-5 py-2 sm:px-6 sm:py-2 rounded-full font-bold transition-all hover:scale-105 shadow-[0_0_15px_rgba(219,39,119,0.4)] whitespace-nowrap flex items-center gap-2 cursor-pointer">
                 <span class="text-xl leading-none -mt-0.5">⬅️</span> Back to Hub
             </button>
         </div>
         <!-- Iframe Container -->
         <div class="flex-grow relative bg-black w-full h-full">
-            <iframe id="game-frame" class="absolute inset-0 w-full h-full border-0" src="" allowfullscreen></iframe>
+            <!-- Added allow attributes for better game compatibility -->
+            <iframe id="game-frame" class="absolute inset-0 w-full h-full border-0" src="" allow="autoplay; fullscreen" allowfullscreen></iframe>
         </div>
     </div> <!-- End Game View -->
 
     <script>
         // --- Game Player Logic ---
+        const gameFrame = document.getElementById('game-frame');
+        
         function openGame(url, title) {
             document.body.style.overflow = 'hidden'; // Stop background scrolling
             document.getElementById('hub-view').style.display = 'none';
             document.getElementById('game-view').classList.remove('hidden');
             document.getElementById('playing-title').innerText = title;
-            document.getElementById('game-frame').src = url;
+            gameFrame.src = url;
             window.scrollTo(0, 0); // Ensure the screen is at the top
+            
+            // Auto-focus the iframe so keyboard controls work immediately
+            setTimeout(() => {
+                gameFrame.focus();
+            }, 100);
         }
 
         function closeGame() {
             document.body.style.overflow = ''; // Restore background scrolling
             document.getElementById('game-view').classList.add('hidden');
             document.getElementById('hub-view').style.display = 'block';
-            document.getElementById('game-frame').src = ""; // Stop game from running in background
+            gameFrame.src = ""; // Stop game from running in background
         }
+        
+        // Attach listener to close button natively
+        document.getElementById('closeGameBtn').addEventListener('click', closeGame);
 
         // =========================================================================
         // 🎮 GAME DATA MASTER LIST 🎮
@@ -340,11 +354,8 @@
 
             games.forEach(game => {
                 const card = document.createElement('div');
-                card.className = 'game-card group'; // Simplified classes, rest is handled in CSS
+                card.className = 'game-card group';
                 
-                // Escape single quotes for the inline onclick function
-                const safeTitle = game.title.replace(/'/g, "\\'");
-
                 card.innerHTML = `
                     <div class="game-icon bg-gradient-to-br ${game.bgColor} flex items-center justify-center shadow-lg transition-transform duration-300">
                         ${game.icon}
@@ -352,11 +363,18 @@
                     <div class="game-info flex flex-col w-full h-full">
                         <h3 class="game-title font-bold text-white">${game.title}</h3>
                         <p class="game-desc text-white/70 font-semibold flex-grow">${game.description}</p>
-                        <button onclick="openGame('${game.url}', '${safeTitle}')" class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block mt-auto w-full">
+                        <button class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block mt-auto w-full">
                             Play Now!
                         </button>
                     </div>
                 `;
+                
+                // Attach event listener natively (much safer than inline onclick in restricted environments)
+                const playBtn = card.querySelector('.play-btn');
+                playBtn.addEventListener('click', () => {
+                    openGame(game.url, game.title);
+                });
+                
                 gamesContainer.appendChild(card);
             });
         }
