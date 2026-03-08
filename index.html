@@ -57,6 +57,7 @@
             align-items: center;
             text-align: center;
             height: 100%;
+            cursor: pointer; /* Makes the whole card look clickable */
         }
 
         .game-card:hover {
@@ -72,6 +73,7 @@
             font-size: 3rem;
             margin-bottom: 1.5rem;
             flex-shrink: 0;
+            transition: transform 0.3s ease;
         }
 
         .game-card:hover .game-icon {
@@ -96,12 +98,13 @@
             width: 100%;
             padding: 0.75rem;
             font-size: 1.125rem;
-            cursor: pointer;
             border: none;
             outline: none;
+            pointer-events: none; /* Prevents the button from intercepting the card's click */
         }
 
-        .play-btn:hover {
+        /* Link the button's hover effect to the entire card's hover state */
+        .game-card:hover .play-btn {
             background-position: right center;
             transform: scale(1.05) rotate(-2deg);
         }
@@ -352,19 +355,19 @@
                 const card = document.createElement('div');
                 card.className = 'game-card group';
                 
-                // Escape single quotes for the inline onclick function
-                const safeTitle = game.title.replace(/'/g, "\\'");
+                // Add the click event to the entire card
+                card.onclick = () => openGame(game.url, game.title);
 
                 card.innerHTML = `
-                    <div class="game-icon bg-gradient-to-br ${game.bgColor} flex items-center justify-center shadow-lg transition-transform duration-300">
+                    <div class="game-icon bg-gradient-to-br ${game.bgColor} flex items-center justify-center shadow-lg">
                         ${game.icon}
                     </div>
                     <div class="game-info flex flex-col w-full h-full">
                         <h3 class="game-title font-bold text-white">${game.title}</h3>
                         <p class="game-desc text-white/70 font-semibold flex-grow">${game.description}</p>
-                        <button onclick="openGame('${game.url}', '${safeTitle}')" class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block mt-auto w-full">
+                        <div class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block mt-auto w-full">
                             Play Now!
-                        </button>
+                        </div>
                     </div>
                 `;
                 gamesContainer.appendChild(card);
