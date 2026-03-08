@@ -30,7 +30,7 @@
         /* Container-Query Responsive Grid */
         .responsive-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 2rem;
         }
 
@@ -120,33 +120,30 @@
             transform: scale(1.05) rotate(-2deg);
         }
 
-        /* Container Query for Tablet & Phone Views (Compact Mode) */
-        /* Increased max-width to 800px so Tablet mode also triggers condensed cards */
-        @container (max-width: 800px) {
+        /* Container Query for Tablet View (Compact Mode) */
+        @container (max-width: 850px) {
             .responsive-grid {
-                /* Fits 2 compact cards on tablet, 1 compact card on phone */
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 1rem;
+                grid-template-columns: 1fr 1fr; /* Forces exactly 2 columns to fill all space perfectly */
+                gap: 1.5rem;
             }
             .game-card {
                 flex-direction: row;
                 text-align: left;
                 align-items: center;
-                padding: 1rem;
-                border-radius: 1.25rem;
+                padding: 1.25rem;
                 gap: 1rem;
             }
             .game-card:hover {
                 transform: translateY(-5px) scale(1.02); /* Less bounce on smaller screens */
             }
             .game-icon {
-                width: 4.5rem;
-                height: 4.5rem;
-                font-size: 2rem;
+                width: 5rem;
+                height: 5rem;
+                font-size: 2.25rem;
                 margin-bottom: 0;
             }
             .game-title {
-                font-size: 1.15rem;
+                font-size: 1.25rem;
                 margin-bottom: 0.25rem;
             }
             .game-desc {
@@ -160,8 +157,30 @@
             }
             .play-btn {
                 padding: 0.5rem;
-                font-size: 0.9rem;
+                font-size: 0.95rem;
                 border-radius: 0.75rem;
+            }
+        }
+
+        /* Container Query for Phone View (Compact Mode) */
+        @container (max-width: 550px) {
+            .responsive-grid {
+                grid-template-columns: 1fr; /* Forces exactly 1 column to fill all space perfectly */
+                gap: 1rem;
+            }
+            .game-card {
+                padding: 1rem;
+            }
+            .game-icon {
+                width: 4.5rem;
+                height: 4.5rem;
+                font-size: 2rem;
+            }
+            .game-title {
+                font-size: 1.15rem;
+            }
+            .play-btn {
+                font-size: 0.9rem;
             }
         }
 
@@ -407,8 +426,9 @@
                     <div class="game-icon bg-gradient-to-br ${game.bgColor} flex items-center justify-center shadow-lg">
                         ${game.icon}
                     </div>
-                    <div class="game-info flex flex-col w-full h-full">
-                        <h3 class="game-title font-bold text-white">${game.title}</h3>
+                    <!-- The critical fix: added flex-1 and min-w-0 to the text container below! -->
+                    <div class="game-info flex flex-col flex-1 min-w-0 h-full">
+                        <h3 class="game-title font-bold text-white truncate">${game.title}</h3>
                         <p class="game-desc text-white/70 font-semibold flex-grow">${game.description}</p>
                         <div class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block mt-auto w-full">
                             Play Now!
