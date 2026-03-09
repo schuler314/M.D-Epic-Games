@@ -2,54 +2,153 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>F1 Racing Simulator - Split Screen</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
             font-family: 'Arial', sans-serif;
             background: #000;
             overflow: hidden;
+            touch-action: none; /* Prevents default touch actions on mobile */
         }
 
-        #carSelection {
-            display: flex;
+        /* Screen Management */
+        .screen {
+            display: none;
             width: 100vw;
             height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Device Selection Screen */
+        #deviceSelection {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .device-title {
+            font-size: 3em;
+            color: #00ff88;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .device-subtitle {
+            font-size: 1.2em;
+            color: #aaa;
+            margin-bottom: 40px;
+        }
+
+        .device-options {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .device-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #e94560;
+            color: #fff;
+            padding: 20px 40px;
+            font-size: 1.5em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            min-width: 200px;
+        }
+
+        .device-btn:hover {
+            background: rgba(233, 69, 96, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .device-icon { font-size: 2em; }
+
+        /* Orientation Warning Overlay */
+        #orientationWarning {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            z-index: 9999;
+            text-align: center;
+            padding: 40px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .rotate-icon { font-size: 4em; margin-bottom: 20px; animation: rotatePhone 2s infinite ease-in-out; }
+
+        @keyframes rotatePhone {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(-90deg); }
+            100% { transform: rotate(-90deg); }
+        }
+
+        @media screen and (orientation: portrait) {
+            body.mobile-mode #orientationWarning { display: flex; }
+        }
+
+        /* Car Selection Screen */
+        #carSelection {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         }
 
         .player-selection {
             width: 50%;
-            padding: 40px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             border-right: 2px solid #e94560;
+            overflow-y: auto; /* Allow scrolling on short landscape screens */
         }
 
-        .player-selection:last-child {
-            border-right: none;
-        }
+        .player-selection:last-child { border-right: none; }
 
         .player-title {
-            font-size: 2.5em;
+            font-size: 2em;
             color: #e94560;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             text-transform: uppercase;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
+            text-align: center;
         }
 
         .car-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
             width: 100%;
             max-width: 600px;
         }
@@ -58,14 +157,14 @@
             background: rgba(255, 255, 255, 0.1);
             border: 3px solid transparent;
             border-radius: 10px;
-            padding: 20px;
+            padding: 10px;
             cursor: pointer;
             transition: all 0.3s;
             text-align: center;
         }
 
         .car-option:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
             border-color: #e94560;
             background: rgba(233, 69, 96, 0.2);
         }
@@ -78,30 +177,21 @@
 
         .car-preview {
             width: 100%;
-            height: 120px;
+            height: 80px;
             background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
             border-radius: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3em;
+            font-size: 2.5em;
         }
 
-        .car-name {
-            color: #fff;
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .car-stats {
-            color: #aaa;
-            font-size: 0.9em;
-        }
+        .car-name { color: #fff; font-size: 1em; font-weight: bold; margin-bottom: 5px; }
+        .car-stats { color: #aaa; font-size: 0.8em; }
 
         .ready-button {
-            margin-top: 30px;
+            margin-top: 20px;
             padding: 15px 40px;
             font-size: 1.2em;
             background: #e94560;
@@ -114,59 +204,61 @@
             transition: all 0.3s;
         }
 
-        .ready-button:hover {
-            background: #ff6b81;
-            transform: scale(1.05);
+        .ready-button:hover:not(:disabled) { background: #ff6b81; transform: scale(1.05); }
+        .ready-button:disabled { background: #555; cursor: not-allowed; }
+
+        /* Back Button */
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #aaa;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 20;
+            font-size: 1em;
+            transition: all 0.3s;
         }
 
-        .ready-button:disabled {
-            background: #555;
-            cursor: not-allowed;
-            transform: scale(1);
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #fff;
+            transform: translateY(-2px);
         }
 
+        /* Game Container */
         #gameContainer {
-            display: none;
-            width: 100vw;
-            height: 100vh;
-            position: relative;
             background: #000;
         }
 
         #renderCanvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
         }
 
         .split-screen {
-            width: 100%;
-            height: 80%;
+            width: 100%; height: 80%;
             display: flex;
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 0; left: 0;
             pointer-events: none;
             z-index: 5;
         }
 
         .player-view {
-            width: 50%;
-            height: 100%;
+            width: 50%; height: 100%;
             position: relative;
             border-right: 2px solid #e94560;
         }
-
-        .player-view:last-child {
-            border-right: none;
-        }
+        .player-view:last-child { border-right: none; }
 
         .hud {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 10px; left: 10px;
             color: #fff;
             font-family: 'Courier New', monospace;
             font-size: 1.2em;
@@ -174,44 +266,15 @@
             z-index: 10;
         }
 
-        .speed {
-            font-size: 2em;
-            color: #00ff88;
-            font-weight: bold;
-        }
-
-        .lap-info {
-            margin-top: 10px;
-            font-size: 1em;
-        }
-
-        .view-mode {
-            margin-top: 5px;
-            color: #e94560;
-            font-size: 0.9em;
-        }
-
-        .gear-info {
-            margin-top: 5px;
-            color: #ffaa00;
-            font-size: 1em;
-        }
-
-        .elevation-info {
-            margin-top: 5px;
-            color: #00d2ff;
-            font-size: 0.9em;
-        }
-
-        .surface-info {
-            margin-top: 5px;
-            color: #ff6b6b;
-            font-size: 0.9em;
-        }
+        .speed { font-size: 1.8em; color: #00ff88; font-weight: bold; }
+        .hud div { margin-top: 4px; font-size: 0.9em; }
+        .view-mode { color: #e94560; }
+        .gear-info { color: #ffaa00; }
+        .elevation-info { color: #00d2ff; }
+        .surface-info { color: #ff6b6b; }
 
         .minimap-container {
-            width: 100%;
-            height: 20%;
+            width: 100%; height: 20%;
             background: #1a1a2e;
             display: flex;
             align-items: center;
@@ -223,8 +286,7 @@
         }
 
         #minimap {
-            width: 90%;
-            height: 90%;
+            width: 90%; height: 90%;
             background: #0f0f1e;
             border: 2px solid #e94560;
             border-radius: 10px;
@@ -232,48 +294,188 @@
 
         .controls-info {
             position: absolute;
-            bottom: 30px;
-            right: 20px;
-            color: #fff;
-            font-size: 0.8em;
-            text-align: right;
-            z-index: 10;
+            bottom: 30px; right: 20px;
+            color: #fff; font-size: 0.8em;
+            text-align: right; z-index: 10;
             background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
+            padding: 10px; border-radius: 5px;
         }
 
         .countdown {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 10em;
+            font-size: 8em;
             color: #e94560;
             font-weight: bold;
             text-shadow: 0 0 20px #e94560;
             z-index: 100;
             display: none;
         }
+
+        /* Pause Button & Menu */
+        #pauseButton {
+            position: absolute;
+            top: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(233, 69, 96, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 50;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: none;
+            border: 2px solid #fff;
+            transition: all 0.3s;
+        }
+        
+        #pauseButton:hover { 
+            background: rgba(255, 107, 129, 1); 
+            transform: translateX(-50%) scale(1.05); 
+        }
+
+        #pauseMenu {
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .pause-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #e94560;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .pause-content h2 { color: #00ff88; font-size: 2.5em; margin-bottom: 10px; }
+
+        /* Mobile Touch Controls Overlay */
+        #touchControls {
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 80%;
+            z-index: 20;
+            pointer-events: none; /* Let clicks pass through except on buttons */
+        }
+
+        body.mobile-mode #touchControls { display: flex; }
+
+        .touch-zone {
+            width: 50%; height: 100%;
+            position: relative;
+            pointer-events: auto; /* Enable touch on zones */
+        }
+
+        .t-dpad {
+            position: absolute;
+            bottom: 20px;
+            width: 150px;
+            height: 150px;
+        }
+
+        .tz-left .t-dpad { left: 20px; }
+        .tz-right .t-dpad { right: 20px; }
+
+        .t-btn {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            color: white;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 45px; height: 45px;
+        }
+        .t-btn:active { background: rgba(0, 255, 136, 0.6); border-color: #00ff88; }
+        
+        /* D-Pad layout */
+        .t-up { top: 0; left: 52px; }
+        .t-down { bottom: 0; left: 52px; }
+        .t-left { top: 52px; left: 0; }
+        .t-right { top: 52px; right: 0; }
+        
+        .t-action {
+            position: absolute;
+            bottom: 20px;
+            background: rgba(233, 69, 96, 0.4);
+            border: 2px solid #e94560;
+            border-radius: 10px;
+            padding: 10px;
+            color: white;
+            font-weight: bold;
+        }
+        .tz-left .t-action { right: 20px; }
+        .tz-right .t-action { left: 20px; }
+
+
+        /* Media Queries for smaller screens */
+        @media (max-width: 800px) {
+            .back-button { top: 10px; left: 10px; padding: 5px 10px; font-size: 0.9em; }
+            .player-title { font-size: 1.2em; }
+            .car-preview { height: 50px; font-size: 1.5em; }
+            .hud { font-size: 0.8em; top: 5px; left: 5px; }
+            .speed { font-size: 1.5em; }
+            .controls-info { font-size: 0.6em; bottom: 5px; right: 5px; padding: 5px; }
+            .ready-button { padding: 10px 20px; font-size: 1em; }
+            .countdown { font-size: 5em; }
+        }
     </style>
 </head>
 <body>
-    <!-- Car Selection Screen -->
-    <div id="carSelection">
+
+    <!-- Orientation Warning (Mobile Only) -->
+    <div id="orientationWarning">
+        <div class="rotate-icon">📱</div>
+        <h2>Landscape Mode Required</h2>
+        <p>Please rotate your device horizontally for a wider screen to fit the game.</p>
+    </div>
+
+    <!-- Screen 1: Device Selection -->
+    <div id="deviceSelection" class="screen active">
+        <div class="device-title">F1 Racing Simulator</div>
+        <div class="device-subtitle">Select your platform to optimize controls:</div>
+        <div class="device-options">
+            <div class="device-btn" onclick="selectDevice('desktop')">
+                <span class="device-icon">⌨️</span> Desktop
+            </div>
+            <div class="device-btn" onclick="selectDevice('gamepad')">
+                <span class="device-icon">🎮</span> Gamepad
+            </div>
+            <div class="device-btn" onclick="selectDevice('mobile')">
+                <span class="device-icon">📱</span> Mobile / Tablet
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 2: Car Selection -->
+    <div id="carSelection" class="screen">
+        <button class="back-button" onclick="backToDeviceSelection()">⬅ Back</button>
         <div class="player-selection">
-            <div class="player-title">Player 1 - WASD</div>
+            <div class="player-title" id="p1SelectTitle">Player 1</div>
             <div class="car-grid" id="player1Cars"></div>
             <button class="ready-button" id="player1Ready" disabled>Ready</button>
         </div>
         <div class="player-selection">
-            <div class="player-title">Player 2 - Arrows</div>
+            <div class="player-title" id="p2SelectTitle">Player 2</div>
             <div class="car-grid" id="player2Cars"></div>
             <button class="ready-button" id="player2Ready" disabled>Ready</button>
         </div>
     </div>
 
-    <!-- Game Container -->
-    <div id="gameContainer">
+    <!-- Screen 3: Game Container -->
+    <div id="gameContainer" class="screen">
         <canvas id="renderCanvas"></canvas>
         <div class="split-screen">
             <div class="player-view" id="player1View">
@@ -297,952 +499,964 @@
                 </div>
             </div>
         </div>
+
+        <!-- Touch Controls UI -->
+        <div id="touchControls">
+            <div class="touch-zone tz-left">
+                <div class="t-dpad">
+                    <div class="t-btn t-up" data-key="w">▲</div>
+                    <div class="t-btn t-left" data-key="a">◀</div>
+                    <div class="t-btn t-right" data-key="d">▶</div>
+                    <div class="t-btn t-down" data-key="s">▼</div>
+                </div>
+                <div class="t-action" data-key="q">CAM (Q)</div>
+            </div>
+            <div class="touch-zone tz-right">
+                <div class="t-dpad">
+                    <div class="t-btn t-up" data-key="ArrowUp">▲</div>
+                    <div class="t-btn t-left" data-key="ArrowLeft">◀</div>
+                    <div class="t-btn t-right" data-key="ArrowRight">▶</div>
+                    <div class="t-btn t-down" data-key="ArrowDown">▼</div>
+                </div>
+                <div class="t-action" data-key="[">CAM ([)</div>
+            </div>
+        </div>
+
         <div class="minimap-container">
             <canvas id="minimap"></canvas>
         </div>
-        <div class="controls-info">
-            <div><strong>Player 1:</strong> WASD = Move | Q/E = Change View</div>
-            <div><strong>Player 2:</strong> Arrows = Move | [/] = Change View</div>
+        <div class="controls-info" id="ingameControlsInfo">
+            <!-- Will be populated dynamically based on device -->
         </div>
         <div class="countdown" id="countdown">3</div>
+
+        <!-- Pause Button & Menu -->
+        <div id="pauseButton" onclick="togglePause()">⏸️ Pause</div>
+        <div id="pauseMenu" class="screen">
+            <div class="pause-content">
+                <h2>Game Paused</h2>
+                <div class="device-btn" onclick="togglePause()">▶️ Resume</div>
+                <div class="device-btn" onclick="restartGame()">🏠 Restart to Home</div>
+            </div>
+        </div>
     </div>
 
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
+        // --- Game State & Configuration ---
+        let currentDevice = 'desktop'; // desktop, gamepad, mobile
         const cars = [
-    { name: 'Red Bull Racing', icon: '🏎️', color: 0x0600ef, speed: 95, handling: 90 },
-    { name: 'Mercedes AMG', icon: '🏎️', color: 0x00d2be, speed: 92, handling: 94 },
-    { name: 'Ferrari', icon: '🏎️', color: 0xdc0000, speed: 93, handling: 91 },
-    { name: 'McLaren', icon: '🏎️', color: 0xff8700, speed: 90, handling: 95 },
-    { name: 'Alpine', icon: '🏎️', color: 0x0090ff, speed: 88, handling: 88 }
-];
+            { name: 'Red Bull Racing', icon: '🏎️', color: 0x0600ef, speed: 95, handling: 90 },
+            { name: 'Mercedes AMG', icon: '🏎️', color: 0x00d2be, speed: 92, handling: 94 },
+            { name: 'Ferrari', icon: '🏎️', color: 0xdc0000, speed: 93, handling: 91 },
+            { name: 'McLaren', icon: '🏎️', color: 0xff8700, speed: 90, handling: 95 },
+            { name: 'Alpine', icon: '🏎️', color: 0x0090ff, speed: 88, handling: 88 }
+        ];
 
-let player1Selected = null;
-let player2Selected = null;
-let player1Ready = false;
-let player2Ready = false;
+        let player1Selected = null, player2Selected = null;
+        let player1Ready = false, player2Ready = false;
+        let isPaused = false;
+        let controlsSetup = false;
 
-function populateCarSelection() {
-    const p1Grid = document.getElementById('player1Cars');
-    const p2Grid = document.getElementById('player2Cars');
-    cars.forEach((car, index) => {
-        p1Grid.appendChild(createCarOption(car, index, 1));
-        p2Grid.appendChild(createCarOption(car, index, 2));
-    });
-}
-
-function createCarOption(car, index, player) {
-    const option = document.createElement('div');
-    option.className = 'car-option';
-    option.innerHTML = `
-        <div class="car-preview" style="background: linear-gradient(45deg, #${car.color.toString(16).padStart(6, '0')}, #${((car.color + 0x333333) & 0xffffff).toString(16).padStart(6, '0')})">${car.icon}</div>
-        <div class="car-name">${car.name}</div>
-        <div class="car-stats">Speed: ${car.speed} | Handle: ${car.handling}</div>
-    `;
-    option.addEventListener('click', () => selectCar(index, player, option));
-    return option;
-}
-
-function selectCar(index, player, element) {
-    const playerPrefix = player === 1 ? 'player1' : 'player2';
-    const grid = document.getElementById(`${playerPrefix}Cars`);
-    grid.querySelectorAll('.car-option').forEach(opt => opt.classList.remove('selected'));
-    element.classList.add('selected');
-    if (player === 1) {
-        player1Selected = index;
-        document.getElementById('player1Ready').disabled = false;
-    } else {
-        player2Selected = index;
-        document.getElementById('player2Ready').disabled = false;
-    }
-}
-
-function checkBothReady() {
-    if (player1Ready && player2Ready) {
-        setTimeout(startGame, 1000);
-    }
-}
-
-document.getElementById('player1Ready').addEventListener('click', function() {
-    player1Ready = true;
-    this.style.background = '#00ff88';
-    this.textContent = 'READY!';
-    this.disabled = true;
-    checkBothReady();
-});
-
-document.getElementById('player2Ready').addEventListener('click', function() {
-    player2Ready = true;
-    this.style.background = '#00ff88';
-    this.textContent = 'READY!';
-    this.disabled = true;
-    checkBothReady();
-});
-
-populateCarSelection();
-
-let scene, renderer, player1Camera, player2Camera, player1Car, player2Car;
-let trackPoints = [];
-let barrierPositions = [];
-let gameStarted = false, raceStarted = false, raceStartTime = 0;
-const keys = {};
-const player1Controls = { forward: 'w', backward: 's', left: 'a', right: 'd', viewLeft: 'q', viewRight: 'e' };
-const player2Controls = { forward: 'ArrowUp', backward: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', viewLeft: '[', viewRight: ']' };
-let player1ViewMode = 0, player2ViewMode = 0;
-let audioContext, player1Engine, player2Engine;
-
-function startGame() {
-    document.getElementById('carSelection').style.display = 'none';
-    document.getElementById('gameContainer').style.display = 'block';
-    initAudio();
-    initThreeJS();
-    createTrack();
-    createCars();
-    setupControls();
-    setTimeout(() => showCountdown(), 100);
-}
-
-function initAudio() {
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        player1Engine = createEngineSound();
-        player2Engine = createEngineSound();
-    } catch (e) {
-        console.log('Audio not supported');
-    }
-}
-
-function playCountdownBeep(pitch) {
-    if (!audioContext) return;
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(pitch, audioContext.currentTime);
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.3);
-}
-
-function playGoSound() {
-    if (!audioContext) return;
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, audioContext.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.4, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.5);
-}
-
-function createEngineSound() {
-    if (!audioContext) return { oscillators: [], gainNodes: [], filters: [], noiseSource: null, baseFrequency: 100 };
-    const oscillators = [], gainNodes = [], filters = [];
-    for (let i = 0; i < 3; i++) {
-        const osc = audioContext.createOscillator();
-        osc.type = i === 1 ? 'square' : 'sawtooth';
-        osc.frequency.value = 100 * (i + 1);
-        const gain = audioContext.createGain();
-        gain.gain.value = 0;
-        const filter = audioContext.createBiquadFilter();
-        filter.type = i === 0 ? 'lowpass' : i === 1 ? 'bandpass' : 'highpass';
-        filter.frequency.value = 800 + i * 600;
-        if (i === 1) filter.Q.value = 2;
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.start();
-        oscillators.push(osc);
-        gainNodes.push(gain);
-        filters.push(filter);
-    }
-    const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 2, audioContext.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < output.length; i++) output[i] = Math.random() * 2 - 1;
-    const noiseSource = audioContext.createBufferSource();
-    noiseSource.buffer = noiseBuffer;
-    noiseSource.loop = true;
-    const noiseGain = audioContext.createGain();
-    noiseGain.gain.value = 0;
-    const noiseFilter = audioContext.createBiquadFilter();
-    noiseFilter.type = 'bandpass';
-    noiseFilter.frequency.value = 1000;
-    noiseFilter.Q.value = 1;
-    noiseSource.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(audioContext.destination);
-    noiseSource.start();
-    gainNodes.push(noiseGain);
-    filters.push(noiseFilter);
-    return { oscillators, gainNodes, filters, noiseSource, baseFrequency: 100 };
-}
-
-function updateEngineSound(engine, speed) {
-    if (!engine.oscillators || engine.oscillators.length === 0) return;
-    const normalizedSpeed = Math.abs(speed) / 4;
-    const rpm = 800 + (normalizedSpeed * 8000);
-    const baseFreq = 80 + (rpm / 50);
-    engine.oscillators[0].frequency.setTargetAtTime(baseFreq, audioContext.currentTime, 0.05);
-    engine.filters[0].frequency.setTargetAtTime(600 + rpm / 8, audioContext.currentTime, 0.05);
-    engine.gainNodes[0].gain.setTargetAtTime(Math.min(0.15, normalizedSpeed * 0.12), audioContext.currentTime, 0.03);
-    engine.oscillators[1].frequency.setTargetAtTime(baseFreq * 2, audioContext.currentTime, 0.05);
-    engine.filters[1].frequency.setTargetAtTime(1000 + rpm / 6, audioContext.currentTime, 0.05);
-    engine.gainNodes[1].gain.setTargetAtTime(Math.min(0.08, normalizedSpeed * 0.06), audioContext.currentTime, 0.03);
-    engine.oscillators[2].frequency.setTargetAtTime(baseFreq * 3, audioContext.currentTime, 0.05);
-    engine.filters[2].frequency.setTargetAtTime(2000 + rpm / 4, audioContext.currentTime, 0.05);
-    engine.gainNodes[2].gain.setTargetAtTime(Math.min(0.05, normalizedSpeed * 0.04), audioContext.currentTime, 0.03);
-    engine.filters[3].frequency.setTargetAtTime(800 + rpm / 10, audioContext.currentTime, 0.05);
-    engine.gainNodes[3].gain.setTargetAtTime(Math.min(0.03, normalizedSpeed * 0.025), audioContext.currentTime, 0.03);
-}
-
-function initThreeJS() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.Fog(0x87ceeb, 200, 1500);
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(100, 150, 100);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.left = -1200;
-    directionalLight.shadow.camera.right = 1200;
-    directionalLight.shadow.camera.top = 1200;
-    directionalLight.shadow.camera.bottom = -1200;
-    scene.add(directionalLight);
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight2.position.set(-100, 100, -100);
-    scene.add(directionalLight2);
-    const canvas = document.getElementById('renderCanvas');
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    player1Camera = new THREE.PerspectiveCamera(75, (window.innerWidth / 2) / (window.innerHeight * 0.8), 0.1, 2000);
-    player2Camera = new THREE.PerspectiveCamera(75, (window.innerWidth / 2) / (window.innerHeight * 0.8), 0.1, 2000);
-    createTerrain();
-}
-
-function createTerrain() {
-    const terrainSize = 5000, terrainSegments = 150;
-    const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
-    const vertices = terrainGeometry.attributes.position.array;
-    for (let i = 0; i < vertices.length; i += 3) {
-        const x = vertices[i], z = vertices[i + 1];
-        vertices[i + 2] = Math.sin(x / 200) * 15 + Math.cos(z / 180) * 12 + Math.sin(x / 300 + z / 250) * 8;
-    }
-    terrainGeometry.computeVertexNormals();
-    const terrain = new THREE.Mesh(terrainGeometry, new THREE.MeshLambertMaterial({ color: 0x2d5016 }));
-    terrain.rotation.x = -Math.PI / 2;
-    terrain.receiveShadow = true;
-    scene.add(terrain);
-}
-
-function isNearOtherSegment(point, currentIdx, threshold = 35) {
-    for (let i = 0; i < trackPoints.length; i++) {
-        if (Math.abs(i - currentIdx) < 50) continue;
-        const otherPoint = trackPoints[i];
-        const dist = Math.sqrt(Math.pow(point.x - otherPoint.x, 2) + Math.pow(point.z - otherPoint.z, 2));
-        if (dist < threshold) return true;
-    }
-    return false;
-}
-
-function createArrowTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-    ctx.fillRect(0, 0, 128, 256);
-    ctx.fillStyle = '#ffffff';
-    ctx.globalAlpha = 0.6;
-    ctx.fillRect(44, 80, 40, 120);
-    ctx.beginPath();
-    ctx.moveTo(64, 20);
-    ctx.lineTo(20, 100);
-    ctx.lineTo(108, 100);
-    ctx.closePath();
-    ctx.fill();
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
-}
-
-function calculateTrackWidth(prevPoint, currentPoint, nextPoint, baseWidth = 32) {
-    if (!prevPoint || !nextPoint) return baseWidth;
-    
-    const v1 = new THREE.Vector2(currentPoint.x - prevPoint.x, currentPoint.z - prevPoint.z).normalize();
-    const v2 = new THREE.Vector2(nextPoint.x - currentPoint.x, nextPoint.z - currentPoint.z).normalize();
-    
-    const dot = v1.dot(v2);
-    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-    const angleDegrees = angle * (180 / Math.PI);
-    
-    let widthMultiplier = 1.0;
-    
-    if (angleDegrees > 120) {
-        widthMultiplier = 3.0;
-    } else if (angleDegrees > 90) {
-        widthMultiplier = 2.5;
-    } else if (angleDegrees > 60) {
-        widthMultiplier = 2.0;
-    } else if (angleDegrees > 30) {
-        widthMultiplier = 1.5;
-    } else if (angleDegrees > 10) {
-        widthMultiplier = 1.2;
-    }
-    
-    return baseWidth * widthMultiplier;
-}
-
-function createTrack() {
-    const baseTrackWidth = 32;
-    
-    const rawPoints = [
-        // START/FINISH - Beginning of Straight 1
-        { x: 0, z: -200, elevation: 25 },
-        { x: 90, z: -200, elevation: 25 },
-        { x: 180, z: -200, elevation: 26 },
-        { x: 300, z: -200, elevation: 27 },
-        { x: 450, z: -200, elevation: 29 },
-        { x: 600, z: -200, elevation: 31 },
-        { x: 750, z: -200, elevation: 33 },
-        { x: 900, z: -200, elevation: 35 },
-        { x: 1050, z: -200, elevation: 37 },
-        
-        // TURN 1 - Fast right sweeper into chicane (SMOOTHED)
-        { x: 1170, z: -180, elevation: 39 },
-        { x: 1280, z: -140, elevation: 41 },
-        { x: 1350, z: -80, elevation: 43 },
-        
-        // TURN 2 & 3 - Chicane (SMOOTHED - gentler angles)
-        { x: 1390, z: -30, elevation: 45 },
-        { x: 1400, z: 20, elevation: 47 },
-        { x: 1420, z: 60, elevation: 49 },
-        
-        // TURN 4 - Medium right hander
-        { x: 1440, z: 100, elevation: 51 },
-        { x: 1455, z: 140, elevation: 53 },
-        { x: 1460, z: 180, elevation: 55 },
-        
-        // STRAIGHT 2 - High speed elevated section
-        { x: 1460, z: 260, elevation: 56 },
-        { x: 1460, z: 380, elevation: 57 },
-        { x: 1460, z: 500, elevation: 58 },
-        { x: 1460, z: 620, elevation: 59 },
-        { x: 1460, z: 740, elevation: 60 },
-        { x: 1460, z: 860, elevation: 60 },
-        { x: 1460, z: 980, elevation: 59 },
-        { x: 1460, z: 1100, elevation: 58 },
-        
-        // TURN 5 - Hairpin left
-        { x: 1415, z: 1160, elevation: 58 },
-        { x: 1325, z: 1250, elevation: 55 },
-        { x: 1205, z: 1310, elevation: 51 },
-        { x: 1085, z: 1325, elevation: 47 },
-        { x: 965, z: 1310, elevation: 43 },
-        
-        // TURN 6 & 7 - S-curve section
-        { x: 845, z: 1265, elevation: 41 },
-        { x: 725, z: 1235, elevation: 39 },
-        { x: 605, z: 1280, elevation: 37 },
-        { x: 485, z: 1310, elevation: 35 },
-        
-        // TURN 8 - Sweeping left
-        { x: 365, z: 1295, elevation: 33 },
-        { x: 245, z: 1250, elevation: 31 },
-        { x: 125, z: 1175, elevation: 29 },
-        
-        // STRAIGHT 3 - Back straight
-        { x: 5, z: 1100, elevation: 28 },
-        { x: -115, z: 1040, elevation: 27 },
-        { x: -235, z: 980, elevation: 26 },
-        { x: -355, z: 920, elevation: 25 },
-        { x: -475, z: 860, elevation: 25 },
-        { x: -595, z: 800, elevation: 25 },
-        { x: -715, z: 740, elevation: 25 },
-        
-        // TURN 9 - Right hander
-        { x: -805, z: 650, elevation: 26 },
-        { x: -865, z: 530, elevation: 27 },
-        { x: -895, z: 410, elevation: 28 },
-        
-        // TURN 10 & 11 - Switchback section
-        { x: -880, z: 290, elevation: 30 },
-        { x: -820, z: 185, elevation: 32 },
-        { x: -715, z: 110, elevation: 34 },
-        { x: -595, z: 80, elevation: 36 },
-        { x: -475, z: 95, elevation: 36 },
-        { x: -370, z: 155, elevation: 35 },
-        
-        // TURN 12 - Technical right
-        { x: -280, z: 230, elevation: 34 },
-        { x: -205, z: 305, elevation: 32 },
-        
-        // TURN 13 - Left kink
-        { x: -145, z: 380, elevation: 30 },
-        { x: -100, z: 470, elevation: 28 },
-        
-        // STRAIGHT 4 - Final straight (SHIFTED WEST to separate from overpass)
-        { x: -90, z: 560, elevation: 27 },
-        { x: -85, z: 650, elevation: 26 },
-        { x: -80, z: 740, elevation: 26 },
-        { x: -75, z: 830, elevation: 26 },
-        { x: -70, z: 920, elevation: 26 },
-        { x: -65, z: 1010, elevation: 26 },
-        
-        // TURN 14 - Final corner before finish (WIDER ARC)
-        { x: -55, z: 1100, elevation: 26 },
-        { x: -35, z: 1190, elevation: 27 },
-        { x: -10, z: 1280, elevation: 28 },
-        { x: 20, z: 1370, elevation: 29 },
-        
-        // ELEVATED BRIDGE - Connecting back to start (SHIFTED EAST for separation)
-        { x: 80, z: 1460, elevation: 31 },
-        { x: 100, z: 1550, elevation: 34 },
-        { x: 105, z: 1640, elevation: 36 },
-        { x: 95, z: 1730, elevation: 38 },
-        { x: 70, z: 1790, elevation: 40 },
-        { x: 25, z: 1820, elevation: 41 },
-        { x: -35, z: 1820, elevation: 41 },
-        { x: -95, z: 1790, elevation: 40 },
-        { x: -145, z: 1730, elevation: 38 },
-        { x: -185, z: 1640, elevation: 36 },
-        { x: -210, z: 1550, elevation: 34 },
-        { x: -220, z: 1430, elevation: 32 },
-        { x: -215, z: 1310, elevation: 30 },
-        { x: -195, z: 1190, elevation: 29 },
-        { x: -165, z: 1070, elevation: 28 },
-        { x: -125, z: 950, elevation: 27 },
-        { x: -75, z: 860, elevation: 26 },
-        { x: -25, z: 800, elevation: 26 },
-        { x: 20, z: 770, elevation: 26 },
-        { x: 55, z: 740, elevation: 26 },
-        { x: 75, z: 710, elevation: 26 },
-        { x: 85, z: 680, elevation: 26 },
-        { x: 80, z: 650, elevation: 26 },
-        { x: 60, z: 620, elevation: 26 },
-        { x: 30, z: 590, elevation: 26 },
-        { x: -10, z: 560, elevation: 26 },
-        { x: -35, z: 530, elevation: 26 },
-        { x: -45, z: 500, elevation: 26 },
-        { x: -40, z: 470, elevation: 26 },
-        { x: -25, z: 440, elevation: 26 },
-        { x: -5, z: 410, elevation: 26 },
-        { x: 10, z: 380, elevation: 26 },
-        { x: 15, z: 350, elevation: 26 },
-        { x: 15, z: 320, elevation: 26 },
-        { x: 10, z: 290, elevation: 26 },
-        { x: 5, z: 260, elevation: 26 },
-        { x: 0, z: 230, elevation: 25 },
-        { x: 0, z: 200, elevation: 25 },
-        { x: 0, z: 170, elevation: 25 },
-        { x: 0, z: 140, elevation: 25 },
-        { x: 0, z: 110, elevation: 25 },
-        { x: 0, z: 80, elevation: 25 },
-        { x: 0, z: 50, elevation: 25 },
-        { x: 0, z: 20, elevation: 25 },
-        { x: 0, z: -10, elevation: 25 },
-        { x: 0, z: -40, elevation: 25 },
-        { x: 0, z: -70, elevation: 25 },
-        { x: 0, z: -100, elevation: 25 },
-        { x: 0, z: -130, elevation: 25 },
-        { x: 0, z: -160, elevation: 25 },
-        { x: 0, z: -190, elevation: 25 }
-    ];
-
-    const segments = 1500;
-    for (let i = 0; i < segments; i++) {
-        const t = i / segments;
-        const totalPoints = rawPoints.length;
-        const exactIdx = t * totalPoints;
-        const i1 = Math.floor(exactIdx) % totalPoints;
-        const i2 = (i1 + 1) % totalPoints;
-        const localT = exactIdx - Math.floor(exactIdx);
-        const p1 = rawPoints[i1], p2 = rawPoints[i2];
-        const smoothT = localT * localT * (3 - 2 * localT);
-        const x = p1.x + (p2.x - p1.x) * smoothT;
-        const z = p1.z + (p2.z - p1.z) * smoothT;
-        const elevation = p1.elevation + (p2.elevation - p1.elevation) * smoothT;
-        trackPoints.push(new THREE.Vector3(x, elevation, z));
-    }
-
-    const trackMaterial = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
-    const startLineMaterial = new THREE.MeshLambertMaterial({ color: 0xffaa00, emissive: 0x553300, side: THREE.DoubleSide });
-    const arrowTexture = createArrowTexture();
-    const arrowMaterial = new THREE.MeshBasicMaterial({ map: arrowTexture, transparent: true, side: THREE.DoubleSide });
-
-    for (let i = 0; i < trackPoints.length; i++) {
-        const prev = trackPoints[(i - 1 + trackPoints.length) % trackPoints.length];
-        const current = trackPoints[i];
-        const next = trackPoints[(i + 1) % trackPoints.length];
-        const nextNext = trackPoints[(i + 2) % trackPoints.length];
-        
-        const direction = new THREE.Vector3().subVectors(next, current);
-        const length = direction.length();
-        if (length < 0.01) continue;
-        direction.normalize();
-
-        const trackWidth = calculateTrackWidth(prev, current, nextNext, baseTrackWidth);
-
-        const trackGeometry = new THREE.BoxGeometry(trackWidth, 1.5, length + 0.2);
-        const material = (i < 15) ? startLineMaterial : trackMaterial;
-        const trackSegment = new THREE.Mesh(trackGeometry, material);
-        const midPoint = new THREE.Vector3().addVectors(current, next).multiplyScalar(0.5);
-        trackSegment.position.copy(midPoint);
-
-        const dx = next.x - current.x, dz = next.z - current.z, dy = next.y - current.y;
-        const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-        const pitchAngle = Math.atan2(dy, horizontalDist);
-        const yawAngle = Math.atan2(dz, dx);
-        trackSegment.rotation.y = yawAngle - Math.PI / 2;
-        trackSegment.rotation.x = pitchAngle;
-        trackSegment.receiveShadow = true;
-        trackSegment.castShadow = true;
-        scene.add(trackSegment);
-
-        if (i % 60 === 0) {
-            const arrowGeometry = new THREE.PlaneGeometry(8, 16);
-            const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-            arrow.position.copy(midPoint);
-            arrow.position.y += 0.8;
-            arrow.rotation.x = -Math.PI / 2 + pitchAngle;
-            arrow.rotation.z = yawAngle + Math.PI / 2;
-            scene.add(arrow);
-        }
-
-        const nearIntersection = isNearOtherSegment(midPoint, i);
-        if (i % 15 === 0 && !nearIntersection) {
-            const barrierOffset = trackWidth / 2 + 3;
-            createElevatedBarrier(current, next, barrierOffset, i % 6 === 0 ? 0xff0000 : 0xffffff);
-            createElevatedBarrier(current, next, -barrierOffset, i % 6 === 3 ? 0xff0000 : 0xffffff);
-        }
-    }
-}
-
-function createElevatedBarrier(point1, point2, offset, color) {
-    const direction = new THREE.Vector3().subVectors(point2, point1);
-    const length = direction.length();
-    direction.normalize();
-    const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x).multiplyScalar(offset);
-    const barrierGeometry = new THREE.BoxGeometry(2, 3, length + 0.5);
-    const barrierMaterial = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
-    const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
-    const midPoint = new THREE.Vector3().addVectors(point1, point2).multiplyScalar(0.5);
-    midPoint.add(perpendicular);
-    barrier.position.copy(midPoint);
-    barrier.position.y += 1.5;
-    barrierPositions.push({ x: midPoint.x, z: midPoint.z, y: midPoint.y, radius: 3 });
-    const dx = point2.x - point1.x, dz = point2.z - point1.z, dy = point2.y - point1.y;
-    const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-    const pitchAngle = Math.atan2(dy, horizontalDist);
-    const yawAngle = Math.atan2(dz, dx);
-    barrier.rotation.y = yawAngle - Math.PI / 2;
-    barrier.rotation.x = pitchAngle;
-    barrier.castShadow = true;
-    scene.add(barrier);
-}
-
-function createCars() {
-    player1Car = createCar(cars[player1Selected].color);
-    player2Car = createCar(cars[player2Selected].color);
-    const startPoint = trackPoints[0].clone();
-    const startDirection = new THREE.Vector3().subVectors(trackPoints[5], trackPoints[0]).normalize();
-    player1Car.position.copy(startPoint);
-    player1Car.position.x -= 6;
-    player1Car.position.y += 1;
-    player2Car.position.copy(startPoint);
-    player2Car.position.x += 6;
-    player2Car.position.y += 1;
-    const angle = Math.atan2(startDirection.z, startDirection.x);
-    player1Car.rotation.y = angle - Math.PI / 2;
-    player2Car.rotation.y = angle - Math.PI / 2;
-    
-    player1Car.userData = { 
-        speed: 0, maxSpeed: 5, acceleration: 0.06, brake: 0.12, friction: 0.035, 
-        baseTurnSpeed: 0.008, lap: 1, checkpointIndex: 0, gear: 1, onTrack: true, 
-        surface: 'track', targetPitch: 0, completedFullLap: false, lastLapTime: 0, 
-        collisionCooldown: 0, carColor: cars[player1Selected].color, playerNum: 1
-    };
-    player2Car.userData = { 
-        speed: 0, maxSpeed: 5, acceleration: 0.06, brake: 0.12, friction: 0.035, 
-        baseTurnSpeed: 0.008, lap: 1, checkpointIndex: 0, gear: 1, onTrack: true, 
-        surface: 'track', targetPitch: 0, completedFullLap: false, lastLapTime: 0, 
-        collisionCooldown: 0, carColor: cars[player2Selected].color, playerNum: 2
-    };
-    scene.add(player1Car);
-    scene.add(player2Car);
-}
-
-function createCar(color) {
-    const car = new THREE.Group();
-    const bodyGeometry = new THREE.BoxGeometry(2, 0.5, 4);
-    const bodyMaterial = new THREE.MeshPhongMaterial({ color, shininess: 100, specular: 0x555555 });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = 0.5;
-    body.castShadow = true;
-    car.add(body);
-    const cockpitGeometry = new THREE.BoxGeometry(1.5, 0.5, 1.5);
-    const cockpit = new THREE.Mesh(cockpitGeometry, bodyMaterial);
-    cockpit.position.y = 1;
-    cockpit.position.z = 0.2;
-    cockpit.castShadow = true;
-    car.add(cockpit);
-    const wingGeometry = new THREE.BoxGeometry(2.5, 0.1, 0.3);
-    const wingMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
-    const frontWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    frontWing.position.z = -2.2;
-    frontWing.position.y = 0.2;
-    car.add(frontWing);
-    const rearWingPost = new THREE.BoxGeometry(0.2, 0.8, 0.2);
-    const post1 = new THREE.Mesh(rearWingPost, wingMaterial);
-    post1.position.set(-0.7, 1, 1.8);
-    car.add(post1);
-    const post2 = new THREE.Mesh(rearWingPost, wingMaterial);
-    post2.position.set(0.7, 1, 1.8);
-    car.add(post2);
-    const rearWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    rearWing.position.z = 1.8;
-    rearWing.position.y = 1.4;
-    car.add(rearWing);
-    const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
-    const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
-    const wheelPositions = [[-1.2, 0.4, -1.5], [1.2, 0.4, -1.5], [-1.2, 0.4, 1.5], [1.2, 0.4, 1.5]];
-    wheelPositions.forEach(pos => {
-        const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-        wheel.rotation.z = Math.PI / 2;
-        wheel.position.set(...pos);
-        wheel.castShadow = true;
-        car.add(wheel);
-    });
-    return car;
-}
-
-function setupControls() {
-    window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; keys[e.key] = true; });
-    window.addEventListener('keyup', (e) => {
-        keys[e.key.toLowerCase()] = false;
-        keys[e.key] = false;
-        if (e.key.toLowerCase() === 'q') { player1ViewMode = (player1ViewMode - 1 + 3) % 3; updateViewModeDisplay(1); }
-        if (e.key.toLowerCase() === 'e') { player1ViewMode = (player1ViewMode + 1) % 3; updateViewModeDisplay(1); }
-        if (e.key === '[') { player2ViewMode = (player2ViewMode - 1 + 3) % 3; updateViewModeDisplay(2); }
-        if (e.key === ']') { player2ViewMode = (player2ViewMode + 1) % 3; updateViewModeDisplay(2); }
-    });
-    window.addEventListener('resize', onWindowResize);
-}
-
-function updateViewModeDisplay(player) {
-    const modes = ['Chase', 'Hood', 'Cockpit'];
-    const mode = player === 1 ? player1ViewMode : player2ViewMode;
-    document.getElementById(`p${player}ViewMode`).textContent = `View: ${modes[mode]}`;
-}
-
-function showCountdown() {
-    const countdownEl = document.getElementById('countdown');
-    countdownEl.style.display = 'block';
-    let count = 3;
-    const interval = setInterval(() => {
-        if (count > 0) {
-            countdownEl.textContent = count;
-            playCountdownBeep(600);
-            count--;
-        } else {
-            countdownEl.textContent = 'GO!';
-            playGoSound();
-            setTimeout(() => {
-                countdownEl.style.display = 'none';
-                raceStarted = true;
-                raceStartTime = Date.now();
-            }, 500);
-            clearInterval(interval);
-        }
-    }, 1000);
-    gameStarted = true;
-    animate();
-}
-
-function checkSurface(car) {
-    const data = car.userData;
-    let onTrack = false, closestDist = Infinity, closestIdx = 0;
-    for (let i = 0; i < trackPoints.length; i++) {
-        const point = trackPoints[i];
-        const dist = Math.sqrt(Math.pow(point.x - car.position.x, 2) + Math.pow(point.z - car.position.z, 2));
-        if (dist < closestDist) { closestDist = dist; closestIdx = i; }
-    }
-    
-    const prev = trackPoints[(closestIdx - 1 + trackPoints.length) % trackPoints.length];
-    const current = trackPoints[closestIdx];
-    const nextNext = trackPoints[(closestIdx + 2) % trackPoints.length];
-    const dynamicWidth = calculateTrackWidth(prev, current, nextNext, 32);
-    
-    if (closestDist < dynamicWidth / 2) { 
-        onTrack = true; 
-        data.surface = 'track'; 
-    } else { 
-        onTrack = false; 
-        data.surface = 'grass'; 
-    }
-    
-    let hitBarrier = false;
-    for (let barrier of barrierPositions) {
-        const dist = Math.sqrt(Math.pow(barrier.x - car.position.x, 2) + Math.pow(barrier.z - car.position.z, 2));
-        if (dist < barrier.radius) { hitBarrier = true; data.surface = 'barrier'; break; }
-    }
-    data.onTrack = onTrack && !hitBarrier;
-    return { onTrack: data.onTrack, hitBarrier, surface: data.surface, closestIdx };
-}
-
-function handleCarCollision() {
-    const p1Data = player1Car.userData;
-    const p2Data = player2Car.userData;
-    
-    if (p1Data.collisionCooldown > 0) p1Data.collisionCooldown--;
-    if (p2Data.collisionCooldown > 0) p2Data.collisionCooldown--;
-    
-    const dx = player2Car.position.x - player1Car.position.x;
-    const dz = player2Car.position.z - player1Car.position.z;
-    const distance = Math.sqrt(dx * dx + dz * dz);
-    
-    const collisionRadius = 5;
-    
-    if (distance < collisionRadius && p1Data.collisionCooldown === 0 && p2Data.collisionCooldown === 0) {
-        console.log(`COLLISION! P1 (Color: 0x${p1Data.carColor.toString(16)}) vs P2 (Color: 0x${p2Data.carColor.toString(16)})`);
-        
-        const normalX = dx / distance;
-        const normalZ = dz / distance;
-        
-        const p1VelX = -Math.sin(player1Car.rotation.y) * p1Data.speed;
-        const p1VelZ = -Math.cos(player1Car.rotation.y) * p1Data.speed;
-        const p2VelX = -Math.sin(player2Car.rotation.y) * p2Data.speed;
-        const p2VelZ = -Math.cos(player2Car.rotation.y) * p2Data.speed;
-        
-        const relVelX = p1VelX - p2VelX;
-        const relVelZ = p1VelZ - p2VelZ;
-        
-        const velAlongNormal = relVelX * normalX + relVelZ * normalZ;
-        
-        if (velAlongNormal < 0) {
-            const restitution = 0.7;
-            const impulse = -(1 + restitution) * velAlongNormal / 2;
-            const impulseX = impulse * normalX;
-            const impulseZ = impulse * normalZ;
+        // --- Device Selection Logic ---
+        function selectDevice(device) {
+            currentDevice = device;
+            document.getElementById('deviceSelection').classList.remove('active');
+            document.getElementById('carSelection').classList.add('active');
             
-            p1Data.speed *= 0.6;
-            player1Car.position.x -= impulseX * 1.2;
-            player1Car.position.z -= impulseZ * 1.2;
-            
-            const speedBoost = Math.abs(impulse) * 0.4;
-            p2Data.speed += speedBoost;
-            p2Data.speed = Math.min(p2Data.speed, p2Data.maxSpeed * 1.3);
-            player2Car.position.x += impulseX * 1.2;
-            player2Car.position.z += impulseZ * 1.2;
-            
-            const rotationChange = impulse * 0.08;
-            player1Car.rotation.y += rotationChange;
-            player2Car.rotation.y -= rotationChange;
-            
-            p1Data.collisionCooldown = 45;
-            p2Data.collisionCooldown = 45;
+            const p1Title = document.getElementById('p1SelectTitle');
+            const p2Title = document.getElementById('p2SelectTitle');
+            const controlsInfo = document.getElementById('ingameControlsInfo');
+
+            if (device === 'mobile') {
+                document.body.classList.add('mobile-mode');
+                p1Title.textContent = "Player 1 (Left Touch)";
+                p2Title.textContent = "Player 2 (Right Touch)";
+                controlsInfo.innerHTML = "<div><strong>Mobile Mode:</strong> Use on-screen touch controls</div>";
+                setupTouchControls();
+            } else if (device === 'gamepad') {
+                document.body.classList.remove('mobile-mode');
+                p1Title.textContent = "Player 1 (Gamepad 1)";
+                p2Title.textContent = "Player 2 (Gamepad 2)";
+                controlsInfo.innerHTML = `
+                    <div><strong>Player 1 (Pad 1):</strong> Left Stick = Steer | Triggers/A/B = Accelerate/Brake</div>
+                    <div><strong>Player 2 (Pad 2):</strong> Left Stick = Steer | Triggers/A/B = Accelerate/Brake</div>
+                `;
+            } else {
+                document.body.classList.remove('mobile-mode');
+                p1Title.textContent = "Player 1 (WASD)";
+                p2Title.textContent = "Player 2 (Arrows)";
+                controlsInfo.innerHTML = `
+                    <div><strong>Player 1:</strong> WASD = Move | Q/E = View</div>
+                    <div><strong>Player 2:</strong> Arrows = Move | [/] = View</div>
+                `;
+            }
         }
-    }
-}
 
-function updateCar(car, controls) {
-    if (!raceStarted) return;
-    const data = car.userData;
-    const surfaceInfo = checkSurface(car);
-    
-    if (keys[controls.forward]) {
-        data.speed = Math.min(data.speed + data.acceleration, data.maxSpeed);
-        const speedRatio = Math.abs(data.speed) / data.maxSpeed;
-        if (speedRatio < 0.2) data.gear = 1;
-        else if (speedRatio < 0.4) data.gear = 2;
-        else if (speedRatio < 0.6) data.gear = 3;
-        else if (speedRatio < 0.8) data.gear = 4;
-        else data.gear = 5;
-    } else if (keys[controls.backward]) {
-        if (data.speed > 0.1) { data.speed = Math.max(data.speed - data.brake, 0); data.gear = 1; }
-        else { data.speed = Math.max(data.speed - data.acceleration * 0.5, -data.maxSpeed * 0.4); data.gear = -1; }
-    } else {
-        if (Math.abs(data.speed) < 0.01) data.speed = 0;
-        else data.speed *= (1 - data.friction);
-    }
-    
-    if (surfaceInfo.hitBarrier) data.speed *= 0.70;
-    else if (!surfaceInfo.onTrack) data.speed *= 0.70;
-    
-    const speedRatio = Math.abs(data.speed) / data.maxSpeed;
-    const turnMultiplier = 3.0 + (speedRatio * 1.0);
-    const effectiveTurnSpeed = data.baseTurnSpeed * turnMultiplier;
-    
-    if (keys[controls.left]) car.rotation.y += effectiveTurnSpeed;
-    if (keys[controls.right]) car.rotation.y -= effectiveTurnSpeed;
-    
-    const newX = car.position.x - Math.sin(car.rotation.y) * data.speed;
-    const newZ = car.position.z - Math.cos(car.rotation.y) * data.speed;
-    const closestIdx = surfaceInfo.closestIdx;
-    const nextIdx = (closestIdx + 1) % trackPoints.length;
-    const currentPoint = trackPoints[closestIdx];
-    const nextPoint = trackPoints[nextIdx];
-    const dx = nextPoint.x - currentPoint.x, dz = nextPoint.z - currentPoint.z, dy = nextPoint.y - currentPoint.y;
-    const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-    const trackPitch = Math.atan2(dy, horizontalDist);
-    data.targetPitch = trackPitch;
-    car.position.x = newX;
-    car.position.z = newZ;
-    car.position.y += (currentPoint.y + 1 - car.position.y) * 0.18;
-    const pitchLerpSpeed = 0.15;
-    car.rotation.x += (data.targetPitch - car.rotation.x) * pitchLerpSpeed;
-    updateLapProgress(car);
-}
-
-function updateLapProgress(car) {
-    const data = car.userData;
-    const startPoint = trackPoints[7];
-    const distToStart = Math.sqrt(Math.pow(startPoint.x - car.position.x, 2) + Math.pow(startPoint.z - car.position.z, 2));
-    const nearStartLine = distToStart < 40;
-    const progressThreshold = trackPoints.length * 0.9;
-    const currentTime = Date.now();
-    const timeSinceLastLap = (currentTime - data.lastLapTime) / 1000;
-    const checkpointDistance = 50;
-    for (let i = 0; i < trackPoints.length; i++) {
-        const point = trackPoints[i];
-        const dist2D = Math.sqrt(Math.pow(point.x - car.position.x, 2) + Math.pow(point.z - car.position.z, 2));
-        if (dist2D < checkpointDistance && i > data.checkpointIndex + 20) data.checkpointIndex = i;
-    }
-    if (nearStartLine && data.checkpointIndex >= progressThreshold) {
-        if (data.lastLapTime === 0 || timeSinceLastLap >= 5) {
-            data.lap++;
-            data.checkpointIndex = 0;
-            data.lastLapTime = currentTime;
-            console.log(`Player ${data.playerNum} - Lap ${data.lap - 1} completed in ${timeSinceLastLap.toFixed(2)}s`);
+        function backToDeviceSelection() {
+            document.getElementById('carSelection').classList.remove('active');
+            document.getElementById('deviceSelection').classList.add('active');
+            
+            // Reset selection UI
+            player1Ready = false;
+            player2Ready = false;
+            document.getElementById('player1Ready').disabled = true;
+            document.getElementById('player2Ready').disabled = true;
+            document.getElementById('player1Ready').style.background = '#e94560';
+            document.getElementById('player2Ready').style.background = '#e94560';
+            document.getElementById('player1Ready').textContent = 'Ready';
+            document.getElementById('player2Ready').textContent = 'Ready';
+            
+            player1Selected = null;
+            player2Selected = null;
+            document.querySelectorAll('.car-option').forEach(opt => opt.classList.remove('selected'));
         }
-    }
-}
 
-function updateCamera(camera, car, viewMode) {
-    const offset = new THREE.Vector3(), lookAt = new THREE.Vector3();
-    switch (viewMode) {
-        case 0: offset.set(0, 5, 12); lookAt.set(0, 0, -15); break;
-        case 1: offset.set(0, 2, 2.5); lookAt.set(0, 1.5, -15); break;
-        case 2: offset.set(0, 1.3, 0.5); lookAt.set(0, 1.2, -15); break;
-    }
-    offset.applyQuaternion(car.quaternion);
-    lookAt.applyQuaternion(car.quaternion);
-    camera.position.copy(car.position).add(offset);
-    camera.lookAt(car.position.clone().add(lookAt));
-}
+        // --- Touch Controls Setup ---
+        function setupTouchControls() {
+            const touchBtns = document.querySelectorAll('.t-btn, .t-action');
+            touchBtns.forEach(btn => {
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const key = btn.getAttribute('data-key');
+                    if(key) {
+                        keys[key.toLowerCase()] = true;
+                        keys[key] = true;
+                    }
+                }, {passive: false});
+                
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    const key = btn.getAttribute('data-key');
+                    if(key) {
+                        keys[key.toLowerCase()] = false;
+                        keys[key] = false;
+                        
+                        // Handle View toggles safely on touch end to avoid rapid fire
+                        if(key === 'q') { player1ViewMode = (player1ViewMode + 1) % 3; updateViewModeDisplay(1); }
+                        if(key === '[') { player2ViewMode = (player2ViewMode + 1) % 3; updateViewModeDisplay(2); }
+                    }
+                }, {passive: false});
+            });
+        }
 
-function updateHUD() {
-    const p1Speed = Math.abs(player1Car.userData.speed * 50).toFixed(0);
-    const p2Speed = Math.abs(player2Car.userData.speed * 50).toFixed(0);
-    document.getElementById('p1Speed').textContent = `${p1Speed} KM/H`;
-    document.getElementById('p2Speed').textContent = `${p2Speed} KM/H`;
-    document.getElementById('p1Lap').textContent = `Lap: ${player1Car.userData.lap}/3`;
-    document.getElementById('p2Lap').textContent = `Lap: ${player2Car.userData.lap}/3`;
-    document.getElementById('p1Gear').textContent = `Gear: ${player1Car.userData.gear > 0 ? player1Car.userData.gear : 'R'}`;
-    document.getElementById('p2Gear').textContent = `Gear: ${player2Car.userData.gear > 0 ? player2Car.userData.gear : 'R'}`;
-    document.getElementById('p1Elevation').textContent = `Alt: ${player1Car.position.y.toFixed(0)}m`;
-    document.getElementById('p2Elevation').textContent = `Alt: ${player2Car.position.y.toFixed(0)}m`;
-    const p1SurfaceText = player1Car.userData.surface === 'track' ? 'On Track' : player1Car.userData.surface === 'barrier' ? 'HIT BARRIER!' : 'OFF TRACK!';
-    const p2SurfaceText = player2Car.userData.surface === 'track' ? 'On Track' : player2Car.userData.surface === 'barrier' ? 'HIT BARRIER!' : 'OFF TRACK!';
-    document.getElementById('p1Surface').textContent = p1SurfaceText;
-    document.getElementById('p2Surface').textContent = p2SurfaceText;
-    updateEngineSound(player1Engine, player1Car.userData.speed);
-    updateEngineSound(player2Engine, player2Car.userData.speed);
-}
+        // --- Car Selection UI ---
+        function populateCarSelection() {
+            const p1Grid = document.getElementById('player1Cars');
+            const p2Grid = document.getElementById('player2Cars');
+            cars.forEach((car, index) => {
+                p1Grid.appendChild(createCarOption(car, index, 1));
+                p2Grid.appendChild(createCarOption(car, index, 2));
+            });
+        }
 
-function drawMinimap() {
-    const canvas = document.getElementById('minimap');
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width = canvas.clientWidth;
-    const height = canvas.height = canvas.clientHeight;
-    ctx.clearRect(0, 0, width, height);
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    trackPoints.forEach(point => { minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x); minZ = Math.min(minZ, point.z); maxZ = Math.max(maxZ, point.z); });
-    const trackW = maxX - minX, trackH = maxZ - minZ;
-    const scale = Math.min(width / trackW, height / trackH) * 0.85;
-    const centerX = width / 2, centerY = height / 2, offsetX = (minX + maxX) / 2, offsetZ = (minZ + maxZ) / 2;
-    ctx.lineWidth = 5;
-    trackPoints.forEach((point, i) => {
-        const x = centerX + (point.x - offsetX) * scale;
-        const y = centerY + (point.z - offsetZ) * scale;
-        const elevationRatio = (point.y - 20) / 45;
-        const red = Math.floor(255 * (1 - elevationRatio));
-        const green = Math.floor(255 * elevationRatio);
-        ctx.strokeStyle = `rgb(${red}, ${green}, 100)`;
-        if (i === 0) ctx.moveTo(x, y);
-        else {
-            const prevPoint = trackPoints[i - 1];
-            const prevX = centerX + (prevPoint.x - offsetX) * scale;
-            const prevY = centerY + (prevPoint.z - offsetZ) * scale;
+        function createCarOption(car, index, player) {
+            const option = document.createElement('div');
+            option.className = 'car-option';
+            option.innerHTML = `
+                <div class="car-preview" style="background: linear-gradient(45deg, #${car.color.toString(16).padStart(6, '0')}, #${((car.color + 0x333333) & 0xffffff).toString(16).padStart(6, '0')})">${car.icon}</div>
+                <div class="car-name">${car.name}</div>
+                <div class="car-stats">Speed: ${car.speed} | Handle: ${car.handling}</div>
+            `;
+            option.addEventListener('click', () => selectCar(index, player, option));
+            return option;
+        }
+
+        function selectCar(index, player, element) {
+            const playerPrefix = player === 1 ? 'player1' : 'player2';
+            const grid = document.getElementById(`${playerPrefix}Cars`);
+            grid.querySelectorAll('.car-option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+            if (player === 1) {
+                player1Selected = index;
+                document.getElementById('player1Ready').disabled = false;
+            } else {
+                player2Selected = index;
+                document.getElementById('player2Ready').disabled = false;
+            }
+        }
+
+        function checkBothReady() {
+            if (player1Ready && player2Ready) {
+                setTimeout(startGame, 500);
+            }
+        }
+
+        document.getElementById('player1Ready').addEventListener('click', function() {
+            player1Ready = true;
+            this.style.background = '#00ff88';
+            this.textContent = 'READY!';
+            this.disabled = true;
+            checkBothReady();
+        });
+
+        document.getElementById('player2Ready').addEventListener('click', function() {
+            player2Ready = true;
+            this.style.background = '#00ff88';
+            this.textContent = 'READY!';
+            this.disabled = true;
+            checkBothReady();
+        });
+
+        populateCarSelection();
+
+        // --- Pause & Restart Logic ---
+        function togglePause() {
+            if (!gameStarted || !raceStarted) return; // Disallow pausing during countdown
+            isPaused = !isPaused;
+            if (isPaused) {
+                document.getElementById('pauseMenu').classList.add('active');
+                if (audioContext && audioContext.state === 'running') audioContext.suspend();
+            } else {
+                document.getElementById('pauseMenu').classList.remove('active');
+                if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+            }
+        }
+
+        function restartGame() {
+            isPaused = false;
+            gameStarted = false;
+            raceStarted = false;
+            
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            // Clear dynamic elements
+            trackPoints = [];
+            barrierPositions = [];
+            for (let k in keys) keys[k] = false;
+
+            // Manage screens
+            document.getElementById('pauseMenu').classList.remove('active');
+            document.getElementById('pauseButton').style.display = 'none';
+            document.getElementById('gameContainer').classList.remove('active');
+            document.getElementById('deviceSelection').classList.add('active');
+
+            // Reset selection UI
+            player1Ready = false;
+            player2Ready = false;
+            document.getElementById('player1Ready').disabled = true;
+            document.getElementById('player2Ready').disabled = true;
+            document.getElementById('player1Ready').style.background = '#e94560';
+            document.getElementById('player2Ready').style.background = '#e94560';
+            document.getElementById('player1Ready').textContent = 'Ready';
+            document.getElementById('player2Ready').textContent = 'Ready';
+            
+            player1Selected = null;
+            player2Selected = null;
+            document.querySelectorAll('.car-option').forEach(opt => opt.classList.remove('selected'));
+        }
+
+        // --- Main Game Variables ---
+        let scene, renderer, player1Camera, player2Camera, player1Car, player2Car;
+        let trackPoints = [];
+        let barrierPositions = [];
+        let gameStarted = false, raceStarted = false, raceStartTime = 0;
+        const keys = {};
+        const player1Controls = { forward: 'w', backward: 's', left: 'a', right: 'd', viewLeft: 'q', viewRight: 'e' };
+        const player2Controls = { forward: 'ArrowUp', backward: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', viewLeft: '[', viewRight: ']' };
+        let player1ViewMode = 0, player2ViewMode = 0;
+        let audioContext, player1Engine, player2Engine;
+
+        function startGame() {
+            document.getElementById('carSelection').classList.remove('active');
+            document.getElementById('gameContainer').classList.add('active');
+            document.getElementById('pauseButton').style.display = 'block';
+            initAudio();
+            initThreeJS();
+            createTrack();
+            createCars();
+            if (!controlsSetup) {
+                setupKeyboardControls();
+                controlsSetup = true;
+            }
+            setTimeout(() => showCountdown(), 100);
+        }
+
+        // --- Gamepad Polling ---
+        function pollGamepads() {
+            if (currentDevice !== 'gamepad') return;
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
+            
+            // Player 1 mapping (Gamepad 0)
+            const pad1 = gamepads[0];
+            if (pad1) {
+                keys['w'] = pad1.buttons[7]?.pressed || pad1.buttons[0]?.pressed; // R2 or A
+                keys['s'] = pad1.buttons[6]?.pressed || pad1.buttons[1]?.pressed; // L2 or B
+                keys['a'] = pad1.axes[0] < -0.2 || pad1.buttons[14]?.pressed; // Left Stick or D-Pad Left
+                keys['d'] = pad1.axes[0] > 0.2 || pad1.buttons[15]?.pressed; // Left Stick or D-Pad Right
+                
+                // Single fire view switch logic mapping requires state tracking, keeping simple continuous for now 
+                // or just relying on keyboard fallback for view switch
+            }
+
+            // Player 2 mapping (Gamepad 1)
+            const pad2 = gamepads[1];
+            if (pad2) {
+                keys['ArrowUp'] = pad2.buttons[7]?.pressed || pad2.buttons[0]?.pressed;
+                keys['ArrowDown'] = pad2.buttons[6]?.pressed || pad2.buttons[1]?.pressed;
+                keys['ArrowLeft'] = pad2.axes[0] < -0.2 || pad2.buttons[14]?.pressed;
+                keys['ArrowRight'] = pad2.axes[0] > 0.2 || pad2.buttons[15]?.pressed;
+            }
+        }
+
+        // --- Audio System ---
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if(audioContext.state === 'suspended') audioContext.resume();
+                player1Engine = createEngineSound();
+                player2Engine = createEngineSound();
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function playCountdownBeep(pitch) {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(pitch, audioContext.currentTime);
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.3);
+        }
+
+        function playGoSound() {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioContext.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.4, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.5);
+        }
+
+        function createEngineSound() {
+            if (!audioContext) return { oscillators: [], gainNodes: [], filters: [], noiseSource: null, baseFrequency: 100 };
+            const oscillators = [], gainNodes = [], filters = [];
+            for (let i = 0; i < 3; i++) {
+                const osc = audioContext.createOscillator();
+                osc.type = i === 1 ? 'square' : 'sawtooth';
+                osc.frequency.value = 100 * (i + 1);
+                const gain = audioContext.createGain();
+                gain.gain.value = 0;
+                const filter = audioContext.createBiquadFilter();
+                filter.type = i === 0 ? 'lowpass' : i === 1 ? 'bandpass' : 'highpass';
+                filter.frequency.value = 800 + i * 600;
+                if (i === 1) filter.Q.value = 2;
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.start();
+                oscillators.push(osc);
+                gainNodes.push(gain);
+                filters.push(filter);
+            }
+            const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 2, audioContext.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < output.length; i++) output[i] = Math.random() * 2 - 1;
+            const noiseSource = audioContext.createBufferSource();
+            noiseSource.buffer = noiseBuffer;
+            noiseSource.loop = true;
+            const noiseGain = audioContext.createGain();
+            noiseGain.gain.value = 0;
+            const noiseFilter = audioContext.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.value = 1000;
+            noiseFilter.Q.value = 1;
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(audioContext.destination);
+            noiseSource.start();
+            gainNodes.push(noiseGain);
+            filters.push(noiseFilter);
+            return { oscillators, gainNodes, filters, noiseSource, baseFrequency: 100 };
+        }
+
+        function updateEngineSound(engine, speed) {
+            if (!engine.oscillators || engine.oscillators.length === 0) return;
+            const normalizedSpeed = Math.abs(speed) / 4;
+            const rpm = 800 + (normalizedSpeed * 8000);
+            const baseFreq = 80 + (rpm / 50);
+            engine.oscillators[0].frequency.setTargetAtTime(baseFreq, audioContext.currentTime, 0.05);
+            engine.filters[0].frequency.setTargetAtTime(600 + rpm / 8, audioContext.currentTime, 0.05);
+            engine.gainNodes[0].gain.setTargetAtTime(Math.min(0.15, normalizedSpeed * 0.12), audioContext.currentTime, 0.03);
+            engine.oscillators[1].frequency.setTargetAtTime(baseFreq * 2, audioContext.currentTime, 0.05);
+            engine.filters[1].frequency.setTargetAtTime(1000 + rpm / 6, audioContext.currentTime, 0.05);
+            engine.gainNodes[1].gain.setTargetAtTime(Math.min(0.08, normalizedSpeed * 0.06), audioContext.currentTime, 0.03);
+            engine.oscillators[2].frequency.setTargetAtTime(baseFreq * 3, audioContext.currentTime, 0.05);
+            engine.filters[2].frequency.setTargetAtTime(2000 + rpm / 4, audioContext.currentTime, 0.05);
+            engine.gainNodes[2].gain.setTargetAtTime(Math.min(0.05, normalizedSpeed * 0.04), audioContext.currentTime, 0.03);
+            engine.filters[3].frequency.setTargetAtTime(800 + rpm / 10, audioContext.currentTime, 0.05);
+            engine.gainNodes[3].gain.setTargetAtTime(Math.min(0.03, normalizedSpeed * 0.025), audioContext.currentTime, 0.03);
+        }
+
+        // --- Three.js Setup & World ---
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.Fog(0x87ceeb, 200, 1500);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(100, 150, 100);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.left = -1200;
+            directionalLight.shadow.camera.right = 1200;
+            directionalLight.shadow.camera.top = 1200;
+            directionalLight.shadow.camera.bottom = -1200;
+            scene.add(directionalLight);
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+            directionalLight2.position.set(-100, 100, -100);
+            scene.add(directionalLight2);
+            
+            if (!renderer) {
+                const canvas = document.getElementById('renderCanvas');
+                renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            }
+            
+            player1Camera = new THREE.PerspectiveCamera(75, (window.innerWidth / 2) / (window.innerHeight * 0.8), 0.1, 2000);
+            player2Camera = new THREE.PerspectiveCamera(75, (window.innerWidth / 2) / (window.innerHeight * 0.8), 0.1, 2000);
+            
+            createTerrain();
+        }
+
+        function createTerrain() {
+            const terrainSize = 5000, terrainSegments = 150;
+            const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
+            const vertices = terrainGeometry.attributes.position.array;
+            for (let i = 0; i < vertices.length; i += 3) {
+                const x = vertices[i], z = vertices[i + 1];
+                vertices[i + 2] = Math.sin(x / 200) * 15 + Math.cos(z / 180) * 12 + Math.sin(x / 300 + z / 250) * 8;
+            }
+            terrainGeometry.computeVertexNormals();
+            const terrain = new THREE.Mesh(terrainGeometry, new THREE.MeshLambertMaterial({ color: 0x2d5016 }));
+            terrain.rotation.x = -Math.PI / 2;
+            terrain.receiveShadow = true;
+            scene.add(terrain);
+        }
+
+        // --- Track Generation ---
+        function calculateTrackWidth(prevPoint, currentPoint, nextPoint, baseWidth = 32) {
+            if (!prevPoint || !nextPoint) return baseWidth;
+            const v1 = new THREE.Vector2(currentPoint.x - prevPoint.x, currentPoint.z - prevPoint.z).normalize();
+            const v2 = new THREE.Vector2(nextPoint.x - currentPoint.x, nextPoint.z - currentPoint.z).normalize();
+            const dot = v1.dot(v2);
+            const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+            const angleDegrees = angle * (180 / Math.PI);
+            let widthMultiplier = 1.0;
+            if (angleDegrees > 120) widthMultiplier = 3.0;
+            else if (angleDegrees > 90) widthMultiplier = 2.5;
+            else if (angleDegrees > 60) widthMultiplier = 2.0;
+            else if (angleDegrees > 30) widthMultiplier = 1.5;
+            else if (angleDegrees > 10) widthMultiplier = 1.2;
+            return baseWidth * widthMultiplier;
+        }
+
+        function isNearOtherSegment(point, currentIdx, threshold = 35) {
+            for (let i = 0; i < trackPoints.length; i++) {
+                if (Math.abs(i - currentIdx) < 50) continue;
+                const otherPoint = trackPoints[i];
+                const dist = Math.sqrt(Math.pow(point.x - otherPoint.x, 2) + Math.pow(point.z - otherPoint.z, 2));
+                if (dist < threshold) return true;
+            }
+            return false;
+        }
+
+        function createArrowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, 128, 256);
+            ctx.fillStyle = '#ffffff';
+            ctx.globalAlpha = 0.6;
+            ctx.fillRect(44, 80, 40, 120);
             ctx.beginPath();
-            ctx.moveTo(prevX, prevY);
-            ctx.lineTo(x, y);
-            ctx.stroke();
+            ctx.moveTo(64, 20); ctx.lineTo(20, 100); ctx.lineTo(108, 100); ctx.closePath();
+            ctx.fill();
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
         }
-    });
-    const startX = centerX + (trackPoints[0].x - offsetX) * scale;
-    const startY = centerY + (trackPoints[0].z - offsetZ) * scale;
-    ctx.fillStyle = '#ffaa00';
-    ctx.fillRect(startX - 5, startY - 5, 10, 10);
-    function drawCarOnMap(car, color, label) {
-        const x = centerX + (car.position.x - offsetX) * scale;
-        const y = centerY + (car.position.z - offsetZ) * scale;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 12px Arial';
-        ctx.fillText(label, x + 10, y + 5);
-    }
-    drawCarOnMap(player1Car, '#00ff88', 'P1');
-    drawCarOnMap(player2Car, '#ff6b81', 'P2');
-}
 
-function animate() {
-    if (!gameStarted) return;
-    requestAnimationFrame(animate);
-    updateCar(player1Car, player1Controls);
-    updateCar(player2Car, player2Controls);
-    handleCarCollision();
-    updateCamera(player1Camera, player1Car, player1ViewMode);
-    updateCamera(player2Camera, player2Car, player2ViewMode);
-    updateHUD();
-    drawMinimap();
-    const width = window.innerWidth, height = window.innerHeight * 0.8;
-    renderer.setScissorTest(true);
-    renderer.setViewport(0, window.innerHeight * 0.2, width / 2, height);
-    renderer.setScissor(0, window.innerHeight * 0.2, width / 2, height);
-    renderer.render(scene, player1Camera);
-    renderer.setViewport(width / 2, window.innerHeight * 0.2, width / 2, height);
-    renderer.setScissor(width / 2, window.innerHeight * 0.2, width / 2, height);
-    renderer.render(scene, player2Camera);
-    renderer.setScissorTest(false);
-}
+        function createTrack() {
+            const baseTrackWidth = 32;
+            const rawPoints = [
+                { x: 0, z: -200, elevation: 25 }, { x: 90, z: -200, elevation: 25 }, { x: 180, z: -200, elevation: 26 },
+                { x: 300, z: -200, elevation: 27 }, { x: 450, z: -200, elevation: 29 }, { x: 600, z: -200, elevation: 31 },
+                { x: 750, z: -200, elevation: 33 }, { x: 900, z: -200, elevation: 35 }, { x: 1050, z: -200, elevation: 37 },
+                { x: 1170, z: -180, elevation: 39 }, { x: 1280, z: -140, elevation: 41 }, { x: 1350, z: -80, elevation: 43 },
+                { x: 1390, z: -30, elevation: 45 }, { x: 1400, z: 20, elevation: 47 }, { x: 1420, z: 60, elevation: 49 },
+                { x: 1440, z: 100, elevation: 51 }, { x: 1455, z: 140, elevation: 53 }, { x: 1460, z: 180, elevation: 55 },
+                { x: 1460, z: 260, elevation: 56 }, { x: 1460, z: 380, elevation: 57 }, { x: 1460, z: 500, elevation: 58 },
+                { x: 1460, z: 620, elevation: 59 }, { x: 1460, z: 740, elevation: 60 }, { x: 1460, z: 860, elevation: 60 },
+                { x: 1460, z: 980, elevation: 59 }, { x: 1460, z: 1100, elevation: 58 }, { x: 1415, z: 1160, elevation: 58 },
+                { x: 1325, z: 1250, elevation: 55 }, { x: 1205, z: 1310, elevation: 51 }, { x: 1085, z: 1325, elevation: 47 },
+                { x: 965, z: 1310, elevation: 43 }, { x: 845, z: 1265, elevation: 41 }, { x: 725, z: 1235, elevation: 39 },
+                { x: 605, z: 1280, elevation: 37 }, { x: 485, z: 1310, elevation: 35 }, { x: 365, z: 1295, elevation: 33 },
+                { x: 245, z: 1250, elevation: 31 }, { x: 125, z: 1175, elevation: 29 }, { x: 5, z: 1100, elevation: 28 },
+                { x: -115, z: 1040, elevation: 27 }, { x: -235, z: 980, elevation: 26 }, { x: -355, z: 920, elevation: 25 },
+                { x: -475, z: 860, elevation: 25 }, { x: -595, z: 800, elevation: 25 }, { x: -715, z: 740, elevation: 25 },
+                { x: -805, z: 650, elevation: 26 }, { x: -865, z: 530, elevation: 27 }, { x: -895, z: 410, elevation: 28 },
+                { x: -880, z: 290, elevation: 30 }, { x: -820, z: 185, elevation: 32 }, { x: -715, z: 110, elevation: 34 },
+                { x: -595, z: 80, elevation: 36 }, { x: -475, z: 95, elevation: 36 }, { x: -370, z: 155, elevation: 35 },
+                { x: -280, z: 230, elevation: 34 }, { x: -205, z: 305, elevation: 32 }, { x: -145, z: 380, elevation: 30 },
+                { x: -100, z: 470, elevation: 28 }, { x: -90, z: 560, elevation: 27 }, { x: -85, z: 650, elevation: 26 },
+                { x: -80, z: 740, elevation: 26 }, { x: -75, z: 830, elevation: 26 }, { x: -70, z: 920, elevation: 26 },
+                { x: -65, z: 1010, elevation: 26 }, { x: -55, z: 1100, elevation: 26 }, { x: -35, z: 1190, elevation: 27 },
+                { x: -10, z: 1280, elevation: 28 }, { x: 20, z: 1370, elevation: 29 }, { x: 80, z: 1460, elevation: 31 },
+                { x: 100, z: 1550, elevation: 34 }, { x: 105, z: 1640, elevation: 36 }, { x: 95, z: 1730, elevation: 38 },
+                { x: 70, z: 1790, elevation: 40 }, { x: 25, z: 1820, elevation: 41 }, { x: -35, z: 1820, elevation: 41 },
+                { x: -95, z: 1790, elevation: 40 }, { x: -145, z: 1730, elevation: 38 }, { x: -185, z: 1640, elevation: 36 },
+                { x: -210, z: 1550, elevation: 34 }, { x: -220, z: 1430, elevation: 32 }, { x: -215, z: 1310, elevation: 30 },
+                { x: -195, z: 1190, elevation: 29 }, { x: -165, z: 1070, elevation: 28 }, { x: -125, z: 950, elevation: 27 },
+                { x: -75, z: 860, elevation: 26 }, { x: -25, z: 800, elevation: 26 }, { x: 20, z: 770, elevation: 26 },
+                { x: 55, z: 740, elevation: 26 }, { x: 75, z: 710, elevation: 26 }, { x: 85, z: 680, elevation: 26 },
+                { x: 80, z: 650, elevation: 26 }, { x: 60, z: 620, elevation: 26 }, { x: 30, z: 590, elevation: 26 },
+                { x: -10, z: 560, elevation: 26 }, { x: -35, z: 530, elevation: 26 }, { x: -45, z: 500, elevation: 26 },
+                { x: -40, z: 470, elevation: 26 }, { x: -25, z: 440, elevation: 26 }, { x: -5, z: 410, elevation: 26 },
+                { x: 10, z: 380, elevation: 26 }, { x: 15, z: 350, elevation: 26 }, { x: 15, z: 320, elevation: 26 },
+                { x: 10, z: 290, elevation: 26 }, { x: 5, z: 260, elevation: 26 }, { x: 0, z: 230, elevation: 25 },
+                { x: 0, z: 200, elevation: 25 }, { x: 0, z: 170, elevation: 25 }, { x: 0, z: 140, elevation: 25 },
+                { x: 0, z: 110, elevation: 25 }, { x: 0, z: 80, elevation: 25 }, { x: 0, z: 50, elevation: 25 },
+                { x: 0, z: 20, elevation: 25 }, { x: 0, z: -10, elevation: 25 }, { x: 0, z: -40, elevation: 25 },
+                { x: 0, z: -70, elevation: 25 }, { x: 0, z: -100, elevation: 25 }, { x: 0, z: -130, elevation: 25 },
+                { x: 0, z: -160, elevation: 25 }, { x: 0, z: -190, elevation: 25 }
+            ];
 
-function onWindowResize() {
-    const width = window.innerWidth, height = window.innerHeight * 0.8;
-    player1Camera.aspect = (width / 2) / height;
-    player1Camera.updateProjectionMatrix();
-    player2Camera.aspect = (width / 2) / height;
-    player2Camera.updateProjectionMatrix();
-    renderer.setSize(width, window.innerHeight);
-}
+            const segments = 1500;
+            for (let i = 0; i < segments; i++) {
+                const t = i / segments;
+                const totalPoints = rawPoints.length;
+                const exactIdx = t * totalPoints;
+                const i1 = Math.floor(exactIdx) % totalPoints;
+                const i2 = (i1 + 1) % totalPoints;
+                const localT = exactIdx - Math.floor(exactIdx);
+                const p1 = rawPoints[i1], p2 = rawPoints[i2];
+                const smoothT = localT * localT * (3 - 2 * localT);
+                const x = p1.x + (p2.x - p1.x) * smoothT;
+                const z = p1.z + (p2.z - p1.z) * smoothT;
+                const elevation = p1.elevation + (p2.elevation - p1.elevation) * smoothT;
+                trackPoints.push(new THREE.Vector3(x, elevation, z));
+            }
+
+            const trackMaterial = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
+            const startLineMaterial = new THREE.MeshLambertMaterial({ color: 0xffaa00, emissive: 0x553300, side: THREE.DoubleSide });
+            const arrowTexture = createArrowTexture();
+            const arrowMaterial = new THREE.MeshBasicMaterial({ map: arrowTexture, transparent: true, side: THREE.DoubleSide });
+
+            for (let i = 0; i < trackPoints.length; i++) {
+                const prev = trackPoints[(i - 1 + trackPoints.length) % trackPoints.length];
+                const current = trackPoints[i];
+                const next = trackPoints[(i + 1) % trackPoints.length];
+                const nextNext = trackPoints[(i + 2) % trackPoints.length];
+                
+                const direction = new THREE.Vector3().subVectors(next, current);
+                const length = direction.length();
+                if (length < 0.01) continue;
+                direction.normalize();
+
+                const trackWidth = calculateTrackWidth(prev, current, nextNext, baseTrackWidth);
+                const trackGeometry = new THREE.BoxGeometry(trackWidth, 1.5, length + 0.2);
+                const material = (i < 15) ? startLineMaterial : trackMaterial;
+                const trackSegment = new THREE.Mesh(trackGeometry, material);
+                const midPoint = new THREE.Vector3().addVectors(current, next).multiplyScalar(0.5);
+                trackSegment.position.copy(midPoint);
+
+                const dx = next.x - current.x, dz = next.z - current.z, dy = next.y - current.y;
+                const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+                const pitchAngle = Math.atan2(dy, horizontalDist);
+                const yawAngle = Math.atan2(dz, dx);
+                trackSegment.rotation.y = yawAngle - Math.PI / 2;
+                trackSegment.rotation.x = pitchAngle;
+                trackSegment.receiveShadow = true;
+                trackSegment.castShadow = true;
+                scene.add(trackSegment);
+
+                if (i % 60 === 0) {
+                    const arrowGeometry = new THREE.PlaneGeometry(8, 16);
+                    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+                    arrow.position.copy(midPoint);
+                    arrow.position.y += 0.8;
+                    arrow.rotation.x = -Math.PI / 2 + pitchAngle;
+                    arrow.rotation.z = yawAngle + Math.PI / 2;
+                    scene.add(arrow);
+                }
+
+                const nearIntersection = isNearOtherSegment(midPoint, i);
+                if (i % 15 === 0 && !nearIntersection) {
+                    const barrierOffset = trackWidth / 2 + 3;
+                    createElevatedBarrier(current, next, barrierOffset, i % 6 === 0 ? 0xff0000 : 0xffffff);
+                    createElevatedBarrier(current, next, -barrierOffset, i % 6 === 3 ? 0xff0000 : 0xffffff);
+                }
+            }
+        }
+
+        function createElevatedBarrier(point1, point2, offset, color) {
+            const direction = new THREE.Vector3().subVectors(point2, point1);
+            const length = direction.length();
+            direction.normalize();
+            const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x).multiplyScalar(offset);
+            const barrierGeometry = new THREE.BoxGeometry(2, 3, length + 0.5);
+            const barrierMaterial = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
+            const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+            const midPoint = new THREE.Vector3().addVectors(point1, point2).multiplyScalar(0.5);
+            midPoint.add(perpendicular);
+            barrier.position.copy(midPoint);
+            barrier.position.y += 1.5;
+            barrierPositions.push({ x: midPoint.x, z: midPoint.z, y: midPoint.y, radius: 3 });
+            const dx = point2.x - point1.x, dz = point2.z - point1.z, dy = point2.y - point1.y;
+            const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+            const pitchAngle = Math.atan2(dy, horizontalDist);
+            const yawAngle = Math.atan2(dz, dx);
+            barrier.rotation.y = yawAngle - Math.PI / 2;
+            barrier.rotation.x = pitchAngle;
+            barrier.castShadow = true;
+            scene.add(barrier);
+        }
+
+        // --- Cars & Controls ---
+        function createCars() {
+            player1Car = createCarModel(cars[player1Selected].color);
+            player2Car = createCarModel(cars[player2Selected].color);
+            const startPoint = trackPoints[0].clone();
+            const startDirection = new THREE.Vector3().subVectors(trackPoints[5], trackPoints[0]).normalize();
+            player1Car.position.copy(startPoint);
+            player1Car.position.x -= 6;
+            player1Car.position.y += 1;
+            player2Car.position.copy(startPoint);
+            player2Car.position.x += 6;
+            player2Car.position.y += 1;
+            const angle = Math.atan2(startDirection.z, startDirection.x);
+            player1Car.rotation.y = angle - Math.PI / 2;
+            player2Car.rotation.y = angle - Math.PI / 2;
+            
+            const carProps = { speed: 0, maxSpeed: 5, acceleration: 0.06, brake: 0.12, friction: 0.035, baseTurnSpeed: 0.008, lap: 1, checkpointIndex: 0, gear: 1, onTrack: true, surface: 'track', targetPitch: 0, completedFullLap: false, lastLapTime: 0, collisionCooldown: 0 };
+            player1Car.userData = { ...carProps, carColor: cars[player1Selected].color, playerNum: 1 };
+            player2Car.userData = { ...carProps, carColor: cars[player2Selected].color, playerNum: 2 };
+            
+            scene.add(player1Car);
+            scene.add(player2Car);
+        }
+
+        function createCarModel(color) {
+            const car = new THREE.Group();
+            const bodyGeometry = new THREE.BoxGeometry(2, 0.5, 4);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ color, shininess: 100, specular: 0x555555 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.5; body.castShadow = true; car.add(body);
+            const cockpitGeometry = new THREE.BoxGeometry(1.5, 0.5, 1.5);
+            const cockpit = new THREE.Mesh(cockpitGeometry, bodyMaterial);
+            cockpit.position.y = 1; cockpit.position.z = 0.2; cockpit.castShadow = true; car.add(cockpit);
+            const wingGeometry = new THREE.BoxGeometry(2.5, 0.1, 0.3);
+            const wingMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
+            const frontWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            frontWing.position.z = -2.2; frontWing.position.y = 0.2; car.add(frontWing);
+            const rearWingPost = new THREE.BoxGeometry(0.2, 0.8, 0.2);
+            const post1 = new THREE.Mesh(rearWingPost, wingMaterial);
+            post1.position.set(-0.7, 1, 1.8); car.add(post1);
+            const post2 = new THREE.Mesh(rearWingPost, wingMaterial);
+            post2.position.set(0.7, 1, 1.8); car.add(post2);
+            const rearWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rearWing.position.z = 1.8; rearWing.position.y = 1.4; car.add(rearWing);
+            const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+            const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+            const wheelPositions = [[-1.2, 0.4, -1.5], [1.2, 0.4, -1.5], [-1.2, 0.4, 1.5], [1.2, 0.4, 1.5]];
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.rotation.z = Math.PI / 2; wheel.position.set(...pos); wheel.castShadow = true; car.add(wheel);
+            });
+            return car;
+        }
+
+        function setupKeyboardControls() {
+            window.addEventListener('keydown', (e) => { 
+                if (!keys[e.key] && e.key === 'Escape') togglePause(); // Trigger pause on ESC once per press
+                keys[e.key.toLowerCase()] = true; 
+                keys[e.key] = true; 
+            });
+            window.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
+                keys[e.key] = false;
+                if (e.key.toLowerCase() === 'q') { player1ViewMode = (player1ViewMode - 1 + 3) % 3; updateViewModeDisplay(1); }
+                if (e.key.toLowerCase() === 'e') { player1ViewMode = (player1ViewMode + 1) % 3; updateViewModeDisplay(1); }
+                if (e.key === '[') { player2ViewMode = (player2ViewMode - 1 + 3) % 3; updateViewModeDisplay(2); }
+                if (e.key === ']') { player2ViewMode = (player2ViewMode + 1) % 3; updateViewModeDisplay(2); }
+            });
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function updateViewModeDisplay(player) {
+            const modes = ['Chase', 'Hood', 'Cockpit'];
+            const mode = player === 1 ? player1ViewMode : player2ViewMode;
+            document.getElementById(`p${player}ViewMode`).textContent = `View: ${modes[mode]}`;
+        }
+
+        function showCountdown() {
+            const countdownEl = document.getElementById('countdown');
+            countdownEl.style.display = 'block';
+            let count = 3;
+            const interval = setInterval(() => {
+                if (count > 0) {
+                    countdownEl.textContent = count;
+                    playCountdownBeep(600);
+                    count--;
+                } else {
+                    countdownEl.textContent = 'GO!';
+                    playGoSound();
+                    setTimeout(() => {
+                        countdownEl.style.display = 'none';
+                        raceStarted = true;
+                        raceStartTime = Date.now();
+                    }, 500);
+                    clearInterval(interval);
+                }
+            }, 1000);
+            gameStarted = true;
+            animate();
+        }
+
+        // --- Core Loop & Logic ---
+        function checkSurface(car) {
+            const data = car.userData;
+            let onTrack = false, closestDist = Infinity, closestIdx = 0;
+            for (let i = 0; i < trackPoints.length; i++) {
+                const point = trackPoints[i];
+                const dist = Math.sqrt(Math.pow(point.x - car.position.x, 2) + Math.pow(point.z - car.position.z, 2));
+                if (dist < closestDist) { closestDist = dist; closestIdx = i; }
+            }
+            
+            const prev = trackPoints[(closestIdx - 1 + trackPoints.length) % trackPoints.length];
+            const current = trackPoints[closestIdx];
+            const nextNext = trackPoints[(closestIdx + 2) % trackPoints.length];
+            const dynamicWidth = calculateTrackWidth(prev, current, nextNext, 32);
+            
+            if (closestDist < dynamicWidth / 2) { onTrack = true; data.surface = 'track'; } 
+            else { onTrack = false; data.surface = 'grass'; }
+            
+            let hitBarrier = false;
+            for (let barrier of barrierPositions) {
+                const dist = Math.sqrt(Math.pow(barrier.x - car.position.x, 2) + Math.pow(barrier.z - car.position.z, 2));
+                if (dist < barrier.radius) { hitBarrier = true; data.surface = 'barrier'; break; }
+            }
+            data.onTrack = onTrack && !hitBarrier;
+            return { onTrack: data.onTrack, hitBarrier, surface: data.surface, closestIdx };
+        }
+
+        function handleCarCollision() {
+            const p1Data = player1Car.userData;
+            const p2Data = player2Car.userData;
+            if (p1Data.collisionCooldown > 0) p1Data.collisionCooldown--;
+            if (p2Data.collisionCooldown > 0) p2Data.collisionCooldown--;
+            const dx = player2Car.position.x - player1Car.position.x;
+            const dz = player2Car.position.z - player1Car.position.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+            const collisionRadius = 5;
+            
+            if (distance < collisionRadius && p1Data.collisionCooldown === 0 && p2Data.collisionCooldown === 0) {
+                const normalX = dx / distance, normalZ = dz / distance;
+                const p1VelX = -Math.sin(player1Car.rotation.y) * p1Data.speed;
+                const p1VelZ = -Math.cos(player1Car.rotation.y) * p1Data.speed;
+                const p2VelX = -Math.sin(player2Car.rotation.y) * p2Data.speed;
+                const p2VelZ = -Math.cos(player2Car.rotation.y) * p2Data.speed;
+                const relVelX = p1VelX - p2VelX, relVelZ = p1VelZ - p2VelZ;
+                const velAlongNormal = relVelX * normalX + relVelZ * normalZ;
+                
+                if (velAlongNormal < 0) {
+                    const restitution = 0.7;
+                    const impulse = -(1 + restitution) * velAlongNormal / 2;
+                    const impulseX = impulse * normalX, impulseZ = impulse * normalZ;
+                    
+                    p1Data.speed *= 0.6;
+                    player1Car.position.x -= impulseX * 1.2; player1Car.position.z -= impulseZ * 1.2;
+                    
+                    const speedBoost = Math.abs(impulse) * 0.4;
+                    p2Data.speed += speedBoost;
+                    p2Data.speed = Math.min(p2Data.speed, p2Data.maxSpeed * 1.3);
+                    player2Car.position.x += impulseX * 1.2; player2Car.position.z += impulseZ * 1.2;
+                    
+                    const rotationChange = impulse * 0.08;
+                    player1Car.rotation.y += rotationChange; player2Car.rotation.y -= rotationChange;
+                    
+                    p1Data.collisionCooldown = 45; p2Data.collisionCooldown = 45;
+                }
+            }
+        }
+
+        function updateCar(car, controls) {
+            if (!raceStarted) return;
+            const data = car.userData;
+            const surfaceInfo = checkSurface(car);
+            
+            if (keys[controls.forward]) {
+                data.speed = Math.min(data.speed + data.acceleration, data.maxSpeed);
+                const speedRatio = Math.abs(data.speed) / data.maxSpeed;
+                if (speedRatio < 0.2) data.gear = 1; else if (speedRatio < 0.4) data.gear = 2; else if (speedRatio < 0.6) data.gear = 3; else if (speedRatio < 0.8) data.gear = 4; else data.gear = 5;
+            } else if (keys[controls.backward]) {
+                if (data.speed > 0.1) { data.speed = Math.max(data.speed - data.brake, 0); data.gear = 1; }
+                else { data.speed = Math.max(data.speed - data.acceleration * 0.5, -data.maxSpeed * 0.4); data.gear = -1; }
+            } else {
+                if (Math.abs(data.speed) < 0.01) data.speed = 0; else data.speed *= (1 - data.friction);
+            }
+            
+            if (surfaceInfo.hitBarrier) data.speed *= 0.70;
+            else if (!surfaceInfo.onTrack) data.speed *= 0.70;
+            
+            const speedRatio = Math.abs(data.speed) / data.maxSpeed;
+            const turnMultiplier = 3.0 + (speedRatio * 1.0);
+            const effectiveTurnSpeed = data.baseTurnSpeed * turnMultiplier;
+            
+            if (keys[controls.left]) car.rotation.y += effectiveTurnSpeed;
+            if (keys[controls.right]) car.rotation.y -= effectiveTurnSpeed;
+            
+            const newX = car.position.x - Math.sin(car.rotation.y) * data.speed;
+            const newZ = car.position.z - Math.cos(car.rotation.y) * data.speed;
+            const closestIdx = surfaceInfo.closestIdx;
+            const nextIdx = (closestIdx + 1) % trackPoints.length;
+            const currentPoint = trackPoints[closestIdx], nextPoint = trackPoints[nextIdx];
+            const dx = nextPoint.x - currentPoint.x, dz = nextPoint.z - currentPoint.z, dy = nextPoint.y - currentPoint.y;
+            const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+            
+            data.targetPitch = Math.atan2(dy, horizontalDist);
+            car.position.x = newX; car.position.z = newZ;
+            car.position.y += (currentPoint.y + 1 - car.position.y) * 0.18;
+            car.rotation.x += (data.targetPitch - car.rotation.x) * 0.15;
+            updateLapProgress(car);
+        }
+
+        function updateLapProgress(car) {
+            const data = car.userData;
+            const startPoint = trackPoints[7];
+            const distToStart = Math.sqrt(Math.pow(startPoint.x - car.position.x, 2) + Math.pow(startPoint.z - car.position.z, 2));
+            const nearStartLine = distToStart < 40;
+            const progressThreshold = trackPoints.length * 0.9;
+            const currentTime = Date.now();
+            const timeSinceLastLap = (currentTime - data.lastLapTime) / 1000;
+            
+            for (let i = 0; i < trackPoints.length; i++) {
+                const dist2D = Math.sqrt(Math.pow(trackPoints[i].x - car.position.x, 2) + Math.pow(trackPoints[i].z - car.position.z, 2));
+                if (dist2D < 50 && i > data.checkpointIndex + 20) data.checkpointIndex = i;
+            }
+            if (nearStartLine && data.checkpointIndex >= progressThreshold) {
+                if (data.lastLapTime === 0 || timeSinceLastLap >= 5) {
+                    data.lap++; data.checkpointIndex = 0; data.lastLapTime = currentTime;
+                }
+            }
+        }
+
+        function updateCamera(camera, car, viewMode) {
+            const offset = new THREE.Vector3(), lookAt = new THREE.Vector3();
+            switch (viewMode) {
+                case 0: offset.set(0, 5, 12); lookAt.set(0, 0, -15); break;
+                case 1: offset.set(0, 2, 2.5); lookAt.set(0, 1.5, -15); break;
+                case 2: offset.set(0, 1.3, 0.5); lookAt.set(0, 1.2, -15); break;
+            }
+            offset.applyQuaternion(car.quaternion);
+            lookAt.applyQuaternion(car.quaternion);
+            camera.position.copy(car.position).add(offset);
+            camera.lookAt(car.position.clone().add(lookAt));
+        }
+
+        function updateHUD() {
+            document.getElementById('p1Speed').textContent = `${Math.abs(player1Car.userData.speed * 50).toFixed(0)} KM/H`;
+            document.getElementById('p2Speed').textContent = `${Math.abs(player2Car.userData.speed * 50).toFixed(0)} KM/H`;
+            document.getElementById('p1Lap').textContent = `Lap: ${player1Car.userData.lap}/3`;
+            document.getElementById('p2Lap').textContent = `Lap: ${player2Car.userData.lap}/3`;
+            document.getElementById('p1Gear').textContent = `Gear: ${player1Car.userData.gear > 0 ? player1Car.userData.gear : 'R'}`;
+            document.getElementById('p2Gear').textContent = `Gear: ${player2Car.userData.gear > 0 ? player2Car.userData.gear : 'R'}`;
+            document.getElementById('p1Elevation').textContent = `Alt: ${player1Car.position.y.toFixed(0)}m`;
+            document.getElementById('p2Elevation').textContent = `Alt: ${player2Car.position.y.toFixed(0)}m`;
+            document.getElementById('p1Surface').textContent = player1Car.userData.surface === 'track' ? 'On Track' : (player1Car.userData.surface === 'barrier' ? 'HIT BARRIER!' : 'OFF TRACK!');
+            document.getElementById('p2Surface').textContent = player2Car.userData.surface === 'track' ? 'On Track' : (player2Car.userData.surface === 'barrier' ? 'HIT BARRIER!' : 'OFF TRACK!');
+            updateEngineSound(player1Engine, player1Car.userData.speed);
+            updateEngineSound(player2Engine, player2Car.userData.speed);
+        }
+
+        function drawMinimap() {
+            const canvas = document.getElementById('minimap');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.clientWidth;
+            const height = canvas.height = canvas.clientHeight;
+            ctx.clearRect(0, 0, width, height);
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            trackPoints.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); });
+            const scale = Math.min(width / (maxX - minX), height / (maxZ - minZ)) * 0.85;
+            const centerX = width / 2, centerY = height / 2, offsetX = (minX + maxX) / 2, offsetZ = (minZ + maxZ) / 2;
+            ctx.lineWidth = 5;
+            trackPoints.forEach((point, i) => {
+                const x = centerX + (point.x - offsetX) * scale;
+                const y = centerY + (point.z - offsetZ) * scale;
+                const elevationRatio = (point.y - 20) / 45;
+                ctx.strokeStyle = `rgb(${Math.floor(255 * (1 - elevationRatio))}, ${Math.floor(255 * elevationRatio)}, 100)`;
+                if (i === 0) ctx.moveTo(x, y); else { ctx.beginPath(); ctx.moveTo(centerX + (trackPoints[i-1].x - offsetX) * scale, centerY + (trackPoints[i-1].z - offsetZ) * scale); ctx.lineTo(x, y); ctx.stroke(); }
+            });
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillRect(centerX + (trackPoints[0].x - offsetX) * scale - 5, centerY + (trackPoints[0].z - offsetZ) * scale - 5, 10, 10);
+            
+            function drawCarOnMap(car, color, label) {
+                const x = centerX + (car.position.x - offsetX) * scale, y = centerY + (car.position.z - offsetZ) * scale;
+                ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Arial'; ctx.fillText(label, x + 8, y + 4);
+            }
+            drawCarOnMap(player1Car, '#00ff88', 'P1');
+            drawCarOnMap(player2Car, '#ff6b81', 'P2');
+        }
+
+        function animate() {
+            if (!gameStarted) return;
+            requestAnimationFrame(animate);
+
+            if (isPaused) return; // Prevent updating game logic while paused
+
+            pollGamepads();
+            updateCar(player1Car, player1Controls);
+            updateCar(player2Car, player2Controls);
+            handleCarCollision();
+            updateCamera(player1Camera, player1Car, player1ViewMode);
+            updateCamera(player2Camera, player2Car, player2ViewMode);
+            updateHUD();
+            drawMinimap();
+            
+            const width = window.innerWidth, height = window.innerHeight * 0.8;
+            renderer.setScissorTest(true);
+            renderer.setViewport(0, window.innerHeight * 0.2, width / 2, height);
+            renderer.setScissor(0, window.innerHeight * 0.2, width / 2, height);
+            renderer.render(scene, player1Camera);
+            renderer.setViewport(width / 2, window.innerHeight * 0.2, width / 2, height);
+            renderer.setScissor(width / 2, window.innerHeight * 0.2, width / 2, height);
+            renderer.render(scene, player2Camera);
+            renderer.setScissorTest(false);
+        }
+
+        function onWindowResize() {
+            const width = window.innerWidth, height = window.innerHeight * 0.8;
+            if(player1Camera && player2Camera && renderer) {
+                player1Camera.aspect = (width / 2) / height; player1Camera.updateProjectionMatrix();
+                player2Camera.aspect = (width / 2) / height; player2Camera.updateProjectionMatrix();
+                renderer.setSize(width, window.innerHeight);
+            }
+        }
     </script>
 </body>
 </html>
