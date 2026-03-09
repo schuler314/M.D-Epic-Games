@@ -22,9 +22,33 @@
         .text-shadow {
             text-shadow: 2px 2px 0px rgba(0,0,0,0.8);
         }
+        /* Mobile Portrait Orientation Overlay */
+        @media screen and (orientation: portrait) {
+            #orientation-warning.active-mobile {
+                display: flex !important;
+            }
+        }
+        @keyframes rotatePhone {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(-90deg); }
+            100% { transform: rotate(-90deg); }
+        }
+        .animate-rotate-phone {
+            animation: rotatePhone 2s infinite ease-in-out alternate;
+        }
     </style>
 </head>
 <body class="select-none text-white">
+
+    <!-- Portrait Orientation Warning -->
+    <div id="orientation-warning" class="fixed inset-0 z-[100] bg-sky-900 hidden flex-col items-center justify-center p-8 text-center pointer-events-auto">
+        <svg class="w-24 h-24 text-white mb-6 animate-rotate-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+        </svg>
+        <h2 class="text-xl md:text-3xl text-yellow-300 text-shadow mb-4" style="font-family: 'Press Start 2P', system-ui;">ROTATE DEVICE</h2>
+        <p class="text-sm md:text-base font-sans leading-relaxed">This game requires a wider view. Please rotate your phone or tablet to horizontal (landscape) mode to play!</p>
+    </div>
 
     <!-- UI Layer -->
     <div id="ui-layer" class="absolute inset-0 z-10 flex flex-col pointer-events-none">
@@ -44,7 +68,7 @@
                 <!-- Item Banks -->
                 <div class="flex gap-4 mt-2 md:mt-0 items-start">
                     <div id="p1-bank" class="flex flex-col items-center gap-1 hidden">
-                        <span class="text-[8px] md:text-[10px] text-blue-300 text-shadow">P1 (SHIFT)</span>
+                        <span id="p1-bank-label" class="text-[8px] md:text-[10px] text-blue-300 text-shadow">P1 (SHIFT)</span>
                         <div class="flex gap-1">
                             <div id="p1-item-0" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
                             <div id="p1-item-1" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
@@ -67,7 +91,7 @@
         </div>
 
         <!-- Touch Controls (Mobile) -->
-        <div id="touch-controls" class="absolute bottom-8 left-0 w-full px-6 flex justify-between pointer-events-none hidden sm:hidden">
+        <div id="touch-controls" class="absolute bottom-8 left-0 w-full px-6 flex justify-between pointer-events-none hidden">
             <div class="flex gap-4">
                 <button id="t-left" class="w-16 h-16 bg-white/20 rounded-full border-2 border-white/50 pointer-events-auto active:bg-white/40 flex items-center justify-center backdrop-blur-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -90,11 +114,21 @@
         <div id="home-screen" class="absolute inset-0 bg-sky-900/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto z-40">
             <h1 class="text-4xl md:text-6xl text-center text-blue-400 mb-2 text-shadow" style="-webkit-text-stroke: 2px white;">WEB DASH</h1>
             
-            <div class="mb-8 text-center bg-black/50 p-4 rounded-lg border-2 border-white/20 w-64">
+            <div class="mb-6 text-center bg-black/50 p-4 rounded-lg border-2 border-white/20 w-64 md:w-80">
                 <h3 class="text-yellow-300 mb-3 text-shadow text-sm">TOP SCORES</h3>
                 <ul id="high-score-board" class="text-xs md:text-sm text-white space-y-2">
                     <li class="text-gray-400">No scores yet!</li>
                 </ul>
+            </div>
+
+            <!-- Device Mode Selection -->
+            <div class="mb-8 flex flex-col items-center">
+                <h3 class="text-[10px] text-white mb-2 tracking-widest text-shadow">SELECT DEVICE</h3>
+                <div class="flex gap-2">
+                    <button class="mode-btn font-sans font-bold px-4 py-2 rounded-lg border-2 border-white transition-colors bg-blue-600 text-white shadow-md" data-mode="desktop">DESKTOP</button>
+                    <button class="mode-btn font-sans font-bold px-4 py-2 rounded-lg border-2 border-white transition-colors bg-gray-600 text-white/70 shadow-md" data-mode="mobile">MOBILE</button>
+                    <button class="mode-btn font-sans font-bold px-4 py-2 rounded-lg border-2 border-white transition-colors bg-gray-600 text-white/70 shadow-md" data-mode="gamepad">GAMEPAD</button>
+                </div>
             </div>
             
             <div class="flex flex-col gap-4 w-64">
@@ -110,15 +144,15 @@
             <div class="max-w-2xl w-full px-6 text-xs md:text-sm leading-relaxed text-white space-y-4 font-sans" style="font-family: system-ui, sans-serif;">
                 <div class="bg-black/40 p-5 rounded-lg border-2 border-white/20">
                     <h3 class="text-yellow-400 mb-2 font-bold text-lg" style="font-family: 'Press Start 2P', system-ui;">CONTROLS</h3>
-                    <p><span class="text-blue-400 font-bold">P1:</span> Arrow Keys to Move & Jump <br> <span class="text-orange-400 font-bold">P2:</span> W,A,S,D to Move & Jump</p>
+                    <p><span class="text-blue-400 font-bold">P1:</span> <span id="inst-p1">Arrow Keys to Move & Jump</span> <br> <span class="text-orange-400 font-bold">P2:</span> <span id="inst-p2">W,A,S,D to Move & Jump</span></p>
                 </div>
                 <div class="bg-black/40 p-5 rounded-lg border-2 border-white/20">
                     <h3 class="text-yellow-400 mb-2 font-bold text-lg" style="font-family: 'Press Start 2P', system-ui;">LIVES & LOOPS</h3>
-                    <p>You have 3 lives. Run fast (hold forward) into Loop-the-Loops to trigger the spiral. If you walk into them slowly, you'll just bump over the ramp safely.</p>
+                    <p>You have 3 lives. Loops are fully integrated into the continuous ground track. Just run straight into them with high speed (by holding forward) to stick to the track and loop through!</p>
                 </div>
                 <div class="bg-black/40 p-5 rounded-lg border-2 border-white/20">
                     <h3 class="text-yellow-400 mb-2 font-bold text-lg" style="font-family: 'Press Start 2P', system-ui;">POWERUPS</h3>
-                    <p class="mb-3 text-green-300 text-xs md:text-sm">You can <b>BANK up to 3</b> powerups! Press <span class="text-blue-300">ENTER/SHIFT</span> (P1) or <span class="text-orange-300">E</span> (P2) to use the oldest one.</p>
+                    <p class="mb-3 text-green-300 text-xs md:text-sm">You can <b>BANK up to 3</b> powerups! <span id="inst-action">Press ENTER/SHIFT (P1) or E (P2) to use the oldest one.</span></p>
                 </div>
             </div>
             <button id="btn-close-instructions" class="mt-8 bg-gray-600 hover:bg-gray-500 border-4 border-white py-3 px-8 text-xl pixel-shadow transition-transform active:translate-y-1">BACK</button>
@@ -179,6 +213,70 @@
         let maxDistanceInLevel = 0;
         let isLevelComplete = false;
 
+        // Device Mode Settings
+        let deviceMode = 'desktop'; // desktop, mobile, gamepad
+        
+        function setDeviceMode(mode) {
+            deviceMode = mode;
+            
+            // Visual Buttons Update
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-600', 'text-white/70');
+            });
+            let activeBtn = document.querySelector(`.mode-btn[data-mode="${mode}"]`);
+            if(activeBtn) {
+                activeBtn.classList.remove('bg-gray-600', 'text-white/70');
+                activeBtn.classList.add('bg-blue-600', 'text-white');
+            }
+
+            // Orientation Warning
+            let warnEl = document.getElementById('orientation-warning');
+            if (mode === 'mobile') warnEl.classList.add('active-mobile');
+            else warnEl.classList.remove('active-mobile');
+
+            // Controls Visibility
+            let touchControls = document.getElementById('touch-controls');
+            if (mode === 'mobile') touchControls.classList.remove('hidden');
+            else touchControls.classList.add('hidden');
+
+            // Dynamic Instructions
+            let p1Text = "", p2Text = "", actionText = "", bankLabel = "";
+            if (mode === 'desktop') {
+                p1Text = "Arrow Keys to Move & Jump";
+                p2Text = "W,A,S,D to Move & Jump";
+                actionText = "Press ENTER/SHIFT (P1) or E (P2) to use the oldest one.";
+                bankLabel = "P1 (SHIFT)";
+            } else if (mode === 'mobile') {
+                p1Text = "On-screen Touch Controls (Arrows & Jump)";
+                p2Text = "N/A (Mobile is best for 1 Player)";
+                actionText = "Tap the ⭐ button to use the oldest one.";
+                bankLabel = "P1 (⭐)";
+            } else if (mode === 'gamepad') {
+                p1Text = "D-Pad/Stick to Move, 'A' to Jump";
+                p2Text = "Keyboard W,A,S,D (if local co-op)";
+                actionText = "Press 'X' or 'B' to use the oldest one. 'Start' to Pause.";
+                bankLabel = "P1 (X / B)";
+            }
+            
+            document.getElementById('inst-p1').innerText = p1Text;
+            document.getElementById('inst-p2').innerText = p2Text;
+            document.getElementById('inst-action').innerText = actionText;
+            document.getElementById('p1-bank-label').innerText = bankLabel;
+        }
+
+        // Event listeners for mode buttons
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => setDeviceMode(e.target.dataset.mode));
+        });
+
+        // Auto-detect mobile on load
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            setDeviceMode('mobile');
+        } else {
+            setDeviceMode('desktop');
+        }
+
         const THEMES = [
             { name: 'Green Hill', skyT: '#87CEEB', skyB: '#E0F6FF', dirt: '#8B4513', grass: '#228B22', check: 'rgba(0,0,0,0.2)' },
             { name: 'Marble Zone', skyT: '#4B0082', skyB: '#8A2BE2', dirt: '#2F4F4F', grass: '#800000', check: 'rgba(255,165,0,0.3)' },
@@ -204,14 +302,10 @@
         // --- Bulletproof Input Handling ---
         const keys = {};
         window.addEventListener('keydown', e => { 
-            keys[e.code] = true; 
-            keys[e.key.toLowerCase()] = true; 
-            keys[e.key.toUpperCase()] = true; 
+            keys[e.code] = true; keys[e.key.toLowerCase()] = true; keys[e.key.toUpperCase()] = true; 
         });
         window.addEventListener('keyup', e => { 
-            keys[e.code] = false; 
-            keys[e.key.toLowerCase()] = false; 
-            keys[e.key.toUpperCase()] = false; 
+            keys[e.code] = false; keys[e.key.toLowerCase()] = false; keys[e.key.toUpperCase()] = false; 
         });
 
         const touchState = { left: false, right: false, jump: false, action: false };
@@ -223,8 +317,35 @@
             el.addEventListener('touchcancel', (e) => { e.preventDefault(); touchState[action] = false; });
         };
         setupTouch('t-left', 'left'); setupTouch('t-right', 'right'); setupTouch('t-jump', 'jump'); setupTouch('t-action', 'action');
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            document.getElementById('touch-controls').classList.remove('hidden');
+
+        // Gamepad API
+        const gamepadState = { left: false, right: false, jump: false, action: false, pause: false };
+        let prevGamepadPause = false;
+
+        function pollGamepads() {
+            if (deviceMode !== 'gamepad') return;
+            if (!navigator.getGamepads) return;
+            const gamepads = navigator.getGamepads();
+            const gp = gamepads[0]; 
+            if (!gp) return;
+
+            // Map D-Pad (buttons 14/15) or Left Stick (axes 0)
+            gamepadState.left = gp.axes[0] < -0.5 || (gp.buttons[14] && gp.buttons[14].pressed);
+            gamepadState.right = gp.axes[0] > 0.5 || (gp.buttons[15] && gp.buttons[15].pressed);
+            
+            // Map A button (0) to Jump
+            gamepadState.jump = gp.buttons[0] && gp.buttons[0].pressed;
+            
+            // Map X (2) or B (1) to Action/Powerup
+            gamepadState.action = (gp.buttons[1] && gp.buttons[1].pressed) || (gp.buttons[2] && gp.buttons[2].pressed);
+
+            // Map Start (9) to Pause
+            let pausePressed = gp.buttons[9] && gp.buttons[9].pressed;
+            if (pausePressed && !prevGamepadPause) {
+                if (GAME_STATE === 'PLAYING') pauseGame();
+                else if (GAME_STATE === 'PAUSED') resumeGame();
+            }
+            prevGamepadPause = pausePressed;
         }
 
         // --- Audio System ---
@@ -300,11 +421,11 @@
                     this.maxSpeed = this.baseMaxSpeed; this.speed = this.baseSpeed;
                 }
 
-                // Controls
-                let movingLeft = !isLevelComplete && (this.controls.left.some(k => keys[k]) || (this.id === 1 && touchState.left));
-                let movingRight = !isLevelComplete && (this.controls.right.some(k => keys[k]) || (this.id === 1 && touchState.right));
-                let jumping = !isLevelComplete && (this.controls.jump.some(k => keys[k]) || (this.id === 1 && touchState.jump));
-                let actionPressed = !isLevelComplete && (this.controls.action.some(k => keys[k]) || (this.id === 1 && touchState.action));
+                // Controls (Checking Keyboard OR Touch OR Gamepad)
+                let movingLeft = !isLevelComplete && (this.controls.left.some(k => keys[k]) || (this.id === 1 && touchState.left) || (this.id === 1 && gamepadState.left));
+                let movingRight = !isLevelComplete && (this.controls.right.some(k => keys[k]) || (this.id === 1 && touchState.right) || (this.id === 1 && gamepadState.right));
+                let jumping = !isLevelComplete && (this.controls.jump.some(k => keys[k]) || (this.id === 1 && touchState.jump) || (this.id === 1 && gamepadState.jump));
+                let actionPressed = !isLevelComplete && (this.controls.action.some(k => keys[k]) || (this.id === 1 && touchState.action) || (this.id === 1 && gamepadState.action));
 
                 if (actionPressed && !this.prevActionPressed && this.bankedPowerups.length > 0) {
                     playSound('powerup');
@@ -319,12 +440,10 @@
                 // --- Improved Seamless Loop Physics ---
                 if (this.isLooping && this.loopObj) {
                     
-                    // If the user is holding the movement key, override gravity to power through the loop
+                    // Power through the loop if holding direction, else let gravity take effect
                     if ((this.vx > 0 && movingRight) || (this.vx < 0 && movingLeft)) {
-                        // Add a small constant acceleration to ensure they make it around
                         this.vx += Math.sign(this.vx) * 0.5;
                     } else {
-                        // Otherwise, apply angular gravity
                         this.vx -= Math.cos(this.loopAngle) * 0.4; 
                     }
 
@@ -339,8 +458,6 @@
                     this.rotation = this.loopAngle;
 
                     // Manage dynamic Z-Layer to create true 2.5D spiral overlap
-                    // If on right side of loop (cos > 0), player is in Back layer
-                    // If on left side of loop (cos < 0), player is in Front layer
                     this.zLayer = Math.cos(this.loopAngle) > 0 ? 0 : 1;
 
                     // Fall out of the loop if speed drops too low while in the top half (sin < 0)
@@ -357,7 +474,7 @@
                         this.isGrounded = true; 
                         this.loopCooldown = 15;
                     }
-                    return; // Skip normal physics calculations while strapped to track
+                    return; 
                 }
 
                 // Normal movement applied outside the loop
@@ -412,7 +529,7 @@
                         }
                     }
                 }
-                if (!onRamp && !this.isLooping) this.zLayer = 1; // Default to front layer
+                if (!onRamp && !this.isLooping) this.zLayer = 1; 
                 
                 let absSpeed = Math.abs(this.vx);
                 if (this.isGrounded) {
@@ -420,10 +537,8 @@
                 }
                 
                 this.rotation += this.vx * 0.1;
-
-                // Reset grounded tracking for next frame, UNLESS currently on a ramp curve which handles it
                 if (!onRamp) this.isGrounded = false;
-                this.onRamp = onRamp; // Save state for collision bypass
+                this.onRamp = onRamp; 
             }
 
             draw(ctx, camX) {
@@ -437,7 +552,6 @@
                 let absSpeed = Math.abs(this.vx);
                 let isRolling = (!this.isGrounded) || (absSpeed > 6) || this.isLooping;
 
-                // Speed trail aura
                 if (this.speedTimer > 0) {
                     ctx.beginPath(); ctx.arc(-this.vx * this.direction, -this.vy, this.radius, 0, Math.PI * 2);
                     ctx.fillStyle = 'rgba(255, 69, 0, 0.4)'; ctx.fill();
@@ -546,7 +660,7 @@
                 
                 ctx.fillStyle = theme.dirt;
                 ctx.beginPath();
-                ctx.rect(-blockW/2, -100, blockW, blockH); // Top at -100, bottom at +100 (which is gy)
+                ctx.rect(-blockW/2, -100, blockW, blockH); 
                 ctx.arc(0, 0, this.radius - 12, 0, Math.PI * 2, true); // Subtract hole
                 ctx.fill();
 
@@ -986,6 +1100,8 @@
 
         function gameLoop() {
             if (GAME_STATE !== 'PLAYING') return;
+
+            pollGamepads();
 
             players.forEach(p => p.update());
             updatePhysics();
