@@ -155,7 +155,6 @@
 <body class="relative">
 
     <!-- LOCKED BACKGROUND LAYER -->
-    <!-- This completely prevents the blobs from causing a double scrollbar or widening the page! -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
@@ -176,7 +175,6 @@
         <div id="device-container" class="view-desktop">
             <!-- Navigation / Header -->
             <nav class="p-6 text-center pt-24 md:pt-28">
-                <!-- Using vw (viewport width) so the text scales fluidly without causing overflow -->
                 <h1 class="text-[clamp(2.2rem,8vw,4.5rem)] font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 title-glow mb-2 leading-tight">
                     M.D Epic Games
                 </h1>
@@ -211,13 +209,13 @@
         </div> <!-- End Device Container -->
     </div> <!-- End Hub View -->
 
-    <!-- GAME PLAYER VIEW (z-[200] ensures it completely covers the toggle buttons) -->
+    <!-- GAME PLAYER VIEW -->
     <div id="game-view" class="hidden fixed inset-0 z-[200] flex flex-col bg-[#0f172a]">
-        <!-- Player Toolbar -->
-        <div class="bg-gray-900/90 backdrop-blur-md p-3 sm:p-4 flex justify-between items-center text-white shrink-0 border-b border-white/10 shadow-lg">
-            <span id="playing-title" class="font-bold text-lg sm:text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 truncate pr-4">Game Title</span>
-            <button onclick="closeGame()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 sm:px-6 sm:py-2 rounded-full font-bold transition-all hover:scale-105 shadow-[0_0_15px_rgba(219,39,119,0.4)] whitespace-nowrap flex items-center gap-2 cursor-pointer text-sm sm:text-base">
-                <span class="text-lg sm:text-xl leading-none -mt-0.5">⬅️</span> Back to Hub
+        <!-- Compact Player Toolbar -->
+        <div class="bg-gray-900/95 backdrop-blur-md px-4 py-2 sm:py-4 flex justify-between items-center text-white shrink-0 border-b border-white/10 shadow-lg min-h-[50px] sm:min-h-[70px]">
+            <span id="playing-title" class="font-bold text-sm sm:text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 truncate pr-4">Game Title</span>
+            <button onclick="closeGame()" class="bg-pink-600 hover:bg-pink-500 text-white px-3 py-1.5 sm:px-6 sm:py-2 rounded-full font-bold transition-all hover:scale-105 shadow-[0_0_15px_rgba(219,39,119,0.4)] whitespace-nowrap flex items-center gap-1.5 sm:gap-2 cursor-pointer text-xs sm:text-base">
+                <span class="text-sm sm:text-xl leading-none">⬅️</span> <span class="hidden xs:inline">Back to Hub</span><span class="xs:hidden">Back</span>
             </button>
         </div>
         <!-- Iframe Container -->
@@ -236,10 +234,8 @@
                 phone: document.getElementById('btn-phone')
             };
 
-            // Apply the layout class
             container.className = `view-${view}`;
 
-            // Update button UI styles
             Object.keys(btns).forEach(key => {
                 const btnClassBase = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ";
                 if(key === view) {
@@ -264,30 +260,20 @@
 
         // --- Game Player Logic ---
         function openGame(url, title) {
-            document.body.style.overflow = 'hidden'; // Stop background scrolling
-            
-            // Note: We NO LONGER hide the hub-view. This completely prevents the page from losing its scroll position!
+            document.body.style.overflow = 'hidden'; 
             document.getElementById('game-view').classList.remove('hidden');
             document.getElementById('playing-title').innerText = title;
-            
             const gameFrame = document.getElementById('game-frame');
             gameFrame.src = url;
-            
-            // Auto-focus the iframe so keyboard controls work immediately
-            setTimeout(() => {
-                gameFrame.focus();
-            }, 100);
+            setTimeout(() => { gameFrame.focus(); }, 100);
         }
 
         function closeGame() {
-            document.body.style.overflow = ''; // Restore background scrolling
+            document.body.style.overflow = ''; 
             document.getElementById('game-view').classList.add('hidden');
-            document.getElementById('game-frame').src = ""; // Stop game from running in background
+            document.getElementById('game-frame').src = ""; 
         }
 
-        // =========================================================================
-        // 🎮 GAME DATA MASTER LIST 🎮
-        // =========================================================================
         const gamesData = [
             {
                 title: "Race cars",
@@ -391,21 +377,16 @@
         const gamesContainer = document.getElementById('gamesContainer');
         const searchInput = document.getElementById('searchInput');
 
-        // Function to render game cards
         function renderGames(games) {
             gamesContainer.innerHTML = ''; 
-            
             if (games.length === 0) {
-                gamesContainer.innerHTML = `<p class="col-span-full text-center text-2xl text-white/60 mt-8">No games found! Try another search.</p>`;
+                gamesContainer.innerHTML = `<p class="col-span-full text-center text-2xl text-white/60 mt-8">No games found!</p>`;
                 return;
             }
-
             games.forEach(game => {
                 const card = document.createElement('div');
                 card.className = 'game-card group';
-                
                 card.onclick = () => openGame(game.url, game.title);
-
                 card.innerHTML = `
                     <div class="game-icon bg-gradient-to-br ${game.bgColor} flex items-center justify-center shadow-lg">
                         ${game.icon}
@@ -422,11 +403,9 @@
             });
         }
 
-        // Initialize view based on current screen size BEFORE rendering
         initView();
         renderGames(gamesData);
 
-        // Search functionality
         searchInput.addEventListener('input', (e) => {
             const searchTerm = e.target.value.toLowerCase();
             const filteredGames = gamesData.filter(game => 
