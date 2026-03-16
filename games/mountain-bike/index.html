@@ -35,6 +35,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            z-index: 10;
         }
 
         .hud-text {
@@ -48,17 +49,12 @@
             left: 0;
             width: 100%;
             height: 120px;
-            display: none;
+            display: none; /* Managed by JS based on device mode */
             justify-content: space-between;
             padding: 0 20px;
             pointer-events: auto;
             box-sizing: border-box;
-        }
-
-        @media (max-width: 768px) {
-            #touch-controls {
-                display: flex;
-            }
+            z-index: 20;
         }
 
         .control-btn {
@@ -106,10 +102,34 @@
             pointer-events: auto;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255,255,255,0.1);
+            z-index: 30;
+        }
+
+        /* Landscape Warning */
+        #landscape-warning {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 100;
+            display: none; /* Changed from flex so it stays hidden on load */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 2rem;
         }
     </style>
 </head>
 <body>
+
+    <!-- Landscape Orientation Warning (Mobile Only) -->
+    <div id="landscape-warning">
+        <div class="text-7xl mb-6 animate-pulse">🔄</div>
+        <h2 class="text-3xl font-bold text-yellow-400 mb-4">Rotate Your Device</h2>
+        <p class="text-xl text-gray-300 max-w-md mb-6">Mountain Rider 3D requires a wider screen to see the track ahead. Please turn your phone or tablet sideways to Landscape mode to play!</p>
+        <button id="dismiss-warning-btn" class="px-6 py-2 border border-gray-500 text-gray-400 rounded-full hover:bg-gray-800 transition text-sm">Continue Anyway</button>
+    </div>
 
     <canvas id="gameCanvas"></canvas>
 
@@ -136,10 +156,19 @@
     </div>
 
     <!-- Start Screen -->
-    <div id="start-screen" class="modal">
+    <div id="start-screen" class="modal w-[90%] max-w-lg">
         <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-2" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">MOUNTAIN RIDER 3D</h1>
-        <p class="text-gray-300 mb-6">Ride far, grab powerups, don't crash!</p>
         
+        <!-- Device Selection -->
+        <div class="my-6 p-3 bg-slate-800 rounded-xl border border-slate-600">
+            <p class="text-sm text-gray-400 mb-2 font-bold uppercase tracking-wider">Select Device Mode:</p>
+            <div class="flex justify-center gap-2">
+                <button id="dev-desktop" class="device-btn px-3 py-2 bg-slate-700 rounded-lg text-white border-2 border-blue-500 transition shadow-lg shadow-blue-500/20 text-sm font-bold flex-1">⌨️ Desktop</button>
+                <button id="dev-gamepad" class="device-btn px-3 py-2 bg-slate-700 rounded-lg text-gray-400 border-2 border-transparent transition text-sm font-bold flex-1">🎮 Gamepad</button>
+                <button id="dev-mobile" class="device-btn px-3 py-2 bg-slate-700 rounded-lg text-gray-400 border-2 border-transparent transition text-sm font-bold flex-1">📱 Mobile</button>
+            </div>
+        </div>
+
         <div class="flex flex-col gap-3">
             <button id="start-1p-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl transition transform hover:scale-105 shadow-lg shadow-green-500/50">
                 1 PLAYER RIDE
@@ -165,7 +194,8 @@
         <div class="space-y-4 text-gray-200">
             <p><strong>Goal:</strong> Ride as far as possible without crashing. Earn points for distance and flips!</p>
             
-            <div class="grid grid-cols-2 gap-4">
+            <!-- Dynamic Controls View based on Device -->
+            <div id="inst-desktop" class="grid grid-cols-2 gap-4">
                 <div class="bg-slate-800 p-3 rounded border border-slate-600">
                     <h3 class="text-lg font-bold text-blue-400 mb-1">Player 1</h3>
                     <ul class="text-sm space-y-1">
@@ -184,6 +214,40 @@
                 </div>
             </div>
 
+            <div id="inst-gamepad" class="grid grid-cols-2 gap-4 hidden">
+                <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                    <h3 class="text-lg font-bold text-blue-400 mb-1">Player 1 (Pad 1)</h3>
+                    <ul class="text-sm space-y-1">
+                        <li><strong>Gas:</strong> [A] or [RT]</li>
+                        <li><strong>Lean Back:</strong> [D-Pad Left]</li>
+                        <li><strong>Lean Fwd:</strong> [D-Pad Right]</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                    <h3 class="text-lg font-bold text-red-400 mb-1">Player 2 (Pad 2)</h3>
+                    <ul class="text-sm space-y-1">
+                        <li>Requires a 2nd controller. Uses the same bindings.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="inst-mobile" class="hidden">
+                <div class="bg-slate-800 p-3 rounded border border-slate-600 text-center mb-2">
+                    <p class="text-yellow-400 font-bold">⚠️ Turn Device Sideways</p>
+                    <p class="text-xs text-gray-400">Play in landscape mode for a wider view.</p>
+                </div>
+                <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                    <h3 class="text-lg font-bold text-blue-400 mb-1">Mobile Controls</h3>
+                    <ul class="text-sm space-y-1">
+                        <li>Use the translucent on-screen buttons!</li>
+                        <li><strong>⚡</strong> = Gas / Accelerate</li>
+                        <li><strong>↺</strong> = Lean Back (Wheelie/Backflip)</li>
+                        <li><strong>↻</strong> = Lean Forward (Frontflip)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Powerups -->
             <div class="bg-slate-800 p-3 rounded mt-2 border border-slate-600">
                 <h3 class="text-lg font-bold text-green-400 mb-1">Powerups</h3>
                 <ul class="text-sm space-y-1">
@@ -258,6 +322,69 @@
     </div>
 
 <script>
+    // --- Device Selection & UI State ---
+    let currentDevice = 'desktop'; // desktop, gamepad, mobile
+    const touchControls = document.getElementById('touch-controls');
+
+    function setDevice(device) {
+        currentDevice = device;
+        
+        // Update Buttons Styling
+        document.querySelectorAll('.device-btn').forEach(btn => {
+            btn.classList.remove('border-blue-500', 'text-white', 'shadow-lg', 'shadow-blue-500/20');
+            btn.classList.add('border-transparent', 'text-gray-400');
+        });
+        const activeBtn = document.getElementById(`dev-${device}`);
+        activeBtn.classList.remove('border-transparent', 'text-gray-400');
+        activeBtn.classList.add('border-blue-500', 'text-white', 'shadow-lg', 'shadow-blue-500/20');
+
+        // Update Instructions Content
+        document.getElementById('inst-desktop').classList.add('hidden');
+        document.getElementById('inst-gamepad').classList.add('hidden');
+        document.getElementById('inst-mobile').classList.add('hidden');
+        document.getElementById(`inst-${device}`).classList.remove('hidden');
+
+        // Handle Touch Controls UI & Orientation Validation
+        if (device === 'mobile') {
+            touchControls.style.display = 'flex';
+            checkOrientation();
+        } else {
+            touchControls.style.display = 'none';
+            document.getElementById('landscape-warning').classList.add('hidden');
+        }
+    }
+
+    document.getElementById('dev-desktop').addEventListener('click', () => setDevice('desktop'));
+    document.getElementById('dev-gamepad').addEventListener('click', () => setDevice('gamepad'));
+    document.getElementById('dev-mobile').addEventListener('click', () => setDevice('mobile'));
+
+    // Auto-detect mobile devices initially
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        setDevice('mobile');
+    }
+
+    // Dynamic Orientation Checker
+    let forceDismissWarning = false;
+    
+    document.getElementById('dismiss-warning-btn').addEventListener('click', () => {
+        forceDismissWarning = true;
+        checkOrientation();
+    });
+
+    function checkOrientation() {
+        const warningEl = document.getElementById('landscape-warning');
+        if (currentDevice === 'mobile' && !forceDismissWarning) {
+            if (window.innerHeight > window.innerWidth) {
+                warningEl.style.display = 'flex';
+            } else {
+                warningEl.style.display = 'none';
+            }
+        } else {
+            warningEl.style.display = 'none';
+        }
+    }
+    window.addEventListener('resize', checkOrientation);
+
     // --- Local Storage High Scores Setup ---
     let dbScores = [];
     const LOCAL_STORAGE_KEY = 'mountain_rider_3d_high_scores';
@@ -400,6 +527,39 @@
     setupTouch('btn-left', 'left');
     setupTouch('btn-right', 'right');
     setupTouch('gas-btn', 'gas');
+
+    // Polling Gamepads
+    function updateGamepadInput() {
+        if (currentDevice !== 'gamepad') {
+            keys['Gamepad1Gas'] = false; keys['Gamepad1Left'] = false; keys['Gamepad1Right'] = false;
+            keys['Gamepad2Gas'] = false; keys['Gamepad2Left'] = false; keys['Gamepad2Right'] = false;
+            return;
+        }
+        
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let gp1 = null, gp2 = null;
+
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i]) {
+                if (!gp1) gp1 = gamepads[i];
+                else if (!gp2) gp2 = gamepads[i];
+            }
+        }
+
+        // P1 Controls: A Button (0) or Right Trigger (7) for Gas. Left Stick X (< -0.3 or > 0.3) or DPad (14, 15) for Leaning.
+        if (gp1) {
+            keys['Gamepad1Gas'] = gp1.buttons[0]?.pressed || gp1.buttons[7]?.pressed;
+            keys['Gamepad1Left'] = gp1.buttons[14]?.pressed || (gp1.axes[0] && gp1.axes[0] < -0.4);
+            keys['Gamepad1Right'] = gp1.buttons[15]?.pressed || (gp1.axes[0] && gp1.axes[0] > 0.4);
+        }
+
+        if (gp2) {
+            keys['Gamepad2Gas'] = gp2.buttons[0]?.pressed || gp2.buttons[7]?.pressed;
+            keys['Gamepad2Left'] = gp2.buttons[14]?.pressed || (gp2.axes[0] && gp2.axes[0] < -0.4);
+            keys['Gamepad2Right'] = gp2.buttons[15]?.pressed || (gp2.axes[0] && gp2.axes[0] > 0.4);
+        }
+    }
+
 
     // --- THREE.JS Setup ---
     const canvas = document.getElementById('gameCanvas');
@@ -824,6 +984,7 @@
         camera3D.position.set(0, -(getElevation(0)) + 150, 300);
         camera3D.lookAt(50, -(getElevation(0)), 0);
 
+        checkOrientation(); // Re-verify orientation when game resets
         updateHUD();
     }
 
@@ -890,6 +1051,8 @@
     // --- Physics & Logic Loop ---
     function updatePhysics() {
         if (state !== 'PLAYING') return;
+
+        updateGamepadInput(); // Poll Gamepads
 
         let allDead = true;
         let aliveBikes = bikes.filter(b=>!b.dead);
@@ -999,13 +1162,13 @@
 
             let gas = false, left = false, right = false;
             if (bike.id === 0) {
-                gas = keys['ArrowUp'] || keys['Space'] || touchInput.gas;
-                left = keys['ArrowLeft'] || touchInput.left;
-                right = keys['ArrowRight'] || touchInput.right;
+                gas = keys['ArrowUp'] || keys['Space'] || touchInput.gas || keys['Gamepad1Gas'];
+                left = keys['ArrowLeft'] || touchInput.left || keys['Gamepad1Left'];
+                right = keys['ArrowRight'] || touchInput.right || keys['Gamepad1Right'];
             } else if (bike.id === 1) {
-                gas = keys['KeyW'];
-                left = keys['KeyA'];
-                right = keys['KeyD'];
+                gas = keys['KeyW'] || keys['Gamepad2Gas'];
+                left = keys['KeyA'] || keys['Gamepad2Left'];
+                right = keys['KeyD'] || keys['Gamepad2Right'];
             }
 
             bike.vy += currentGrav;
