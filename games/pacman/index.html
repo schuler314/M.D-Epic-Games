@@ -56,11 +56,24 @@
             
             <!-- Start Menu Overlay -->
             <div id="startMenu" class="absolute top-0 left-0 w-full h-full flex-col items-center justify-center bg-black/90 z-20 rounded" style="display: flex;">
-                <h2 class="text-yellow-400 text-2xl mb-8 mt-4 text-center leading-relaxed" style="font-family: 'Press Start 2P', sans-serif;">NEON<br>PAC-MAN</h2>
-                <button onclick="startGame(1)" class="mb-4 bg-gray-800 border border-yellow-500 px-6 py-3 rounded text-xs w-56 btn-active text-yellow-400 pointer-events-auto" style="font-family: 'Press Start 2P', sans-serif;">1 PLAYER</button>
+                <h2 class="text-yellow-400 text-2xl mb-4 mt-2 text-center leading-relaxed" style="font-family: 'Press Start 2P', sans-serif;">NEON<br>PAC-MAN</h2>
+                
+                <!-- Device Selection -->
+                <div class="flex gap-2 mb-2 pointer-events-auto">
+                    <button id="dev-desktop" onclick="setDeviceMode('desktop')" class="px-2 py-2 bg-blue-900 border border-blue-500 rounded text-[8px] text-white" style="font-family: 'Press Start 2P'">DESKTOP</button>
+                    <button id="dev-mobile" onclick="setDeviceMode('mobile')" class="px-2 py-2 bg-gray-800 border border-gray-600 rounded text-[8px] text-gray-400" style="font-family: 'Press Start 2P'">MOBILE</button>
+                    <button id="dev-gamepad" onclick="setDeviceMode('gamepad')" class="px-2 py-2 bg-gray-800 border border-gray-600 rounded text-[8px] text-gray-400" style="font-family: 'Press Start 2P'">GAMEPAD</button>
+                </div>
+                
+                <div id="orientationPrompt" class="hidden text-yellow-400 text-[8px] mb-4 animate-pulse text-center px-4" style="font-family: 'Press Start 2P'">
+                    ROTATE TO PORTRAIT FOR BEST VIEW!
+                </div>
+
+                <button onclick="startGame(1)" class="mb-4 mt-2 bg-gray-800 border border-yellow-500 px-6 py-3 rounded text-xs w-56 btn-active text-yellow-400 pointer-events-auto" style="font-family: 'Press Start 2P', sans-serif;">1 PLAYER</button>
                 <button onclick="startGame(2)" class="bg-gray-800 border border-green-500 px-6 py-3 rounded text-xs w-56 btn-active text-green-400 pointer-events-auto" style="font-family: 'Press Start 2P', sans-serif;">2 PLAYER CO-OP</button>
-                <div class="mt-6 text-[8px] text-gray-500 text-center leading-loose font-sans">
-                    (Or press 1 / 2 on keyboard)
+                
+                <div id="menuInstructions" class="mt-4 text-[8px] text-gray-500 text-center leading-loose font-sans px-2">
+                    1P: Arrows/WASD | 2P: P1=WASD, P2=Arrows
                 </div>
             </div>
 
@@ -71,26 +84,12 @@
                 <button onclick="restartFromPause()" class="bg-gray-800 border border-gray-600 px-6 py-3 rounded text-xs w-48 btn-active pointer-events-auto" style="font-family: 'Press Start 2P'">RESTART (R)</button>
             </div>
 
-            <!-- Game Over Menu Overlay -->
-            <div id="gameOverMenu" class="absolute top-0 left-0 w-full h-full flex-col items-center justify-center bg-black/95 z-20 rounded" style="display: none;">
-                <h2 class="text-red-500 text-2xl mb-2 mt-4 text-center leading-relaxed" style="font-family: 'Press Start 2P', sans-serif;">GAME OVER</h2>
-                <div class="text-white text-[10px] mb-8" style="font-family: 'Press Start 2P', sans-serif;">DIED ON LEVEL <span id="gameOverLevel">1</span></div>
-                <button onclick="continueGame()" class="mb-4 bg-gray-800 border border-green-500 px-6 py-3 rounded text-[10px] w-56 btn-active text-green-400 pointer-events-auto" style="font-family: 'Press Start 2P', sans-serif;">CONTINUE (3 LIVES)</button>
-                <button onclick="restartFromGameOver()" class="bg-gray-800 border border-red-500 px-6 py-3 rounded text-[10px] w-56 btn-active text-red-400 pointer-events-auto" style="font-family: 'Press Start 2P', sans-serif;">RESTART GAME</button>
-            </div>
-        </div>
-
-        <!-- Mobile Controls (Hidden on Desktop) -->
-        <div class="mt-6 grid grid-cols-3 gap-2 md:hidden w-48 opacity-80">
-            <div></div>
-            <button class="bg-gray-800 border border-gray-700 w-14 h-14 rounded-full flex items-center justify-center text-xl btn-active transition-transform pointer-events-auto" ontouchstart="event.preventDefault(); setDir(0, 0,-1)" onmousedown="setDir(0, 0,-1)">↑</button>
-            <div></div>
-            <button class="bg-gray-800 border border-gray-700 w-14 h-14 rounded-full flex items-center justify-center text-xl btn-active transition-transform pointer-events-auto" ontouchstart="event.preventDefault(); setDir(0, -1,0)" onmousedown="setDir(0, -1,0)">←</button>
-            <button class="bg-gray-800 border border-gray-700 w-14 h-14 rounded-full flex items-center justify-center text-xl btn-active transition-transform pointer-events-auto" ontouchstart="event.preventDefault(); setDir(0, 0,1)" onmousedown="setDir(0, 0,1)">↓</button>
-            <button class="bg-gray-800 border border-gray-700 w-14 h-14 rounded-full flex items-center justify-center text-xl btn-active transition-transform pointer-events-auto" ontouchstart="event.preventDefault(); setDir(0, 1,0)" onmousedown="setDir(0, 1,0)">→</button>
+        <!-- Virtual Joystick (Hidden on Desktop by Default) -->
+        <div id="joystick-container" class="fixed bottom-8 right-8 w-32 h-32 bg-gray-800/60 rounded-full border-2 border-blue-900/50 touch-none z-30 pointer-events-auto" style="display: none;">
+            <div id="joystick-knob" class="absolute w-14 h-14 bg-blue-600/80 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 shadow-[0_0_15px_rgba(37,99,235,0.8)] border border-blue-400 pointer-events-none transition-transform duration-75"></div>
         </div>
         
-        <div class="mt-4 text-[10px] text-gray-500 text-center md:block hidden leading-loose">
+        <div id="bottomInstructions" class="mt-4 text-[10px] text-gray-500 text-center leading-loose hidden md:block">
             1P: Arrows/WASD | 2P: P1=WASD, P2=Arrows<br>P to Pause. Space to Start.
         </div>
     </div>
@@ -155,6 +154,62 @@
         let totalPellets = 0;
         let frightenedUntil = 0;
         let audioCtx = null;
+        let deviceMode = 'desktop'; // desktop, mobile, gamepad
+        let lastGamepadState = {};
+
+        // Device Mode & Instructions System
+        window.setDeviceMode = function(mode) {
+            deviceMode = mode;
+            
+            ['desktop', 'mobile', 'gamepad'].forEach(m => {
+                const btn = document.getElementById('dev-' + m);
+                if (m === mode) {
+                    btn.classList.replace('bg-gray-800', 'bg-blue-900');
+                    btn.classList.replace('border-gray-600', 'border-blue-500');
+                    btn.classList.replace('text-gray-400', 'text-white');
+                } else {
+                    btn.classList.replace('bg-blue-900', 'bg-gray-800');
+                    btn.classList.replace('border-blue-500', 'border-gray-600');
+                    btn.classList.replace('text-white', 'text-gray-400');
+                }
+            });
+
+            const instr = document.getElementById('menuInstructions');
+            const btmInstr = document.getElementById('bottomInstructions');
+            const mobCtrl = document.getElementById('joystick-container');
+
+            if (mode === 'desktop') {
+                instr.innerHTML = '1P: Arrows/WASD | 2P: P1=WASD, P2=Arrows<br>(Or press 1 / 2 to start)';
+                btmInstr.innerHTML = '1P: Arrows/WASD | 2P: P1=WASD, P2=Arrows<br>P to Pause. Space to Start.';
+                mobCtrl.style.display = 'none';
+                btmInstr.style.cssText = ''; // Let Tailwind 'hidden md:block' take over
+            } else if (mode === 'mobile') {
+                instr.innerHTML = 'Swipe screen or use Joystick.<br>Tap screen to Pause.';
+                btmInstr.innerHTML = 'Swipe screen or use Joystick.<br>Rotate device to Portrait for best view!';
+                mobCtrl.style.display = 'block';
+                btmInstr.style.display = 'block';
+            } else if (mode === 'gamepad') {
+                instr.innerHTML = 'D-Pad / Left Stick to move.<br>Start to Pause. Select=Restart.';
+                btmInstr.innerHTML = 'D-Pad / Left Stick to move.<br>Start to Pause. Select=Restart.';
+                mobCtrl.style.display = 'none';
+                btmInstr.style.display = 'block';
+            }
+            
+            checkOrientation();
+        };
+
+        window.checkOrientation = function() {
+            const orientationPrompt = document.getElementById('orientationPrompt');
+            if (deviceMode === 'mobile') {
+                // If width is greater than height, they are in landscape mode
+                const isLandscape = window.innerWidth > window.innerHeight;
+                orientationPrompt.style.display = isLandscape ? 'block' : 'none';
+            } else {
+                orientationPrompt.style.display = 'none';
+            }
+        };
+
+        window.addEventListener('resize', checkOrientation);
 
         // Audio System
         function playSound(type) {
@@ -382,9 +437,53 @@
             resetFullGame();
         };
 
+        // Gamepad API Polling
+        function pollGamepads() {
+            if (deviceMode !== 'gamepad') return;
+
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            for (let i = 0; i < gamepads.length; i++) {
+                const gp = gamepads[i];
+                if (!gp) continue;
+                if (i >= 2) continue; // Max 2 players supported
+
+                // DPAD: 12 (up), 13 (down), 14 (left), 15 (right)
+                // Left stick: axes[0] (x), axes[1] (y)
+                let dx = 0, dy = 0;
+                if (gp.buttons[12]?.pressed || gp.axes[1] < -0.5) dy = -1;
+                else if (gp.buttons[13]?.pressed || gp.axes[1] > 0.5) dy = 1;
+                
+                if (gp.buttons[14]?.pressed || gp.axes[0] < -0.5) dx = -1;
+                else if (gp.buttons[15]?.pressed || gp.axes[0] > 0.5) dx = 1;
+
+                if (dx !== 0 || dy !== 0) {
+                    if (Math.abs(dy) > 0) dx = 0; // Prioritize one direction
+                    setDir(i, dx, dy);
+                }
+
+                const startPressed = gp.buttons[9]?.pressed;
+                const selectPressed = gp.buttons[8]?.pressed;
+                const stateKey = `gp${i}`;
+                if (!lastGamepadState[stateKey]) lastGamepadState[stateKey] = {};
+
+                if (startPressed && !lastGamepadState[stateKey].start) {
+                    if (gameState === 'PLAYING' || gameState === 'PAUSED') togglePause();
+                    else if (gameState === 'START') startGame(1);
+                }
+                if (selectPressed && !lastGamepadState[stateKey].select) {
+                    if (gameState === 'PAUSED' || gameState === 'GAME_OVER') resetFullGame();
+                }
+
+                lastGamepadState[stateKey].start = startPressed;
+                lastGamepadState[stateKey].select = selectPressed;
+            }
+        }
+
         // Main Game Loop
         function gameLoop() {
             requestAnimationFrame(gameLoop);
+
+            pollGamepads();
 
             // Menu Display Logic Overlay Manager
             document.getElementById('startMenu').style.display = (gameState === 'START') ? 'flex' : 'none';
@@ -835,9 +934,61 @@
             e.preventDefault();
         });
 
+        // Virtual Joystick Logic
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickKnob = document.getElementById('joystick-knob');
+        let joyActive = false;
+        let joyCenterX = 0, joyCenterY = 0;
+
+        joystickContainer.addEventListener('touchstart', e => {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            e.preventDefault();
+            joyActive = true;
+            const rect = joystickContainer.getBoundingClientRect();
+            joyCenterX = rect.left + rect.width / 2;
+            joyCenterY = rect.top + rect.height / 2;
+            handleJoyMove(e.touches[0]);
+        }, {passive: false});
+
+        joystickContainer.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if(joyActive) handleJoyMove(e.touches[0]);
+        }, {passive: false});
+
+        joystickContainer.addEventListener('touchend', e => {
+            e.preventDefault();
+            joyActive = false;
+            joystickKnob.style.transform = `translate(-50%, -50%)`; // Reset to center
+        }, {passive: false});
+
+        function handleJoyMove(touch) {
+            let dx = touch.clientX - joyCenterX;
+            let dy = touch.clientY - joyCenterY;
+            const maxDist = 40; 
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > maxDist) {
+                dx = (dx / dist) * maxDist;
+                dy = (dy / dist) * maxDist;
+            }
+
+            // Move knob visually
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+            // Determine grid direction outside of inner deadzone
+            if (dist > 15) { 
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    setDir(0, dx > 0 ? 1 : -1, 0);
+                } else {
+                    setDir(0, 0, dy > 0 ? 1 : -1);
+                }
+            }
+        }
+
         // Init
         initLevel();
         gameState = 'START'; 
+        setDeviceMode('desktop'); // Initialize instructions and layout
         requestAnimationFrame(gameLoop);
 
     </script>
