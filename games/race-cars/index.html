@@ -376,48 +376,52 @@
             pointer-events: auto; /* Enable touch on zones */
         }
 
-        .t-dpad {
+        .joystick-base {
             position: absolute;
-            bottom: 20px;
-            width: 150px;
-            height: 150px;
-        }
-
-        .tz-left .t-dpad { left: 20px; }
-        .tz-right .t-dpad { right: 20px; }
-
-        .t-btn {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            bottom: 30px;
+            width: 140px;
+            height: 140px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.4);
             border-radius: 50%;
-            color: white;
-            font-size: 1.2em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 45px; height: 45px;
+            touch-action: none;
         }
-        .t-btn:active { background: rgba(0, 255, 136, 0.6); border-color: #00ff88; }
-        
-        /* D-Pad layout */
-        .t-up { top: 0; left: 52px; }
-        .t-down { bottom: 0; left: 52px; }
-        .t-left { top: 52px; left: 0; }
-        .t-right { top: 52px; right: 0; }
+
+        .tz-left .joystick-base { left: 30px; }
+        .tz-right .joystick-base { right: 30px; }
+
+        .joystick-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 255, 136, 0.7);
+            border: 2px solid #00ff88;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none; /* Let base handle touches */
+            transition: transform 0.1s ease-out;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+        }
+
+        .joystick-knob.active {
+            transition: none; /* Disable smoothing while dragging */
+            background: rgba(0, 255, 136, 0.9);
+        }
         
         .t-action {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             background: rgba(233, 69, 96, 0.4);
             border: 2px solid #e94560;
             border-radius: 10px;
-            padding: 10px;
+            padding: 15px;
             color: white;
             font-weight: bold;
         }
-        .tz-left .t-action { right: 20px; }
-        .tz-right .t-action { left: 20px; }
+        .tz-left .t-action { right: 30px; }
+        .tz-right .t-action { left: 30px; }
 
 
         /* Media Queries for smaller screens */
@@ -503,20 +507,14 @@
         <!-- Touch Controls UI -->
         <div id="touchControls">
             <div class="touch-zone tz-left">
-                <div class="t-dpad">
-                    <div class="t-btn t-up" data-key="w">▲</div>
-                    <div class="t-btn t-left" data-key="a">◀</div>
-                    <div class="t-btn t-right" data-key="d">▶</div>
-                    <div class="t-btn t-down" data-key="s">▼</div>
+                <div class="joystick-base" id="joystickBase1">
+                    <div class="joystick-knob" id="joystickKnob1"></div>
                 </div>
                 <div class="t-action" data-key="q">CAM (Q)</div>
             </div>
             <div class="touch-zone tz-right">
-                <div class="t-dpad">
-                    <div class="t-btn t-up" data-key="ArrowUp">▲</div>
-                    <div class="t-btn t-left" data-key="ArrowLeft">◀</div>
-                    <div class="t-btn t-right" data-key="ArrowRight">▶</div>
-                    <div class="t-btn t-down" data-key="ArrowDown">▼</div>
+                <div class="joystick-base" id="joystickBase2">
+                    <div class="joystick-knob" id="joystickKnob2"></div>
                 </div>
                 <div class="t-action" data-key="[">CAM ([)</div>
             </div>
@@ -616,30 +614,115 @@
 
         // --- Touch Controls Setup ---
         function setupTouchControls() {
-            const touchBtns = document.querySelectorAll('.t-btn, .t-action');
-            touchBtns.forEach(btn => {
+            // Keep action buttons working for Camera Views
+            const actionBtns = document.querySelectorAll('.t-action');
+            actionBtns.forEach(btn => {
+                if (btn.dataset.initialized) return;
+                btn.dataset.initialized = 'true';
+                
                 btn.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     const key = btn.getAttribute('data-key');
-                    if(key) {
-                        keys[key.toLowerCase()] = true;
-                        keys[key] = true;
-                    }
+                    if(key) { keys[key.toLowerCase()] = true; keys[key] = true; }
                 }, {passive: false});
                 
                 btn.addEventListener('touchend', (e) => {
                     e.preventDefault();
                     const key = btn.getAttribute('data-key');
                     if(key) {
-                        keys[key.toLowerCase()] = false;
-                        keys[key] = false;
-                        
-                        // Handle View toggles safely on touch end to avoid rapid fire
+                        keys[key.toLowerCase()] = false; keys[key] = false;
                         if(key === 'q') { player1ViewMode = (player1ViewMode + 1) % 3; updateViewModeDisplay(1); }
                         if(key === '[') { player2ViewMode = (player2ViewMode + 1) % 3; updateViewModeDisplay(2); }
                     }
                 }, {passive: false});
             });
+
+            // Virtual Joystick Implementation
+            function initJoystick(baseId, knobId, keysMap) {
+                const base = document.getElementById(baseId);
+                const knob = document.getElementById(knobId);
+                if (base.dataset.initialized) return;
+                base.dataset.initialized = 'true';
+
+                let activeTouchId = null;
+                const maxRadius = 50; // Max drag distance from center
+                const threshold = 0.3; // % needed to trigger directional input
+
+                function handleStart(e) {
+                    e.preventDefault();
+                    if (activeTouchId !== null) return;
+                    const touch = e.changedTouches[0];
+                    activeTouchId = touch.identifier;
+                    knob.classList.add('active');
+                    updateKnob(touch);
+                }
+
+                function handleMove(e) {
+                    e.preventDefault();
+                    if (activeTouchId === null) return;
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === activeTouchId) {
+                            updateKnob(e.changedTouches[i]);
+                            break;
+                        }
+                    }
+                }
+
+                function handleEnd(e) {
+                    e.preventDefault();
+                    if (activeTouchId === null) return;
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === activeTouchId) {
+                            activeTouchId = null;
+                            knob.classList.remove('active');
+                            knob.style.transform = `translate(-50%, -50%)`; // Snap to center
+                            
+                            // Reset simulated keys
+                            keys[keysMap.up] = false;
+                            keys[keysMap.down] = false;
+                            keys[keysMap.left] = false;
+                            keys[keysMap.right] = false;
+                            break;
+                        }
+                    }
+                }
+
+                function updateKnob(touch) {
+                    const rect = base.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    let dx = touch.clientX - centerX;
+                    let dy = touch.clientY - centerY;
+                    
+                    // Constrain knob within the base
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > maxRadius) {
+                        dx = (dx / distance) * maxRadius;
+                        dy = (dy / distance) * maxRadius;
+                    }
+                    
+                    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                    
+                    // Convert positional data into simulated keypresses
+                    const normX = dx / maxRadius;
+                    const normY = dy / maxRadius;
+                    
+                    keys[keysMap.up] = normY < -threshold;
+                    keys[keysMap.down] = normY > threshold;
+                    keys[keysMap.left] = normX < -threshold;
+                    keys[keysMap.right] = normX > threshold;
+                }
+
+                base.addEventListener('touchstart', handleStart, {passive: false});
+                base.addEventListener('touchmove', handleMove, {passive: false});
+                base.addEventListener('touchend', handleEnd, {passive: false});
+                base.addEventListener('touchcancel', handleEnd, {passive: false});
+            }
+
+            // Map Joystick 1 to WASD, Joystick 2 to Arrow Keys
+            initJoystick('joystickBase1', 'joystickKnob1', {up: 'w', down: 's', left: 'a', right: 'd'});
+            initJoystick('joystickBase2', 'joystickKnob2', {up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight'});
         }
 
         // --- Car Selection UI ---
