@@ -26,6 +26,14 @@
         .powerup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .powerup-count { background: #ef4444; color: white; font-size: 0.75rem; font-weight: bold; border-radius: 9999px; padding: 0.1rem 0.4rem; position: absolute; top: -5px; right: -5px; }
         
+        /* Device specific styles */
+        #portrait-warning { display: none; z-index: 9999; }
+        body.is-mobile #portrait-warning {
+            @media screen and (orientation: portrait) {
+                display: flex;
+            }
+        }
+
         /* Grid crosshair cursor when hovering canvas */
         #canvas-container canvas { cursor: crosshair; }
         
@@ -37,6 +45,12 @@
 </head>
 <body>
 
+<div id="portrait-warning" class="fixed inset-0 bg-blue-900 text-white flex-col items-center justify-center text-center p-8 pointer-events-auto">
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 animate-bounce"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><path d="M12 18h.01"></path></svg>
+    <h2 class="text-3xl font-bold mb-4">Rotate Device</h2>
+    <p class="text-lg">Please rotate your device horizontally (Landscape mode) to command your fleet. This ensures the 3D grid fits perfectly on your screen.</p>
+</div>
+
 <div id="canvas-container"></div>
 
 <div id="ui-layer" class="flex flex-col">
@@ -47,7 +61,17 @@
                 <h1 class="text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">NAVAL COMBAT</h1>
                 <p class="text-blue-200 tracking-widest text-sm">TACTICAL 3D WARFARE</p>
             </div>
-            <div class="flex flex-col gap-4 mt-4">
+            
+            <div class="flex flex-col gap-2 mt-2 border-b border-gray-600 pb-4">
+                <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Select Command Interface</p>
+                <div class="flex justify-center gap-2">
+                    <button id="btn-dev-desktop" class="btn btn-secondary border-blue-500 bg-blue-900/30 text-xs px-2 py-2 flex-1" onclick="setDevice('desktop')">🖥️ Desktop</button>
+                    <button id="btn-dev-mobile" class="btn btn-secondary text-xs px-2 py-2 flex-1 opacity-70" onclick="setDevice('mobile')">📱 Mobile</button>
+                    <button id="btn-dev-gamepad" class="btn btn-secondary text-xs px-2 py-2 flex-1 opacity-70" onclick="setDevice('gamepad')">🎮 Gamepad</button>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 mt-2">
                 <button class="btn btn-primary" onclick="startGame(1)">1 Player (Infinite Levels)</button>
                 <button class="btn btn-primary" onclick="startGame(2)">2 Player (Pass & Play)</button>
                 <button class="btn btn-secondary" onclick="showScreen('screen-instructions')">How to Play</button>
@@ -60,9 +84,9 @@
     <div id="screen-instructions" class="absolute inset-0 flex items-center justify-center hidden pointer-events-auto">
         <div class="glass-panel p-8 max-w-lg w-full flex flex-col gap-4">
             <h2 class="text-3xl font-bold border-b border-gray-600 pb-2 mb-2">Commander's Manual</h2>
-            <div class="overflow-y-auto max-h-96 pr-2 text-gray-300 text-sm space-y-3">
+            <div class="overflow-y-auto max-h-96 pr-2 text-gray-300 text-sm space-y-3" id="instructions-content">
                 <p><strong class="text-white">Objective:</strong> Destroy the enemy's entire fleet before they destroy yours.</p>
-                <p><strong class="text-white">Gameplay:</strong> Click on the enemy grid to launch a missile. Red pegs indicate a HIT. White pegs indicate a MISS. Completely hit a ship to sink it.</p>
+                <p id="inst-gameplay"><strong class="text-white">Gameplay:</strong> Click on the enemy grid to launch a missile. Red pegs indicate a HIT. White pegs indicate a MISS. Completely hit a ship to sink it.</p>
                 <p><strong class="text-white">1 Player Mode:</strong> Face an increasingly difficult AI across infinite levels. Winning a level grants you points and random powerups.</p>
                 <p><strong class="text-white">2 Player Mode:</strong> Pass and play on the same device. The screen will hide the board during transitions.</p>
                 <h3 class="text-xl font-bold text-blue-400 mt-4">Powerups</h3>
@@ -317,6 +341,12 @@ const Scene3D = {
     boardGroup: null, shipsGroup: null, pegsGroup: null, particles: [],
     waterMaterial: null, hoverMesh: null,
     isInitialized: false,
+    gamepadCursor: { x: 5, y: 5 },
+    lastGamepadMove: 0,
+    lastGamepadButtonA: false,
+    lastGamepadButtonLB: false,
+    lastGamepadButtonRB: false,
+    lastGamepadButtonY: false,
     
     init() {
         if (this.isInitialized) return;
@@ -574,9 +604,78 @@ const Scene3D = {
         });
     },
 
+    pollGamepad() {
+        if (gameLogic.inputMethod !== 'gamepad' || !gameLogic.canPlayerInteract()) {
+            if (gameLogic.inputMethod === 'gamepad' && this.hoverMesh) {
+                this.hoverMesh.visible = false;
+            }
+            return;
+        }
+
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const gp = gamepads[0]; // Primary controller
+        if (!gp) return;
+
+        const now = Date.now();
+        
+        // D-Pad and Left Analog Stick Movement
+        if (now - this.lastGamepadMove > 150) {
+            let dx = 0, dy = 0;
+            // X-axis (Right=1, Left=-1)
+            if (gp.axes[0] > 0.5 || gp.buttons[15]?.pressed) dx = 1;
+            else if (gp.axes[0] < -0.5 || gp.buttons[14]?.pressed) dx = -1;
+            
+            // Y-axis (Down=1, Up=-1) mapped to Z-axis in 3D
+            if (gp.axes[1] > 0.5 || gp.buttons[13]?.pressed) dy = 1;
+            else if (gp.axes[1] < -0.5 || gp.buttons[12]?.pressed) dy = -1;
+
+            if (dx !== 0 || dy !== 0) {
+                this.gamepadCursor.x = Math.max(0, Math.min(9, this.gamepadCursor.x + dx));
+                this.gamepadCursor.y = Math.max(0, Math.min(9, this.gamepadCursor.y + dy));
+                this.lastGamepadMove = now;
+            }
+        }
+
+        // Render Gamepad Cursor
+        const pos = this.getPositionFromGrid(this.gamepadCursor.x, this.gamepadCursor.y);
+        this.hoverMesh.position.set(pos.x, 0.02, pos.z);
+        this.hoverMesh.visible = true;
+        
+        if (gameLogic.activePowerup === 'sonar') {
+            this.hoverMesh.scale.set(3, 3, 1);
+            this.hoverMesh.material.color.setHex(0x34d399); // green
+        } else {
+            this.hoverMesh.scale.set(1, 1, 1);
+            this.hoverMesh.material.color.setHex(0xffffff);
+        }
+
+        // Action Button (A - Cross)
+        const aPressed = gp.buttons[0]?.pressed;
+        if (aPressed && !this.lastGamepadButtonA) {
+            AudioSys.init(); // Init audio context on action
+            gameLogic.handlePlayerClick(this.gamepadCursor.x, this.gamepadCursor.y);
+        }
+        this.lastGamepadButtonA = aPressed;
+
+        // Powerups (LB/RB triggers)
+        const lbPressed = gp.buttons[4]?.pressed; // L1/LB
+        const rbPressed = gp.buttons[5]?.pressed; // R1/RB
+        if (lbPressed && !this.lastGamepadButtonLB) activatePowerup('airstrike');
+        if (rbPressed && !this.lastGamepadButtonRB) activatePowerup('sonar');
+        this.lastGamepadButtonLB = lbPressed;
+        this.lastGamepadButtonRB = rbPressed;
+        
+        // Toggle Board View (Y / Triangle)
+        const yPressed = gp.buttons[3]?.pressed;
+        if (yPressed && !this.lastGamepadButtonY) toggleBoardView();
+        this.lastGamepadButtonY = yPressed;
+    },
+
     animate() {
         requestAnimationFrame(() => this.animate());
         
+        this.pollGamepad();
+
         // Update particles
         for(let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
@@ -694,6 +793,7 @@ class Board {
  */
 const gameLogic = {
     mode: 1, // 1 = 1P vs AI, 2 = 2P Pass & Play
+    inputMethod: 'desktop', // desktop, mobile, gamepad
     level: 1,
     score: 0,
     player1: { board: null, powerups: { airstrike: 1, sonar: 1, doubletap: 0 }, isAI: false },
@@ -1156,6 +1256,42 @@ const gameLogic = {
 /**
  * UI CONTROLLERS
  */
+function setDevice(deviceType) {
+    gameLogic.inputMethod = deviceType;
+    
+    // Update button styles
+    ['desktop', 'mobile', 'gamepad'].forEach(type => {
+        const btn = document.getElementById(`btn-dev-${type}`);
+        if (type === deviceType) {
+            btn.classList.add('border-blue-500', 'bg-blue-900/30');
+            btn.classList.remove('opacity-70');
+        } else {
+            btn.classList.remove('border-blue-500', 'bg-blue-900/30');
+            btn.classList.add('opacity-70');
+        }
+    });
+
+    // Handle Mobile specific orientation behavior
+    if (deviceType === 'mobile') {
+        document.body.classList.add('is-mobile');
+    } else {
+        document.body.classList.remove('is-mobile');
+    }
+
+    updateInstructions();
+}
+
+function updateInstructions() {
+    const gameplayP = document.getElementById('inst-gameplay');
+    if (gameLogic.inputMethod === 'desktop') {
+        gameplayP.innerHTML = `<strong class="text-white">Desktop Gameplay:</strong> Use your mouse to aim and click on the enemy grid to launch a missile. Red pegs indicate a HIT. White pegs indicate a MISS. Completely hit a ship to sink it.`;
+    } else if (gameLogic.inputMethod === 'mobile') {
+        gameplayP.innerHTML = `<strong class="text-white">Tablet/Phone Gameplay:</strong> Tap on the enemy grid to launch a missile. Red pegs indicate a HIT. White pegs indicate a MISS.<br><br><span class="text-yellow-400 font-bold block bg-yellow-900/40 p-2 rounded mt-2">⚠️ ROTATE DEVICE: Please use horizontal (Landscape) screen orientation for a wider screen and to ensure the battlefield fits perfectly on your device.</span>`;
+    } else if (gameLogic.inputMethod === 'gamepad') {
+        gameplayP.innerHTML = `<strong class="text-white">Gamepad Gameplay (F310 / Controller):</strong> Use the <strong>D-Pad or Left Stick</strong> to move your targeting crosshair. Press the <strong>'A' button</strong> to fire a missile. Red pegs = HIT. White pegs = MISS.<br><br><span class="text-blue-300 block mt-2">Gamepad Shortcuts:</span>• <strong>LB/L1:</strong> Use Airstrike<br>• <strong>RB/R1:</strong> Use Sonar<br>• <strong>Y / Triangle:</strong> Toggle Fleet View`;
+    }
+}
+
 function hideScreensExcept(id) {
     const screens = ['screen-home', 'screen-instructions', 'screen-highscores', 'screen-intermission', 'screen-hud', 'screen-pause', 'screen-gameover'];
     screens.forEach(s => {
@@ -1257,6 +1393,7 @@ window.onload = () => {
     DBManager.init().catch(console.error);
     // Render blank scene for background
     Scene3D.init();
+    setDevice('desktop'); // Initialize default device on load
 };
 
 </script>
