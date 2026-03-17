@@ -151,6 +151,7 @@
           // React State
           const [gameState, setGameState] = useState('MENU');
           const [numPlayers, setNumPlayers] = useState(1);
+          const [deviceType, setDeviceType] = useState('DESKTOP'); // DESKTOP, GAMEPAD, MOBILE
           const [level, setLevel] = useState(1);
           const [timeLeft, setTimeLeft] = useState(60);
           const [targetScore, setTargetScore] = useState(300);
@@ -506,6 +507,29 @@
               const dt = timestamp - lastTime;
               lastTime = timestamp;
 
+              // Gamepad Support
+              if (deviceType === 'GAMEPAD') {
+                  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+                  const keys = gameRef.current.keys;
+                  
+                  const isPressed = (gp, idx) => gp && gp.buttons[idx] && gp.buttons[idx].pressed;
+                  const axisVal = (gp, idx) => gp && gp.axes[idx] ? gp.axes[idx] : 0;
+
+                  const gp1 = gamepads[0];
+                  if (gp1) {
+                      keys.p1Left = axisVal(gp1, 0) < -0.3 || isPressed(gp1, 14);
+                      keys.p1Right = axisVal(gp1, 0) > 0.3 || isPressed(gp1, 15);
+                      keys.p1Drop = axisVal(gp1, 1) > 0.3 || isPressed(gp1, 13) || isPressed(gp1, 0); // Stick, D-Pad, or A Button
+                  }
+
+                  const gp2 = gamepads[1] || (gamepads.length > 1 ? gamepads.find((g, i) => i > 0 && g) : null);
+                  if (gp2) {
+                      keys.p2Left = axisVal(gp2, 0) < -0.3 || isPressed(gp2, 14);
+                      keys.p2Right = axisVal(gp2, 0) > 0.3 || isPressed(gp2, 15);
+                      keys.p2Drop = axisVal(gp2, 1) > 0.3 || isPressed(gp2, 13) || isPressed(gp2, 0);
+                  }
+              }
+
               // Timer update
               secondTimer += dt;
               if (secondTimer >= 1000) {
@@ -600,8 +624,8 @@
           };
 
           return (
-            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 font-sans text-slate-100 select-none">
-              <div className="max-w-[800px] w-full relative rounded-xl overflow-hidden shadow-2xl shadow-cyan-900/20 bg-slate-800 border-4 border-slate-700">
+            <div className="w-full h-[100dvh] bg-slate-900 flex flex-col items-center justify-center p-0 md:p-4 font-sans text-slate-100 select-none overflow-hidden">
+              <div className="w-full h-full md:max-w-[800px] md:max-h-[600px] relative rounded-none md:rounded-xl shadow-2xl shadow-cyan-900/20 bg-slate-800 border-0 md:border-4 border-slate-700 flex flex-col items-center justify-center overflow-hidden">
                 
                 {/* HUD */}
                 {(gameState === 'PLAYING' || gameState === 'PAUSED') && (
@@ -642,7 +666,7 @@
                 )}
 
                 {/* Canvas */}
-                <canvas ref={canvasRef} width={GAME_WIDTH} height={GAME_HEIGHT} className="w-full h-auto block bg-slate-800" style={{ aspectRatio: '800/600' }} />
+                <canvas ref={canvasRef} width={GAME_WIDTH} height={GAME_HEIGHT} className="max-w-full max-h-full block bg-slate-800 object-contain touch-none" style={{ aspectRatio: '800/600' }} />
 
                 {/* OVERLAYS */}
                 {gameState === 'MENU' && (
@@ -652,6 +676,18 @@
                       Deep Sea Catch
                     </h1>
                     <p className="text-yellow-400 font-bold tracking-widest uppercase mb-8">Local High Score: {highScore}</p>
+                    
+                    <div className="flex gap-2 mb-6 bg-slate-700/50 p-2 rounded-xl">
+                        {['DESKTOP', 'GAMEPAD', 'MOBILE'].map(type => (
+                            <button 
+                                key={type}
+                                onClick={() => setDeviceType(type)}
+                                className={`px-4 py-2 rounded-lg font-bold text-sm transition ${deviceType === type ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-600'}`}
+                            >
+                                {type === 'DESKTOP' ? '💻 Keyboard' : type === 'GAMEPAD' ? '🎮 Gamepad' : '📱 Mobile'}
+                            </button>
+                        ))}
+                    </div>
                     
                     <div className="flex gap-4 mb-6">
                         <button onClick={() => startGame(1)} className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform transition active:scale-95 border-2 border-blue-400">
@@ -673,10 +709,27 @@
                         <h2 className="text-4xl font-black text-cyan-400 mb-6">How to Play</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left max-w-2xl w-full">
                             <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
-                                <h3 className="font-bold text-xl text-white mb-2">Controls</h3>
-                                <p className="text-slate-300 mb-2"><strong className="text-blue-400">Player 1:</strong> <kbd className="bg-slate-700 px-1 rounded">A</kbd> <kbd className="bg-slate-700 px-1 rounded">D</kbd> to move, <kbd className="bg-slate-700 px-1 rounded">W</kbd> / <kbd className="bg-slate-700 px-1 rounded">S</kbd> to drop hook.</p>
-                                <p className="text-slate-300"><strong className="text-red-400">Player 2:</strong> <kbd className="bg-slate-700 px-1 rounded">←</kbd> <kbd className="bg-slate-700 px-1 rounded">→</kbd> to move, <kbd className="bg-slate-700 px-1 rounded">↑</kbd> / <kbd className="bg-slate-700 px-1 rounded">↓</kbd> to drop hook.</p>
-                                <p className="text-slate-400 text-sm mt-4">* In 1-player mode, arrow keys or spacebar also work.</p>
+                                <h3 className="font-bold text-xl text-white mb-2">Controls ({deviceType})</h3>
+                                {deviceType === 'DESKTOP' && (
+                                    <>
+                                        <p className="text-slate-300 mb-2"><strong className="text-blue-400">Player 1:</strong> <kbd className="bg-slate-700 px-1 rounded">A</kbd> <kbd className="bg-slate-700 px-1 rounded">D</kbd> to move, <kbd className="bg-slate-700 px-1 rounded">S</kbd> to drop hook.</p>
+                                        <p className="text-slate-300"><strong className="text-red-400">Player 2:</strong> <kbd className="bg-slate-700 px-1 rounded">←</kbd> <kbd className="bg-slate-700 px-1 rounded">→</kbd> to move, <kbd className="bg-slate-700 px-1 rounded">↓</kbd> to drop hook.</p>
+                                        <p className="text-slate-400 text-sm mt-4">* In 1-player mode, arrow keys or spacebar also work.</p>
+                                    </>
+                                )}
+                                {deviceType === 'GAMEPAD' && (
+                                    <>
+                                        <p className="text-slate-300 mb-2">Use the <strong>Left Stick</strong> or <strong>D-Pad</strong> to move left and right.</p>
+                                        <p className="text-slate-300">Press <strong>A</strong> or <strong>D-Pad Down</strong> to drop the hook.</p>
+                                        <p className="text-slate-400 text-sm mt-4">* Compatible with standard gamepads like Logitech F310.</p>
+                                    </>
+                                )}
+                                {deviceType === 'MOBILE' && (
+                                    <>
+                                        <p className="text-slate-300 mb-2">Use the <strong>on-screen buttons</strong> overlay to move and drop your hook.</p>
+                                        <p className="text-yellow-400 text-sm mt-4 font-bold">⚠️ Please rotate your device horizontally (landscape) for the best experience.</p>
+                                    </>
+                                )}
                             </div>
                             <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
                                 <h3 className="font-bold text-xl text-white mb-2">Powerups & Mechanics</h3>
@@ -748,6 +801,65 @@
                         </button>
                     </div>
                   </div>
+                )}
+
+                {/* MOBILE OVERLAYS */}
+                {deviceType === 'MOBILE' && (
+                    <div className="hidden portrait:flex fixed inset-0 z-[100] bg-slate-900 flex-col items-center justify-center text-center p-8 text-white">
+                        <div className="text-6xl mb-4">🔄</div>
+                        <h2 className="text-3xl font-bold mb-4">Rotate Device</h2>
+                        <p className="text-slate-300 text-lg">For the best experience, please use horizontal (landscape) orientation.</p>
+                    </div>
+                )}
+
+                {deviceType === 'MOBILE' && (gameState === 'PLAYING' || gameState === 'LEVEL_TRANSITION') && (
+                    <div className="absolute bottom-4 left-0 w-full px-4 flex justify-between z-40 pointer-events-none">
+                        {/* P1 Controls */}
+                        <div className="flex gap-2 pointer-events-auto opacity-60">
+                            <button 
+                                onPointerDown={() => gameRef.current.keys.p1Left = true}
+                                onPointerUp={() => gameRef.current.keys.p1Left = false}
+                                onPointerLeave={() => gameRef.current.keys.p1Left = false}
+                                className="w-16 h-16 bg-slate-700 backdrop-blur-md rounded-full border-2 border-slate-500 text-white font-bold touch-none flex items-center justify-center text-2xl active:bg-slate-600 shadow-xl"
+                            >←</button>
+                            <button 
+                                onPointerDown={() => gameRef.current.keys.p1Right = true}
+                                onPointerUp={() => gameRef.current.keys.p1Right = false}
+                                onPointerLeave={() => gameRef.current.keys.p1Right = false}
+                                className="w-16 h-16 bg-slate-700 backdrop-blur-md rounded-full border-2 border-slate-500 text-white font-bold touch-none flex items-center justify-center text-2xl active:bg-slate-600 shadow-xl"
+                            >→</button>
+                            <button 
+                                onPointerDown={() => gameRef.current.keys.p1Drop = true}
+                                onPointerUp={() => gameRef.current.keys.p1Drop = false}
+                                onPointerLeave={() => gameRef.current.keys.p1Drop = false}
+                                className="w-16 h-16 ml-4 bg-blue-600 backdrop-blur-md rounded-full border-2 border-blue-400 text-white font-bold touch-none flex items-center justify-center text-sm active:bg-blue-500 shadow-xl"
+                            >DROP</button>
+                        </div>
+                        
+                        {/* P2 Controls if numPlayers == 2 */}
+                        {numPlayers === 2 && (
+                            <div className="flex gap-2 pointer-events-auto opacity-60">
+                                <button 
+                                    onPointerDown={() => gameRef.current.keys.p2Drop = true}
+                                    onPointerUp={() => gameRef.current.keys.p2Drop = false}
+                                    onPointerLeave={() => gameRef.current.keys.p2Drop = false}
+                                    className="w-16 h-16 mr-4 bg-red-600 backdrop-blur-md rounded-full border-2 border-red-400 text-white font-bold touch-none flex items-center justify-center text-sm active:bg-red-500 shadow-xl"
+                                >DROP</button>
+                                <button 
+                                    onPointerDown={() => gameRef.current.keys.p2Left = true}
+                                    onPointerUp={() => gameRef.current.keys.p2Left = false}
+                                    onPointerLeave={() => gameRef.current.keys.p2Left = false}
+                                    className="w-16 h-16 bg-slate-700 backdrop-blur-md rounded-full border-2 border-slate-500 text-white font-bold touch-none flex items-center justify-center text-2xl active:bg-slate-600 shadow-xl"
+                                >←</button>
+                                <button 
+                                    onPointerDown={() => gameRef.current.keys.p2Right = true}
+                                    onPointerUp={() => gameRef.current.keys.p2Right = false}
+                                    onPointerLeave={() => gameRef.current.keys.p2Right = false}
+                                    className="w-16 h-16 bg-slate-700 backdrop-blur-md rounded-full border-2 border-slate-500 text-white font-bold touch-none flex items-center justify-center text-2xl active:bg-slate-600 shadow-xl"
+                                >→</button>
+                            </div>
+                        )}
+                    </div>
                 )}
               </div>
             </div>
