@@ -7,12 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Add PointerLockControls for First Person Mode -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
 
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; }
         #canvas-container { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 0; }
         .split-zone { position: absolute; top: 0; bottom: 0; z-index: 5; }
-        #p1-zone { left: 0; width: 100%; } /* Default full width */
+        #p1-zone { left: 0; width: 100%; } 
         #p2-zone { right: 0; width: 50%; display: none; border-left: 4px solid #1e293b; }
         
         .ui-layer { pointer-events: none; z-index: 10; position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; }
@@ -21,20 +23,42 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Screens */
-        #home-screen, #game-ui { transition: opacity 0.3s; }
+        #home-screen, #game-ui, #things-modal, #walk-ui { transition: opacity 0.3s; }
         .hidden-screen { opacity: 0; pointer-events: none !important; display: none !important; }
 
         .ghost-block { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 0.7; } 100% { opacity: 0.3; } }
+        
+        /* Crosshair for Walk Mode */
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: white; }
+        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+
+        /* Device Specific & Orientation Warning */
+        #orientation-warning { display: none; }
+        @media screen and (orientation: portrait) {
+            body.device-mobile #orientation-warning { display: flex !important; }
+        }
+        
+        body:not(.device-mobile) .mobile-only { display: none !important; }
     </style>
 </head>
-<body class="text-slate-800">
+<body class="text-slate-800 device-desktop">
+
+    <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Orientation Warning for Mobile/Tablet -->
+    <div id="orientation-warning" class="fixed inset-0 z-[100] bg-slate-900 text-white flex-col items-center justify-center p-8 text-center pointer-events-auto">
+        <svg class="w-16 h-16 mb-4 animate-spin text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        <h2 class="text-2xl font-black mb-2">Rotate Your Device</h2>
+        <p class="text-slate-300">Please turn your device horizontally (landscape) for the wider screen and best building experience!</p>
+    </div>
 
     <!-- 3D Canvas -->
     <div id="canvas-container"></div>
     
-    <!-- Interaction Zones for Split Screen OrbitControls -->
+    <!-- Interaction Zones -->
     <div id="p1-zone" class="split-zone"></div>
     <div id="p2-zone" class="split-zone"></div>
 
@@ -43,7 +67,7 @@
         <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full mx-4 flex flex-col gap-8">
             <div class="flex-1">
                 <h1 class="text-5xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2 text-center">Voxel<br>Engineer</h1>
-                <p class="text-slate-500 mb-6 font-medium text-center">Build, create, and collect powerups!</p>
+                <p class="text-slate-500 mb-6 font-medium text-center">Build, explore, and create!</p>
                 
                 <div class="space-y-4">
                     <div>
@@ -57,22 +81,30 @@
                         <label class="block text-sm font-bold text-slate-700 mb-2">Players</label>
                         <div class="flex gap-2">
                             <button id="btn-players-1" class="flex-1 py-3 px-4 rounded-xl border-2 border-indigo-500 bg-indigo-50 text-indigo-700 font-bold transition-all">1 Player</button>
-                            <button id="btn-players-2" class="flex-1 py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all">2 Player (Split)</button>
+                            <button id="btn-players-2" class="flex-1 py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all">2 Player</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Device / Controls</label>
+                        <div class="flex gap-2">
+                            <button class="device-btn flex-1 py-3 px-1 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold transition-all text-xs sm:text-sm" data-device="desktop">💻 Desktop</button>
+                            <button class="device-btn flex-1 py-3 px-1 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all text-xs sm:text-sm" data-device="mobile">📱 Touch</button>
+                            <button class="device-btn flex-1 py-3 px-1 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all text-xs sm:text-sm" data-device="gamepad">🎮 Gamepad</button>
                         </div>
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Options</label>
                         <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 transition-colors hover:bg-slate-100 cursor-pointer" onclick="document.getElementById('toggle-powerups').click()">
                             <input type="checkbox" id="toggle-powerups" class="w-5 h-5 accent-blue-600 rounded cursor-pointer" checked onclick="event.stopPropagation()">
-                            <label for="toggle-powerups" class="font-bold text-slate-700 cursor-pointer pointer-events-none">Enable Falling Powerups</label>
+                            <label for="toggle-powerups" class="font-bold text-slate-700 cursor-pointer pointer-events-none">Falling Powerups</label>
                         </div>
                     </div>
                     <div class="flex gap-2 mt-4">
                         <button id="btn-start" class="flex-[2] bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-black py-4 rounded-xl shadow-lg transform transition hover:scale-[1.02]">
-                            START GAME
+                            START
                         </button>
                         <button id="btn-instructions" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border-2 border-slate-200 font-bold py-4 rounded-xl shadow-sm transition-colors">
-                            HOW TO PLAY
+                            HELP
                         </button>
                     </div>
                 </div>
@@ -82,43 +114,89 @@
 
     <!-- INSTRUCTIONS MODAL -->
     <div id="instructions-modal" class="hidden absolute inset-0 z-[60] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg w-full relative">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl max-w-lg w-full relative max-h-[90vh] overflow-y-auto">
             <button id="btn-close-instructions" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
-            <h2 class="text-3xl font-black text-slate-800 mb-4">How to Play</h2>
+            <h2 class="text-2xl font-black text-slate-800 mb-4">How to Play</h2>
             <div class="space-y-4 text-sm text-slate-600">
-                <div>
-                    <h3 class="font-bold text-slate-800 text-base">🖱️ Controls</h3>
+                <div id="inst-desktop">
+                    <h3 class="font-bold text-slate-800 text-base">💻 Controls (Desktop)</h3>
                     <ul class="list-disc pl-5 mt-1 space-y-1">
                         <li><strong>Left Click:</strong> Place block</li>
                         <li><strong>Right Click:</strong> Delete block</li>
+                        <li><strong>R Key:</strong> Rotate Block / Thing</li>
                         <li><strong>Shift + Drag:</strong> Speed Build / Speed Destroy</li>
-                        <li><strong>Drag:</strong> Rotate camera</li>
-                        <li><strong>Scroll:</strong> Zoom in/out</li>
+                        <li><strong>Drag / Scroll:</strong> Rotate camera & Zoom</li>
+                    </ul>
+                </div>
+                <div id="inst-mobile" class="hidden">
+                    <h3 class="font-bold text-slate-800 text-base">📱 Controls (Touch / Tablet)</h3>
+                    <ul class="list-disc pl-5 mt-1 space-y-1 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                        <li><strong>Tap:</strong> Place block at cursor.</li>
+                        <li><strong>Delete Mode:</strong> Tap the 🧨 Delete button, then tap blocks to remove them.</li>
+                        <li><strong>Paint Mode:</strong> Tap the 🖌️ Paint button to drag and build/destroy quickly (disables camera rotation).</li>
+                        <li><strong>Rotate:</strong> Tap the 'R / Tap' rotation button in the bottom toolbar.</li>
+                        <li><strong>Drag (1 Finger):</strong> Rotate camera.</li>
+                        <li><strong>Pinch (2 Fingers):</strong> Zoom in & out.</li>
+                    </ul>
+                </div>
+                <div id="inst-gamepad" class="hidden">
+                    <h3 class="font-bold text-slate-800 text-base">🎮 Controls (Gamepad 1P)</h3>
+                    <ul class="list-disc pl-5 mt-1 space-y-1 bg-purple-50 p-2 rounded-lg border border-purple-100">
+                        <li><strong>Left Stick:</strong> Move Cursor (N/S/E/W)</li>
+                        <li><strong>D-Pad Up/Down:</strong> Move Cursor Up/Down</li>
+                        <li><strong>Right Stick:</strong> Orbit Camera</li>
+                        <li><strong>A / Cross:</strong> Place Block</li>
+                        <li><strong>B / Circle:</strong> Delete Block</li>
+                        <li><strong>X / Square:</strong> Rotate Block</li>
+                        <li><strong>Shoulders (LB/RB):</strong> Next/Prev Material</li>
                     </ul>
                 </div>
                 <div>
-                    <h3 class="font-bold text-slate-800 text-base">🎮 Game Modes</h3>
-                    <ul class="list-disc pl-5 mt-1 space-y-1">
-                        <li><strong>Free Build:</strong> Build whatever you want! Watch the sky for falling powerups.</li>
-                        <li><strong>Blueprint:</strong> Race against the clock to fill in the ghost blocks and complete the house.</li>
+                    <h3 class="font-bold text-pink-600 text-base">👥 2-Player Controls (Player 2 Keyboard)</h3>
+                    <ul class="list-disc pl-5 mt-1 space-y-1 bg-pink-50 p-2 rounded-lg border border-pink-100">
+                        <li><kbd class="bg-white px-1 shadow-sm font-mono text-xs">W,A,S,D</kbd> Move Cursor | <kbd class="bg-white px-1 shadow-sm font-mono text-xs">Q,E</kbd> Up/Down</li>
+                        <li><kbd class="bg-white px-1 shadow-sm font-mono text-xs">Space</kbd> Place | <kbd class="bg-white px-1 shadow-sm font-mono text-xs">X</kbd> Delete | <kbd class="bg-white px-1 shadow-sm font-mono text-xs">U</kbd> Rotate</li>
+                        <li><strong>Hold Space/X + Move:</strong> Speed Build / Destroy</li>
                     </ul>
                 </div>
                 <div>
-                    <h3 class="font-bold text-pink-600 text-base">👥 2-Player Mode (Mouse vs Keyboard)</h3>
-                    <p class="mt-1 bg-pink-50 p-3 rounded-xl border border-pink-100 text-pink-800">
-                        2-Player mode splits the screen so you can build together simultaneously!<br><br>
-                        <strong>Player 1 (Left Screen):</strong> Uses the Mouse.<br>
-                        <strong>Player 2 (Right Screen):</strong> Uses the Keyboard.<br>
-                        - <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">W,A,S,D</kbd>: Move Cursor &nbsp; <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">Q</kbd> / <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">E</kbd>: Cursor Up/Down<br>
-                        - <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">Space</kbd>: Place Block &nbsp; <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">X</kbd>: Delete Block<br>
-                        - <strong>Hold Space/X + Move:</strong> Speed Build / Speed Destroy<br>
-                        - <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">Arrows</kbd>: Orbit & Zoom Camera<br>
-                        - <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">1-6</kbd>: Materials &nbsp; <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">7-9</kbd>: Shapes &nbsp; <kbd class="bg-white px-1 rounded shadow-sm font-mono text-xs">0,-,=</kbd>: Things
-                    </p>
+                    <h3 class="font-bold text-slate-800 text-base">🚶 Walk Mode (First Person)</h3>
+                    <p class="mt-1">Experience your build! Use <strong>WASD</strong> to walk, <strong>Space</strong> to jump, and <strong>Mouse</strong> to look around. Stairs are climbed automatically. <strong>Left-Click</strong> on doors and windows to interact with them! Press <strong>ESC</strong> to exit.</p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">💾 Save & Load</h3>
+                    <p class="mt-1">Use the Save button to download a JSON file of your world to your computer. Use Load to restore it.</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- THINGS CATALOG MODAL -->
+    <div id="things-modal" class="hidden absolute inset-0 z-[55] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl max-w-4xl w-full h-[80vh] flex flex-col relative">
+            <button id="btn-close-things" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors z-10">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h2 class="text-3xl font-black text-slate-800 mb-2">The Catalog (100 Items)</h2>
+            <p class="text-sm text-slate-500 mb-4">Select an item to equip it. Press <kbd class="bg-slate-100 px-1 border rounded">R</kbd> or <kbd class="bg-slate-100 px-1 border rounded">U</kbd> to rotate it before placing.</p>
+            
+            <!-- Dynamic Grid container -->
+            <div id="things-grid" class="flex-1 overflow-y-auto grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- WALK MODE UI -->
+    <div id="walk-ui" class="hidden absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-between p-8">
+        <div id="crosshair"></div>
+        <div class="bg-slate-900/80 backdrop-blur text-white px-6 py-3 rounded-full shadow-2xl mt-auto animate-bounce text-sm font-bold flex gap-4">
+            <span>Walk: <kbd class="text-emerald-400">WASD</kbd></span>
+            <span>Jump: <kbd class="text-emerald-400">SPACE</kbd></span>
+            <span>Interact: <kbd class="text-emerald-400">CLICK</kbd></span>
+            <span>Exit: <kbd class="text-rose-400">ESC</kbd></span>
         </div>
     </div>
 
@@ -126,7 +204,21 @@
     <div id="game-ui" class="ui-layer hidden-screen p-4">
         <!-- Top Bar -->
         <div class="flex justify-between items-start w-full">
-            <div class="bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg border border-slate-200/50 pointer-events-auto">
+            <div class="bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg border border-slate-200/50 pointer-events-auto flex flex-col gap-2">
+                
+                <div class="flex gap-2 mb-1">
+                    <button id="btn-save" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm">
+                        💾 Save World
+                    </button>
+                    <button class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm relative overflow-hidden">
+                        📂 Load
+                        <input type="file" id="file-loader" class="absolute inset-0 opacity-0 cursor-pointer" accept=".json">
+                    </button>
+                    <button id="btn-walk" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm border border-purple-200">
+                        🚶 Walk Mode
+                    </button>
+                </div>
+
                 <div id="objective-panel" class="hidden">
                     <h2 class="font-black text-indigo-600">Blueprint Challenge</h2>
                     <p class="text-sm font-bold text-slate-600">Progress: <span class="text-blue-600">P1 <span id="bp-progress-1">0</span></span><span id="p2-progress-container" class="hidden text-pink-600"> | P2 <span id="bp-progress-2">0</span></span> / <span id="bp-total">25</span></p>
@@ -134,50 +226,59 @@
                 </div>
                 <div id="free-panel">
                     <h2 class="font-black text-blue-600">Free Build Mode</h2>
-                    <p class="text-xs text-slate-500 mt-1">Watch for falling powerups!</p>
                 </div>
             </div>
             
-            <button id="btn-quit" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl shadow-lg transition-colors font-bold text-sm pointer-events-auto">
-                Quit to Menu
-            </button>
+            <div class="flex gap-2">
+                <button id="btn-help-game" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-xl shadow-lg transition-colors font-bold text-sm pointer-events-auto">
+                    Help
+                </button>
+                <button id="btn-quit" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl shadow-lg transition-colors font-bold text-sm pointer-events-auto">
+                    Menu
+                </button>
+            </div>
         </div>
 
         <!-- Toolbar (Bottom) -->
         <div class="flex justify-center w-full pb-2">
             <div class="bg-white/95 backdrop-blur-md p-3 rounded-2xl shadow-2xl border border-slate-200/50 flex flex-col md:flex-row gap-4 items-center pointer-events-auto max-w-full">
                 
-                <!-- Player Identifiers (for 2P) -->
-                <div id="p2-indicator" class="hidden font-black text-pink-600 px-3 border-r-2 border-slate-200">P1 (Mouse) & P2 (Keys)<br><span class="text-xs font-normal text-slate-500">Shared Tools (Hotkeys 1-0)</span></div>
+                <div id="p2-indicator" class="hidden font-black text-pink-600 px-3 border-r-2 border-slate-200 text-center leading-tight">P1 (Mouse)<br>P2 (Keys)</div>
 
-                <!-- Shape Selector -->
+                <!-- Basic Shapes -->
                 <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
                     <button class="shape-btn bg-white shadow-sm rounded-lg p-2 border-2 border-blue-500 text-xl" data-shape="box" title="Box (7)">🧊</button>
                     <button class="shape-btn hover:bg-white rounded-lg p-2 border-2 border-transparent text-xl" data-shape="sphere" title="Sphere (8)">⚽</button>
                     <button class="shape-btn hover:bg-white rounded-lg p-2 border-2 border-transparent text-xl" data-shape="cylinder" title="Cylinder (9)">🛢️</button>
-                    <div class="w-px h-6 bg-slate-300 mx-1 self-center"></div>
-                    <button class="shape-btn hover:bg-white rounded-lg p-2 border-2 border-transparent text-xl" data-shape="door" title="Door (0)">🚪</button>
-                    <button class="shape-btn hover:bg-white rounded-lg p-2 border-2 border-transparent text-xl" data-shape="tree" title="Tree (-)">🌲</button>
-                    <button class="shape-btn hover:bg-white rounded-lg p-2 border-2 border-transparent text-xl" data-shape="cat" title="Cat (=)">🐈</button>
                 </div>
+
+                <!-- Expanded Catalog Button -->
+                <button id="btn-open-catalog" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white shadow-md rounded-xl p-2 font-black text-sm flex items-center gap-2 border-2 border-orange-300 transition-transform hover:scale-105">
+                    <span class="text-xl">📦</span> Catalog (100+)
+                </button>
 
                 <div class="w-px h-10 bg-slate-200 hidden md:block"></div>
 
                 <!-- Material Selector -->
-                <div class="flex gap-2 overflow-x-auto hide-scrollbar max-w-[50vw] md:max-w-none" id="material-container"></div>
+                <div class="flex gap-2 overflow-x-auto hide-scrollbar max-w-[40vw] md:max-w-none" id="material-container"></div>
                 
                 <div class="w-px h-10 bg-slate-200 hidden md:block"></div>
 
-                <!-- Active Powerup / Delete -->
+                <!-- Tools -->
                 <div class="flex gap-2 items-center">
-                    <div id="active-powerup-1" class="hidden px-3 py-2 bg-blue-100 border-2 border-blue-400 text-blue-700 font-bold rounded-xl animate-pulse text-xs">
-                        P1 ⚡
+                    <div class="flex flex-col gap-1 items-center bg-slate-50 px-2 py-1 rounded border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" id="btn-rotate-mobile" title="Tap to Rotate">
+                        <span class="text-[10px] font-bold text-slate-400">ROTATION</span>
+                        <div class="flex gap-1 text-xs font-mono font-bold">
+                            <span class="text-blue-600 bg-blue-100 px-1 rounded">R / Tap</span>
+                            <span class="text-pink-600 bg-pink-100 px-1 rounded hidden" id="rot-hint-p2">U</span>
+                        </div>
                     </div>
-                    <div id="active-powerup-2" class="hidden px-3 py-2 bg-pink-100 border-2 border-pink-400 text-pink-700 font-bold rounded-xl animate-pulse text-xs">
-                        P2 ⚡
-                    </div>
-                    <button id="mode-delete" class="px-4 py-3 rounded-xl font-bold text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center gap-2">
-                        🧨 <span class="hidden sm:inline">Delete Mode</span>
+                    
+                    <button id="mode-delete" class="px-4 py-3 rounded-xl font-bold text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center gap-2 border-2 border-transparent">
+                        🧨 <span class="hidden sm:inline">Delete</span>
+                    </button>
+                    <button id="mode-paint" class="mobile-only px-4 py-3 rounded-xl font-bold text-sm bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-all flex items-center gap-2 border-2 border-transparent">
+                        🖌️ <span class="hidden sm:inline">Paint</span>
                     </button>
                 </div>
 
@@ -207,12 +308,11 @@
             powerupSpawn: () => playTone(600, 'triangle', 0.5, 0.2),
             powerupGet: () => { playTone(800, 'sine', 0.1, 0.4); setTimeout(()=>playTone(1200, 'sine', 0.3, 0.4), 100); },
             bomb: () => { playTone(100, 'sawtooth', 0.5, 0.6); setTimeout(()=>playTone(50, 'square', 0.8, 0.8), 100); },
-            win: () => { 
-                [523, 659, 783, 1046].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.2, 0.5), i * 150)); 
-            }
+            win: () => { [523, 659, 783, 1046].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.2, 0.5), i * 150)); },
+            interact: () => playTone(400, 'triangle', 0.2, 0.4)
         };
 
-        // --- GAME CONFIG ---
+        // --- GAME CONFIG & DATA ---
         const VOXEL_SIZE = 50;
         const GRID_SIZE = 2000;
         
@@ -225,33 +325,53 @@
             { id: 'neon', name: 'Neon', color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.6, roughness: 0.5 }
         ];
 
+        // The 10 Colors for the 100 items
+        const THING_COLORS = [
+            { name: "Red", hex: 0xe74c3c }, { name: "Green", hex: 0x2ecc71 }, 
+            { name: "Blue", hex: 0x3498db }, { name: "Yellow", hex: 0xf1c40f },
+            { name: "Purple", hex: 0x9b59b6 }, { name: "Orange", hex: 0xe67e22 },
+            { name: "White", hex: 0xecf0f1 }, { name: "Dark", hex: 0x34495e },
+            { name: "Brown", hex: 0x8d6e63 }, { name: "Pink", hex: 0xff9ff3 }
+        ];
+
+        const THING_CATEGORIES = ['door', 'window', 'stairs', 'chair', 'table', 'bed', 'lamp', 'tree', 'flower', 'fence'];
+
+        // --- CUSTOM TOAST NOTIFICATIONS ---
+        function showToast(message, type="info") {
+            const toast = document.createElement('div');
+            const bg = type === 'error' ? 'bg-red-500' : (type === 'success' ? 'bg-emerald-500' : 'bg-blue-500');
+            toast.className = `px-4 py-3 rounded-xl shadow-lg font-bold text-sm text-white ${bg} transition-opacity duration-300 pointer-events-auto`;
+            toast.innerText = message;
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         let state = {
-            mode: 'free', // 'free' | 'blueprint'
-            players: 1, // 1 | 2
+            mode: 'free', 
+            players: 1, 
+            device: 'desktop',
             powerupsEnabled: true,
             currentMatIndex: 0,
-            currentShape: 'box', // 'box' | 'sphere' | 'cylinder'
+            currentShape: 'box', 
+            rotations: { 1: 0, 2: 0 }, // 0, PI/2, PI, 1.5*PI
             isDeleteMode: false,
-            activePowerup: { 1: null, 2: null }, // Track P1/P2 separately
+            isPaintMode: false,
+            activePowerup: { 1: null, 2: null }, 
             startTime: 0,
             bpTotal: 0,
             isPlaying: false,
-            winner: null
+            winner: null,
+            walkMode: false
         };
 
-        // Independent Worlds for Independent Building
         const worlds = {
             1: { scene: new THREE.Scene(), objects: [], voxels: [], powerups: [], ghosts: [], plane: null, progress: 0, rollOver: null },
             2: { scene: new THREE.Scene(), objects: [], voxels: [], powerups: [], ghosts: [], plane: null, progress: 0, rollOver: null }
         };
         
-        // Controller Tracking
-        let p1MouseDown = false;
-        let p1MouseBtn = 0;
-        let p1LastPaintPos = new THREE.Vector3();
-        const p2Keys = {};
-        let p2CursorPos = new THREE.Vector3(25, 25, 25);
-
         // --- THREE.JS SETUP ---
         const container = document.getElementById('canvas-container');
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -261,7 +381,6 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
-        // Cameras & Controls
         const camera1 = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
         camera1.position.set(500, 800, 800);
         const camera2 = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
@@ -273,7 +392,22 @@
             c.enableDamping = true; c.dampingFactor = 0.05; c.maxPolarAngle = Math.PI/2 - 0.05; c.minDistance = 200; c.maxDistance = 2500;
         });
 
-        // Materials & Geometries
+        // Walk Controls (First Person)
+        const fpControls = new THREE.PointerLockControls(camera1, document.body);
+        const walkVelocity = new THREE.Vector3();
+        const walkDirection = new THREE.Vector3();
+        let walkKeys = { w: false, a: false, s: false, d: false, space: false };
+        let canJump = false;
+        let walkRaycaster = new THREE.Raycaster();
+
+        fpControls.addEventListener('lock', function () {
+            document.getElementById('walk-ui').classList.remove('hidden');
+        });
+        fpControls.addEventListener('unlock', function () {
+            exitWalkMode();
+        });
+
+        // --- MATERIALS & GENERATORS ---
         const threeMaterials = BLOCK_TYPES.map(cfg => {
             const opts = { color: cfg.color, roughness: cfg.roughness, metalness: cfg.metalness || 0 };
             if (cfg.transparent) { opts.transparent = true; opts.opacity = cfg.opacity; }
@@ -289,50 +423,150 @@
             cylinder: new THREE.CylinderGeometry(VOXEL_SIZE/2, VOXEL_SIZE/2, VOXEL_SIZE, 16)
         };
 
-        // --- CUSTOM THINGS ---
-        const Things = {
-            door: (isGhost, colorHex, isP2) => {
+        // Procedural generation of 100 items
+        const ThingsFactory = {
+            create: (type, colorIdx, isGhost, isP2) => {
                 const g = new THREE.Group();
-                const mat = isGhost ? new THREE.MeshBasicMaterial({color: colorHex, opacity: 0.5, transparent: true, wireframe: isP2}) : new THREE.MeshStandardMaterial({color: 0x8B4513, roughness: 0.9});
-                const m = new THREE.Mesh(new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE * 2, VOXEL_SIZE * 0.1), mat);
-                m.position.y = VOXEL_SIZE / 2; // Shift up to stand on the floor block
-                g.add(m);
-                return g;
-            },
-            tree: (isGhost, colorHex, isP2) => {
-                const g = new THREE.Group();
-                const matTrunk = isGhost ? new THREE.MeshBasicMaterial({color: colorHex, opacity: 0.5, transparent: true, wireframe: isP2}) : new THREE.MeshStandardMaterial({color: 0x5c4033, roughness: 1.0});
-                const matLeaves = isGhost ? new THREE.MeshBasicMaterial({color: colorHex, opacity: 0.5, transparent: true, wireframe: isP2}) : new THREE.MeshStandardMaterial({color: 0x228B22, roughness: 0.8});
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(VOXEL_SIZE*0.15, VOXEL_SIZE*0.2, VOXEL_SIZE), matTrunk);
-                const leaves = new THREE.Mesh(new THREE.SphereGeometry(VOXEL_SIZE * 0.7), matLeaves);
-                leaves.position.y = VOXEL_SIZE * 0.6;
-                g.add(trunk, leaves);
-                return g;
-            },
-            cat: (isGhost, colorHex, isP2) => {
-                const g = new THREE.Group();
-                const mat = isGhost ? new THREE.MeshBasicMaterial({color: colorHex, opacity: 0.5, transparent: true, wireframe: isP2}) : new THREE.MeshStandardMaterial({color: 0xFFA500, roughness: 0.7});
-                const body = new THREE.Mesh(new THREE.BoxGeometry(VOXEL_SIZE*0.3, VOXEL_SIZE*0.3, VOXEL_SIZE*0.5), mat);
-                body.position.y = -VOXEL_SIZE*0.1;
-                const head = new THREE.Mesh(new THREE.BoxGeometry(VOXEL_SIZE*0.25, VOXEL_SIZE*0.25, VOXEL_SIZE*0.25), mat);
-                head.position.set(0, 0, VOXEL_SIZE*0.3);
-                g.add(body, head);
+                const colorHex = THING_COLORS[colorIdx].hex;
+                const matOpts = isGhost ? { color: isP2?0x00ff00:colorHex, opacity: 0.5, transparent: true, wireframe: isP2 } : { color: colorHex, roughness: 0.8 };
+                const mat = isGhost ? new THREE.MeshBasicMaterial(matOpts) : new THREE.MeshStandardMaterial(matOpts);
+                
+                let m1, m2, m3;
+                const v = VOXEL_SIZE;
+
+                switch(type) {
+                    case 'door':
+                        const hinge = new THREE.Group();
+                        // Place hinge at bottom-left corner of the +Z edge
+                        hinge.position.set(-v/2 + v*0.02, 0, v/2 - v*0.05); 
+                        m1 = new THREE.Mesh(new THREE.BoxGeometry(v*0.96, v*2, v*0.1), mat);
+                        m1.position.set(v*0.48, v/2, 0); // Offset mesh relative to hinge
+                        hinge.add(m1);
+                        g.add(hinge);
+                        g.userData = { interactable: true, isOpen: false, type: 'door', hinge: hinge };
+                        break;
+                    case 'window':
+                        const frame = new THREE.Group();
+                        frame.position.set(0, 0, v/2 - v*0.05); // Flush against +Z edge
+                        
+                        const top = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.1, v*0.1), mat); top.position.y = v/2 - v*0.05;
+                        const bot = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.1, v*0.1), mat); bot.position.y = -v/2 + v*0.05;
+                        const left = new THREE.Mesh(new THREE.BoxGeometry(v*0.1, v*0.8, v*0.1), mat); left.position.x = -v/2 + v*0.05;
+                        const right = new THREE.Mesh(new THREE.BoxGeometry(v*0.1, v*0.8, v*0.1), mat); right.position.x = v/2 - v*0.05;
+                        frame.add(top, bot, left, right);
+                        
+                        const wHinge = new THREE.Group();
+                        wHinge.position.set(-v/2 + v*0.1, 0, v/2 - v*0.05); 
+                        
+                        const glassMat = isGhost ? mat : new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.4});
+                        m2 = new THREE.Mesh(new THREE.BoxGeometry(v*0.8, v*0.8, v*0.05), glassMat);
+                        m2.position.set(v*0.4, 0, 0); 
+                        wHinge.add(m2);
+                        
+                        g.add(frame, wHinge);
+                        g.userData = { interactable: true, isOpen: false, type: 'window', hinge: wHinge };
+                        break;
+                    case 'stairs':
+                        // Create 3 distinct steps moving UP towards the +Z edge
+                        m1 = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.33, v*0.33), mat); m1.position.set(0, -v*0.33, -v*0.33);
+                        m2 = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.66, v*0.33), mat); m2.position.set(0, -v*0.165, 0);
+                        m3 = new THREE.Mesh(new THREE.BoxGeometry(v, v, v*0.33), mat); m3.position.set(0, 0, v*0.33);
+                        g.add(m1, m2, m3);
+                        g.userData = { isStairs: true };
+                        break;
+                    case 'chair':
+                        m1 = new THREE.Mesh(new THREE.BoxGeometry(v*0.8, v*0.1, v*0.8), mat); m1.position.y = -v*0.1; // seat
+                        m2 = new THREE.Mesh(new THREE.BoxGeometry(v*0.8, v*0.8, v*0.1), mat); m2.position.set(0, v*0.35, -v*0.35); // back
+                        m3 = new THREE.Mesh(new THREE.BoxGeometry(v*0.1, v*0.4, v*0.1), mat); m3.position.set(v*0.35, -v*0.35, v*0.35); // legs
+                        const m4 = m3.clone(); m4.position.x = -v*0.35;
+                        g.add(m1, m2, m3, m4);
+                        break;
+                    case 'table':
+                        m1 = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.1, v), mat); m1.position.y = v*0.3; // top
+                        m2 = new THREE.Mesh(new THREE.CylinderGeometry(v*0.1, v*0.1, v*0.8), mat); m2.position.y = -v*0.1; // center leg
+                        g.add(m1, m2);
+                        break;
+                    case 'bed':
+                        m1 = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.3, v*2), mat); m1.position.set(0, -v*0.35, -v/2); // base
+                        m2 = new THREE.Mesh(new THREE.BoxGeometry(v*0.9, v*0.2, v*1.9), new THREE.MeshStandardMaterial({color: 0xffffff})); m2.position.set(0, -v*0.1, -v/2); // mattress
+                        const headboard = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.8, v*0.1), mat); headboard.position.set(0, 0, v/2 - v*0.05); // Snap to edge
+                        g.add(m1, m2, headboard);
+                        break;
+                    case 'lamp':
+                        m1 = new THREE.Mesh(new THREE.CylinderGeometry(v*0.05, v*0.05, v), mat);
+                        const lightMat = isGhost ? mat : new THREE.MeshStandardMaterial({color: colorHex, emissive: colorHex, emissiveIntensity: 0.8});
+                        m2 = new THREE.Mesh(new THREE.SphereGeometry(v*0.3), lightMat); m2.position.y = v*0.5;
+                        g.add(m1, m2);
+                        break;
+                    case 'tree':
+                        m1 = new THREE.Mesh(new THREE.CylinderGeometry(v*0.2, v*0.3, v*2), new THREE.MeshStandardMaterial({color: 0x5c4033})); m1.position.y = v/2;
+                        m2 = new THREE.Mesh(new THREE.SphereGeometry(v*1.2), mat); m2.position.y = v*1.5;
+                        g.add(m1, m2);
+                        break;
+                    case 'flower':
+                        m1 = new THREE.Mesh(new THREE.CylinderGeometry(v*0.05, v*0.05, v*0.8), new THREE.MeshStandardMaterial({color: 0x2ecc71}));
+                        m2 = new THREE.Mesh(new THREE.TorusGeometry(v*0.2, v*0.1, 8, 5), mat); m2.position.y = v*0.4;
+                        g.add(m1, m2);
+                        break;
+                    case 'fence':
+                        m1 = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.1, v*0.1), mat); m1.position.set(0, v*0.2, v/2 - v*0.05);
+                        m2 = new THREE.Mesh(new THREE.BoxGeometry(v, v*0.1, v*0.1), mat); m2.position.set(0, -v*0.1, v/2 - v*0.05);
+                        m3 = new THREE.Mesh(new THREE.BoxGeometry(v*0.2, v, v*0.2), mat); m3.position.set(-v*0.4, 0, v/2 - v*0.05);
+                        const f4 = m3.clone(); f4.position.set(v*0.4, 0, v/2 - v*0.05);
+                        g.add(m1, m2, m3, f4);
+                        break;
+                }
+                
+                // Allow shadows on non-ghosts
+                if (!isGhost) {
+                    g.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
+                }
                 return g;
             }
         };
 
-        // Update Ghost/Rollover Meshes Dynamically
-        function updateRollOverShape(w, shape, isP2, colorHex) {
+        // Populate Things UI
+        const grid = document.getElementById('things-grid');
+        THING_CATEGORIES.forEach(type => {
+            THING_COLORS.forEach((color, idx) => {
+                const id = `thing_${type}_${idx}`;
+                const btn = document.createElement('button');
+                btn.className = `p-2 bg-white border-2 border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition flex flex-col items-center justify-center gap-1`;
+                
+                // Basic Emoji Representation mapping
+                const emojiMap = { door: '🚪', window: '🪟', stairs: '🪜', chair: '🪑', table: '🪚', bed: '🛏️', lamp: '💡', tree: '🌲', flower: '🌻', fence: '🚧' };
+                
+                btn.innerHTML = `<div class="w-6 h-6 rounded-full border border-black/20" style="background-color: #${color.hex.toString(16).padStart(6, '0')}"></div>
+                                 <div class="text-xl">${emojiMap[type]}</div>
+                                 <span class="text-[9px] font-bold text-slate-500 uppercase truncate w-full text-center">${type}</span>`;
+                
+                btn.onclick = () => {
+                    setShape(id);
+                    document.getElementById('things-modal').classList.add('hidden');
+                };
+                grid.appendChild(btn);
+            });
+        });
+
+        document.getElementById('btn-open-catalog').onclick = () => document.getElementById('things-modal').classList.remove('hidden');
+        document.getElementById('btn-close-things').onclick = () => document.getElementById('things-modal').classList.add('hidden');
+
+        // Update Ghost/Rollover Meshes
+        function updateRollOverShape(w, shape, isP2, colorHex, rotationStr) {
             w.rollOver.clear();
-            const isThing = ['door', 'tree', 'cat'].includes(shape);
-            if (!isThing) {
+            const rot = parseFloat(rotationStr) || 0;
+            
+            if (shape.startsWith('thing_')) {
+                const parts = shape.split('_');
+                const m = ThingsFactory.create(parts[1], parseInt(parts[2]), true, isP2);
+                if (isP2) m.scale.set(1.05, 1.05, 1.05);
+                m.rotation.y = rot;
+                w.rollOver.add(m);
+            } else {
                 const matOpts = isP2 ? { color: 0x00ff00, opacity: 0.8, transparent: true, wireframe: true } : { color: colorHex, opacity: 0.5, transparent: true };
                 const m = new THREE.Mesh(geos[shape], new THREE.MeshBasicMaterial(matOpts));
                 if (isP2) m.scale.set(1.05, 1.05, 1.05);
-                w.rollOver.add(m);
-            } else {
-                const m = Things[shape](true, isP2 ? 0x00ff00 : colorHex, isP2);
-                if (isP2) m.scale.set(1.05, 1.05, 1.05);
+                m.rotation.y = rot;
                 w.rollOver.add(m);
             }
         }
@@ -346,7 +580,7 @@
             });
         }
 
-        // World Setup function
+        // --- WORLD SETUP ---
         function setupWorld(w, isP2) {
             w.scene.background = new THREE.Color(0x87CEEB);
             w.scene.fog = new THREE.Fog(0x87CEEB, 1000, 3000);
@@ -370,106 +604,207 @@
             dirLight.shadow.camera.right = dirLight.shadow.camera.top = 1000;
             w.scene.add(dirLight);
 
-            // Rollover (Ghost Cursor) initialized as an empty group
             w.rollOver = new THREE.Group();
             w.scene.add(w.rollOver);
-            updateRollOverShape(w, 'box', isP2, BLOCK_TYPES[0].color);
+            updateRollOverShape(w, 'box', isP2, BLOCK_TYPES[0].color, 0);
             w.rollOver.visible = false;
         }
 
         setupWorld(worlds[1], false);
         setupWorld(worlds[2], true);
 
-        // --- GAMEPLAY LOGIC ---
-
-        function createBlueprint(w) {
-            const bp = [];
-            for(let x=-2; x<=2; x++) for(let z=-2; z<=2; z++) bp.push({x, y:0, z, type: 0}); 
-            for(let y=1; y<=3; y++) {
-                for(let x=-2; x<=2; x++) for(let z=-2; z<=2; z++) {
-                    if(Math.abs(x) < 2 && Math.abs(z) < 2) continue; 
-                    if(z===2 && x===0 && y<=2) continue; 
-                    bp.push({x, y, z, type: 1}); 
-                }
-            }
-            for(let x=-2; x<=2; x++) for(let z=-2; z<=2; z++) bp.push({x, y:4, z, type: 2}); 
-
-            state.bpTotal = bp.length;
-            document.getElementById('bp-total').innerText = state.bpTotal;
-
-            bp.forEach(b => {
-                const mesh = new THREE.Mesh(geos.box, ghostMaterials[b.type]);
-                mesh.position.set(b.x * VOXEL_SIZE, (b.y * VOXEL_SIZE) + VOXEL_SIZE/2, b.z * VOXEL_SIZE);
-                mesh.userData = { isGhost: true, targetType: b.type };
-                w.scene.add(mesh);
-                w.objects.push(mesh);
-                w.ghosts.push(mesh);
-            });
-        }
-
+        // --- CORE LOGIC ---
         function clearWorld(w, playerNum) {
             w.voxels.forEach(v => w.scene.remove(v));
             w.ghosts.forEach(g => w.scene.remove(g));
             w.powerups.forEach(p => w.scene.remove(p));
             w.objects = [w.plane]; w.voxels = []; w.ghosts = []; w.powerups = [];
             w.progress = 0;
-            document.getElementById('bp-progress-' + playerNum).innerText = 0;
-            clearPowerup(playerNum);
+            if(playerNum) {
+                const progressElement = document.getElementById('bp-progress-' + playerNum);
+                if (progressElement) {
+                    progressElement.innerText = 0;
+                }
+                state.activePowerup[playerNum] = null;
+                const powerupElement = document.getElementById('active-powerup-' + playerNum);
+                if (powerupElement) {
+                    powerupElement.classList.add('hidden');
+                }
+            }
         }
 
-        function spawnPowerup() {
-            if(!state.isPlaying || !state.powerupsEnabled) return;
-            const type = Math.random() > 0.5 ? 'bomb' : 'mega';
-            const color = type === 'bomb' ? 0xff0000 : 0x0000ff;
-            const geo = new THREE.OctahedronGeometry(VOXEL_SIZE * 0.8);
-            const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, wireframe: true });
-            
-            const x = (Math.random() - 0.5) * 1000;
-            const z = (Math.random() - 0.5) * 1000;
+        // --- SAVING AND LOADING ---
+        document.getElementById('btn-save').onclick = () => {
+            if (!state.isPlaying || state.mode !== 'free') return showToast("You can only save in Free Build mode.", "error");
+            const exportData = worlds[1].voxels.map(v => ({
+                p: [v.position.x, v.position.y, v.position.z],
+                s: v.userData.shape,
+                m: v.userData.type,
+                r: v.rotation.y,
+                o: v.userData.isOpen || false
+            }));
+            const blob = new Blob([JSON.stringify(exportData)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'voxel_build.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
 
-            // Spawn independently in active worlds
-            [1, 2].forEach(p => {
-                if (p === 2 && state.players === 1) return;
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(x, 1000, z);
-                mesh.userData = { isPowerup: true, type };
-                worlds[p].scene.add(mesh);
-                worlds[p].objects.push(mesh);
-                worlds[p].powerups.push(mesh);
-            });
-            Sounds.powerupSpawn();
+        document.getElementById('file-loader').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    clearWorld(worlds[1], 1);
+                    data.forEach(d => {
+                        const pos = new THREE.Vector3(d.p[0], d.p[1], d.p[2]);
+                        
+                        let mesh;
+                        if (d.s.startsWith('thing_')) {
+                            const p = d.s.split('_');
+                            mesh = ThingsFactory.create(p[1], parseInt(p[2]), false, false);
+                        } else {
+                            mesh = new THREE.Mesh(geos[d.s], threeMaterials[d.m]);
+                            mesh.castShadow = true; mesh.receiveShadow = true;
+                        }
+                        
+                        mesh.position.copy(pos);
+                        mesh.rotation.y = d.r || 0;
+                        mesh.userData = { ...mesh.userData, type: d.m, shape: d.s, baseRotation: d.r || 0 };
+                        
+                        // Inherit interactable properties
+                        if (mesh.userData.interactable && d.o) {
+                            mesh.userData.isOpen = true;
+                            if (mesh.userData.hinge) {
+                                mesh.userData.hinge.rotation.y = Math.PI/2;
+                            }
+                        }
+
+                        worlds[1].scene.add(mesh); worlds[1].objects.push(mesh); worlds[1].voxels.push(mesh);
+                    });
+                    showToast("World Loaded Successfully!", "success");
+                } catch(err) {
+                    showToast("Invalid Save File.", "error");
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // --- WALK MODE CONTROLS ---
+        document.getElementById('btn-walk').onclick = () => {
+            if (state.players === 2) return showToast("Walk mode is only available in 1 Player mode.", "error");
+            state.walkMode = true;
+            document.getElementById('game-ui').classList.add('hidden-screen');
+            fpControls.lock();
+            // Position player near center top of current view
+            camera1.position.y = 50; 
+        };
+
+        function exitWalkMode() {
+            state.walkMode = false;
+            document.getElementById('game-ui').classList.remove('hidden-screen');
+            document.getElementById('walk-ui').classList.add('hidden');
+            // Reset orbit target
+            controls1.target.set(camera1.position.x, 0, camera1.position.z);
+            controls1.update();
         }
-        setInterval(spawnPowerup, 12000);
 
-        // --- INTERACTION ENGINE ---
+        document.addEventListener('keydown', (e) => {
+            if (state.walkMode) {
+                switch ( e.code ) {
+                    case 'ArrowUp': case 'KeyW': walkKeys.w = true; break;
+                    case 'ArrowLeft': case 'KeyA': walkKeys.a = true; break;
+                    case 'ArrowDown': case 'KeyS': walkKeys.s = true; break;
+                    case 'ArrowRight': case 'KeyD': walkKeys.d = true; break;
+                    case 'Space': 
+                        if (canJump) walkVelocity.y += 250; 
+                        canJump = false; 
+                        break;
+                }
+            } else if (state.isPlaying) {
+                // Rotation
+                if (e.code === 'KeyR') {
+                    state.rotations[1] = (state.rotations[1] + Math.PI/2) % (Math.PI*2);
+                    updateRollOvers();
+                }
+                if (state.players === 2 && e.code === 'KeyU') {
+                    state.rotations[2] = (state.rotations[2] + Math.PI/2) % (Math.PI*2);
+                    updateRollOvers();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (state.walkMode) {
+                switch( e.code ) {
+                    case 'ArrowUp': case 'KeyW': walkKeys.w = false; break;
+                    case 'ArrowLeft': case 'KeyA': walkKeys.a = false; break;
+                    case 'ArrowDown': case 'KeyS': walkKeys.s = false; break;
+                    case 'ArrowRight': case 'KeyD': walkKeys.d = false; break;
+                }
+            }
+        });
+
+        // Walk Mode Interaction
+        document.addEventListener('click', (e) => {
+            if (state.walkMode && fpControls.isLocked) {
+                walkRaycaster.setFromCamera(new THREE.Vector2(0,0), camera1);
+                const intersects = walkRaycaster.intersectObjects(worlds[1].objects, true);
+                if (intersects.length > 0 && intersects[0].distance < 150) {
+                    let obj = intersects[0].object;
+                    while (obj && !worlds[1].objects.includes(obj)) obj = obj.parent;
+                    if (obj && obj.userData.interactable) {
+                        obj.userData.isOpen = !obj.userData.isOpen;
+                        const hinge = obj.userData.hinge || obj;
+                        // Tween rotation
+                        const targetRot = (obj.userData.isOpen ? Math.PI/2 : 0);
+                        const startRot = hinge.rotation.y;
+                        let t = 0;
+                        const animateDoor = () => {
+                            t += 0.1;
+                            hinge.rotation.y = startRot + (targetRot - startRot) * t;
+                            if (t < 1) requestAnimationFrame(animateDoor);
+                            else hinge.rotation.y = targetRot;
+                        };
+                        animateDoor();
+                        Sounds.interact();
+                    }
+                }
+            }
+        });
+
+        // --- INTERACTION ENGINE (BUILD/DESTROY) ---
         const raycaster = new THREE.Raycaster();
         let pointerDownPos = new THREE.Vector2();
+        let p1MouseDown = false;
+        let p1MouseBtn = 0;
+        let p1LastPaintPos = new THREE.Vector3();
+        let p2CursorPos = new THREE.Vector3(25, 25, 25);
+        let gpCursorPos = new THREE.Vector3(25, 25, 25);
+        let gpButtons = {};
+        let gpLastMove = 0;
+        const p2Keys = {};
 
         function getIntersect(event, camera, zoneElement, objects) {
             const rect = zoneElement.getBoundingClientRect();
-            const pointer = new THREE.Vector2(
-                ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                -((event.clientY - rect.top) / rect.height) * 2 + 1
-            );
+            const pointer = new THREE.Vector2( ((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1 );
             raycaster.setFromCamera(pointer, camera);
-            
-            // True enables recursive checking so we can hit children of 'Things' (Groups)
             const intersects = raycaster.intersectObjects(objects, true);
             if (intersects.length > 0) {
                 let hit = intersects[0];
                 let obj = hit.object;
-                
-                // Traverse up to find the top-level parent that is actually in our objects list
-                while (obj && !objects.includes(obj)) {
-                    obj = obj.parent;
-                }
-                if (obj) hit.object = obj; // Override the intersect object with the parent Group
+                while (obj && !objects.includes(obj)) obj = obj.parent;
+                if (obj) hit.object = obj; 
                 return [hit];
             }
             return [];
         }
 
         function executeP1Action(event) {
+            if (state.walkMode) return;
             const w = worlds[1];
             const intersects = getIntersect(event, camera1, document.getElementById('p1-zone'), w.objects);
 
@@ -477,10 +812,7 @@
                 const intersect = intersects[0];
                 const actionDelete = state.isDeleteMode || p1MouseBtn === 2;
 
-                if (intersect.object.userData.isPowerup) {
-                    collectPowerup(intersect.object, w, 1);
-                    return;
-                }
+                if (intersect.object.userData.isPowerup) return collectPowerup(intersect.object, w, 1);
 
                 if (actionDelete) {
                     if (intersect.object !== w.plane && !intersect.object.userData.isGhost) {
@@ -493,24 +825,17 @@
                     let pos = new THREE.Vector3().copy(intersect.point).add(intersect.face.normal);
                     pos.divideScalar(VOXEL_SIZE).floor().multiplyScalar(VOXEL_SIZE).addScalar(VOXEL_SIZE / 2);
                     
-                    // Prevent placing duplicates at identical spot
-                    const isSolid = w.voxels.some(v => v.position.distanceTo(pos) < 5);
-                    if (!isSolid) {
-                        if (state.activePowerup[1] === 'mega') {
-                            executeMega(pos, w, 1);
-                            clearPowerup(1);
-                        } else {
-                            placeBlock(pos, w, 1);
-                        }
+                    if (!w.voxels.some(v => v.position.distanceTo(pos) < 5)) {
+                        if (state.activePowerup[1] === 'mega') { executeMega(pos, w, 1); clearPowerup(1); } 
+                        else placeBlock(pos, w, 1);
                         Sounds.place();
                     }
                 }
             }
         }
-
+        
         function handlePointerMove(event) {
-            if(!state.isPlaying) return;
-            // P1 only uses mouse, ignores right side in 2P mode
+            if(!state.isPlaying || state.walkMode) return;
             if (state.players === 2 && event.clientX > window.innerWidth / 2) return;
             
             const w = worlds[1];
@@ -518,10 +843,8 @@
 
             if (intersects.length > 0) {
                 const intersect = intersects[0];
-                if (intersect.object.userData.isPowerup) {
-                    w.rollOver.visible = false;
-                } else if (state.isDeleteMode || (p1MouseDown && p1MouseBtn === 2)) {
-                    // Update rollover color to red for deletions
+                if (intersect.object.userData.isPowerup) w.rollOver.visible = false;
+                else if (state.isDeleteMode || (p1MouseDown && p1MouseBtn === 2)) {
                     if (intersect.object !== w.plane && !intersect.object.userData.isGhost) {
                         w.rollOver.position.copy(intersect.object.position);
                         setRollOverColor(w, 0xff0000, true);
@@ -535,140 +858,85 @@
                 }
             } else w.rollOver.visible = false;
 
-            // P1 Speed Build & Destroy
-            if (p1MouseDown && event.shiftKey && w.rollOver.visible) {
-                if (!w.rollOver.position.equals(p1LastPaintPos)) {
-                    executeP1Action(event);
-                    p1LastPaintPos.copy(w.rollOver.position);
-                }
-            }
-        }
-
-        function handlePointerDown(event) {
-            if(state.players === 2 && event.clientX > window.innerWidth / 2) return;
-            if(event.button !== 0 && event.button !== 2) return;
-            
-            p1MouseDown = true;
-            p1MouseBtn = event.button;
-            pointerDownPos.set(event.clientX, event.clientY);
-
-            // Execute first placement immediately on shift drag to start the paint stroke
-            if (event.shiftKey) {
+            if (p1MouseDown && (event.shiftKey || state.isPaintMode) && w.rollOver.visible && !w.rollOver.position.equals(p1LastPaintPos)) {
                 executeP1Action(event);
-                if (worlds[1].rollOver.visible) {
-                    p1LastPaintPos.copy(worlds[1].rollOver.position);
-                }
+                p1LastPaintPos.copy(w.rollOver.position);
             }
         }
 
-        function handlePointerUp(event) {
-            if(!state.isPlaying) return;
-            if(state.players === 2 && event.clientX > window.innerWidth / 2) {
-                p1MouseDown = false;
-                return;
-            }
+        document.addEventListener('pointermove', handlePointerMove);
 
+        document.addEventListener('pointerdown', (event) => {
+            if(state.walkMode || (state.players === 2 && event.clientX > window.innerWidth / 2) || (event.button !== 0 && event.button !== 2)) return;
+            p1MouseDown = true; p1MouseBtn = event.button; pointerDownPos.set(event.clientX, event.clientY);
+            if (event.shiftKey || state.isPaintMode) {
+                executeP1Action(event);
+                if (worlds[1].rollOver.visible) p1LastPaintPos.copy(worlds[1].rollOver.position);
+            }
+        });
+
+        document.addEventListener('pointerup', (event) => {
+            if(!state.isPlaying || state.walkMode) return;
+            if(state.players === 2 && event.clientX > window.innerWidth / 2) { p1MouseDown = false; return; }
             p1MouseDown = false;
-            
-            const dist = Math.abs(event.clientX - pointerDownPos.x) + Math.abs(event.clientY - pointerDownPos.y);
-            
-            // Only perform standard single click action if not currently painting and not dragged to orbit
-            if (!event.shiftKey && dist <= 5) {
-                executeP1Action(event);
-            }
+            if (!(event.shiftKey || state.isPaintMode) && Math.abs(event.clientX - pointerDownPos.x) + Math.abs(event.clientY - pointerDownPos.y) <= 5) executeP1Action(event);
+            if (event.button === 2 && !state.isDeleteMode) handlePointerMove(event);
+        });
 
-            // Restore normal cursor color if right click was released without mode switch
-            if (event.button === 2 && !state.isDeleteMode) {
-                handlePointerMove(event);
-            }
-        }
+        document.addEventListener('contextmenu', e => { if(state.isPlaying) e.preventDefault() });
 
         function placeBlock(pos, w, playerNum) {
             if (state.winner) return;
 
-            let hitGhost = null;
             if (state.mode === 'blueprint') {
-                hitGhost = w.ghosts.find(g => g.position.distanceTo(pos) < 5);
-                if (hitGhost && hitGhost.userData.targetType !== state.currentMatIndex) {
-                    return; 
+                const hitGhost = w.ghosts.find(g => g.position.distanceTo(pos) < 5);
+                if (hitGhost && hitGhost.userData.targetType !== state.currentMatIndex) return; 
+                if (hitGhost) {
+                    w.scene.remove(hitGhost); w.objects.splice(w.objects.indexOf(hitGhost), 1); w.ghosts.splice(w.ghosts.indexOf(hitGhost), 1);
+                    w.progress++; document.getElementById('bp-progress-' + playerNum).innerText = w.progress;
+                    if (w.progress >= state.bpTotal) {
+                        state.winner = playerNum;
+                        const time = (Date.now() - state.startTime) / 1000;
+                        document.getElementById('bp-time').innerText = time.toFixed(1);
+                        Sounds.win();
+                        setTimeout(() => { showToast(`Player ${playerNum} Wins! Time: ${time.toFixed(1)}s`, "success"); setUIState('home'); }, 500);
+                    }
                 }
             }
 
-            const isThing = ['door', 'tree', 'cat'].includes(state.currentShape);
-            const mesh = isThing ? Things[state.currentShape](false, 0, false) : new THREE.Mesh(geos[state.currentShape], threeMaterials[state.currentMatIndex]);
+            let mesh;
+            const rot = state.rotations[playerNum];
+            if (state.currentShape.startsWith('thing_')) {
+                const parts = state.currentShape.split('_');
+                mesh = ThingsFactory.create(parts[1], parseInt(parts[2]), false, false);
+                mesh.userData = { ...mesh.userData, type: state.currentMatIndex, shape: state.currentShape, baseRotation: rot };
+            } else {
+                mesh = new THREE.Mesh(geos[state.currentShape], threeMaterials[state.currentMatIndex]);
+                mesh.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
+                mesh.userData = { type: state.currentMatIndex, shape: state.currentShape, baseRotation: rot };
+            }
             
             mesh.position.copy(pos);
-            mesh.userData = { type: state.currentMatIndex, shape: state.currentShape };
-            
-            // Enable shadows for the mesh or all sub-meshes in a group
-            mesh.traverse(child => {
-                if (child.isMesh) {
-                    child.castShadow = true; 
-                    child.receiveShadow = true;
-                }
-            });
-            
+            mesh.rotation.y = rot;
             mesh.scale.set(0,0,0);
             w.scene.add(mesh); w.objects.push(mesh); w.voxels.push(mesh);
             
             let sc = 0;
-            const anim = () => {
-                sc += (1 - sc) * 0.2; mesh.scale.set(sc,sc,sc);
-                if (sc < 0.99) requestAnimationFrame(anim);
-            }; anim();
-
-            if (hitGhost) {
-                w.scene.remove(hitGhost);
-                w.objects.splice(w.objects.indexOf(hitGhost), 1);
-                w.ghosts.splice(w.ghosts.indexOf(hitGhost), 1);
-                w.progress++;
-                document.getElementById('bp-progress-' + playerNum).innerText = w.progress;
-                
-                if (w.progress >= state.bpTotal) {
-                    state.winner = playerNum;
-                    const time = (Date.now() - state.startTime) / 1000;
-                    document.getElementById('bp-time').innerText = time.toFixed(1);
-                    Sounds.win();
-                    setTimeout(() => { 
-                        alert(`Player ${playerNum} Completed the Blueprint in ${time.toFixed(1)}s!`); 
-                        setUIState('home'); 
-                    }, 500);
-                }
-            }
+            const anim = () => { sc += (1 - sc) * 0.2; mesh.scale.set(sc,sc,sc); if (sc < 0.99) requestAnimationFrame(anim); }; anim();
         }
 
         function removeBlock(mesh, w, playerNum) {
             if (state.winner) return;
-            w.scene.remove(mesh);
-            w.objects.splice(w.objects.indexOf(mesh), 1);
-            w.voxels.splice(w.voxels.indexOf(mesh), 1);
-            
-            if (state.mode === 'blueprint') {
-                const matType = mesh.userData.type;
-                const ghostMesh = new THREE.Mesh(geos.box, ghostMaterials[matType]);
-                ghostMesh.position.copy(mesh.position);
-                ghostMesh.userData = { isGhost: true, targetType: matType };
-                w.scene.add(ghostMesh);
-                w.objects.push(ghostMesh);
-                w.ghosts.push(ghostMesh);
-                w.progress--;
-                document.getElementById('bp-progress-' + playerNum).innerText = w.progress;
-            }
+            w.scene.remove(mesh); w.objects.splice(w.objects.indexOf(mesh), 1); w.voxels.splice(w.voxels.indexOf(mesh), 1);
         }
 
         function collectPowerup(mesh, w, playerNum) {
             state.activePowerup[playerNum] = mesh.userData.type;
-            w.scene.remove(mesh);
-            w.objects.splice(w.objects.indexOf(mesh), 1);
-            w.powerups.splice(w.powerups.indexOf(mesh), 1);
-            
+            w.scene.remove(mesh); w.objects.splice(w.objects.indexOf(mesh), 1); w.powerups.splice(w.powerups.indexOf(mesh), 1);
             const pId = 'active-powerup-' + playerNum;
             document.getElementById(pId).classList.remove('hidden');
             document.getElementById(pId).innerText = `P${playerNum} ` + (state.activePowerup[playerNum] === 'bomb' ? '🧨 BOMB' : '🟦 MEGA');
-            
-            // Refresh rollover colors to show Mega blue
-            updateRollOvers();
-            Sounds.powerupGet();
+            updateRollOvers(); Sounds.powerupGet();
         }
 
         function clearPowerup(playerNum) {
@@ -684,115 +952,166 @@
         }
 
         function executeMega(center, w, playerNum) {
-            for(let x=-1; x<=1; x++) {
-                for(let y=-1; y<=1; y++) {
-                    for(let z=-1; z<=1; z++) {
-                        if (y * VOXEL_SIZE + center.y < 0) continue; 
-                        const pos = new THREE.Vector3(
-                            center.x + x * VOXEL_SIZE,
-                            center.y + y * VOXEL_SIZE,
-                            center.z + z * VOXEL_SIZE
-                        );
-                        if (!w.voxels.some(v => v.position.distanceTo(pos) < 5)) {
-                            placeBlock(pos, w, playerNum);
-                        }
-                    }
-                }
+            for(let x=-1; x<=1; x++) for(let y=-1; y<=1; y++) for(let z=-1; z<=1; z++) {
+                if (y * VOXEL_SIZE + center.y < 0) continue; 
+                const pos = new THREE.Vector3(center.x + x * VOXEL_SIZE, center.y + y * VOXEL_SIZE, center.z + z * VOXEL_SIZE);
+                if (!w.voxels.some(v => v.position.distanceTo(pos) < 5)) placeBlock(pos, w, playerNum);
             }
         }
 
+        // --- P2 KEYBOARD LOGIC ---
+        document.addEventListener('keydown', (e) => {
+            p2Keys[e.code] = true;
+            if (e.key === 'Shift') controls1.enabled = false;
+            if (!state.isPlaying || state.walkMode) return;
 
-        // --- UI & STATE MANAGEMENT ---
+            if (e.key >= '1' && e.key <= '6') return setMaterial(parseInt(e.key) - 1);
+            if (e.key === '7') setShape('box'); if (e.key === '8') setShape('sphere'); if (e.key === '9') setShape('cylinder');
+
+            if (state.players !== 2) return;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+
+            const camDir = new THREE.Vector3(); camera2.getWorldDirection(camDir); camDir.y = 0; camDir.normalize();
+            const absX = Math.abs(camDir.x); const absZ = Math.abs(camDir.z);
+            const forward = (absX > absZ) ? new THREE.Vector3(Math.sign(camDir.x), 0, 0) : new THREE.Vector3(0, 0, Math.sign(camDir.z));
+            const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+            let moved = false; const step = VOXEL_SIZE; const w2 = worlds[2];
+
+            switch(e.code) {
+                case 'KeyW': p2CursorPos.add(forward.clone().multiplyScalar(step)); moved = true; break;
+                case 'KeyS': p2CursorPos.add(forward.clone().multiplyScalar(-step)); moved = true; break;
+                case 'KeyD': p2CursorPos.add(right.clone().multiplyScalar(step)); moved = true; break;
+                case 'KeyA': p2CursorPos.add(right.clone().multiplyScalar(-step)); moved = true; break;
+                case 'KeyE': p2CursorPos.y += step; moved = true; break;
+                case 'KeyQ': p2CursorPos.y -= step; moved = true; break;
+                case 'Space': 
+                    if (!w2.voxels.some(v => v.position.distanceTo(p2CursorPos) < 5)) {
+                        state.activePowerup[2] === 'mega' ? (executeMega(p2CursorPos, w2, 2), clearPowerup(2)) : placeBlock(p2CursorPos, w2, 2);
+                        Sounds.place();
+                    } break;
+                case 'KeyX': case 'Backspace':
+                    const block = w2.voxels.find(v => v.position.distanceTo(p2CursorPos) < 5);
+                    if (block) {
+                        state.activePowerup[2] === 'bomb' ? (executeBomb(p2CursorPos, w2, 2), clearPowerup(2)) : removeBlock(block, w2, 2);
+                        Sounds.delete();
+                    } else if (state.activePowerup[2] === 'bomb') { executeBomb(p2CursorPos, w2, 2); clearPowerup(2); }
+                    break;
+                case 'ArrowLeft': const o1 = camera2.position.clone().sub(controls2.target); o1.applyAxisAngle(new THREE.Vector3(0,1,0), 0.1); camera2.position.copy(controls2.target).add(o1); controls2.update(); break;
+                case 'ArrowRight': const o2 = camera2.position.clone().sub(controls2.target); o2.applyAxisAngle(new THREE.Vector3(0,1,0), -0.1); camera2.position.copy(controls2.target).add(o2); controls2.update(); break;
+                case 'ArrowUp': const z1 = camera2.position.clone().sub(controls2.target); z1.multiplyScalar(0.9); if(z1.length()>controls2.minDistance) {camera2.position.copy(controls2.target).add(z1); controls2.update();} break;
+                case 'ArrowDown': const z2 = camera2.position.clone().sub(controls2.target); z2.multiplyScalar(1.1); if(z2.length()<controls2.maxDistance) {camera2.position.copy(controls2.target).add(z2); controls2.update();} break;
+            }
+
+            if (moved) {
+                if (p2CursorPos.y < VOXEL_SIZE/2) p2CursorPos.y = VOXEL_SIZE/2;
+                p2CursorPos.x = Math.max(-GRID_SIZE/2, Math.min(GRID_SIZE/2, p2CursorPos.x));
+                p2CursorPos.z = Math.max(-GRID_SIZE/2, Math.min(GRID_SIZE/2, p2CursorPos.z));
+                w2.rollOver.position.copy(p2CursorPos);
+                controls2.target.copy(p2CursorPos); controls2.update();
+                const hit = w2.powerups.find(p => p.position.distanceTo(p2CursorPos) < VOXEL_SIZE * 1.5);
+                if (hit) collectPowerup(hit, w2, 2);
+            }
+        });
+        document.addEventListener('keyup', (e) => { p2Keys[e.code] = false; if (e.key === 'Shift') { controls1.enabled = true; p1MouseDown = false; } });
+
+
+        // --- UI BINDINGS ---
         function setUIState(ui) {
             if (ui === 'home') {
                 state.isPlaying = false;
                 document.getElementById('home-screen').classList.remove('hidden-screen');
                 document.getElementById('game-ui').classList.add('hidden-screen');
-                document.getElementById('p2-zone').style.display = 'none';
-                document.getElementById('p1-zone').style.width = '100%';
             } else if (ui === 'game') {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
-                clearWorld(worlds[1], 1);
-                clearWorld(worlds[2], 2);
-                state.isPlaying = true;
-                state.winner = null;
-                state.startTime = Date.now();
+                clearWorld(worlds[1], 1); clearWorld(worlds[2], 2);
+                state.isPlaying = true; state.winner = null; state.startTime = Date.now();
+                state.isPaintMode = false;
+                const paintBtn = document.getElementById('mode-paint');
+                if (paintBtn) paintBtn.className = "mobile-only px-4 py-3 rounded-xl font-bold text-sm bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-all flex items-center gap-2 border-2 border-transparent";
+                controls1.enabled = true;
+                document.getElementById('home-screen').classList.add('hidden-screen'); document.getElementById('game-ui').classList.remove('hidden-screen');
                 
-                document.getElementById('home-screen').classList.add('hidden-screen');
-                document.getElementById('game-ui').classList.remove('hidden-screen');
-                
+                gpCursorPos.set(25, 25, 25);
+
                 if (state.players === 2) {
-                    document.getElementById('p2-zone').style.display = 'block';
-                    document.getElementById('p1-zone').style.width = '50%';
-                    document.getElementById('p2-indicator').classList.remove('hidden');
-                    document.getElementById('p2-progress-container').classList.remove('hidden');
-                    
-                    worlds[2].rollOver.visible = true;
-                    p2CursorPos.set(25, 25, 25);
-                    worlds[2].rollOver.position.copy(p2CursorPos);
-                    
+                    document.getElementById('p2-zone').style.display = 'block'; document.getElementById('p1-zone').style.width = '50%';
+                    document.getElementById('p2-indicator').classList.remove('hidden'); document.getElementById('p2-progress-container').classList.remove('hidden');
+                    document.getElementById('rot-hint-p2').classList.remove('hidden');
+                    worlds[2].rollOver.visible = true; p2CursorPos.set(25, 25, 25); worlds[2].rollOver.position.copy(p2CursorPos);
                     camera1.aspect = (window.innerWidth / 2) / window.innerHeight; camera1.updateProjectionMatrix();
                     camera2.aspect = (window.innerWidth / 2) / window.innerHeight; camera2.updateProjectionMatrix();
                 } else {
-                    document.getElementById('p2-indicator').classList.add('hidden');
-                    document.getElementById('p2-progress-container').classList.add('hidden');
+                    document.getElementById('p2-zone').style.display = 'none'; document.getElementById('p1-zone').style.width = '100%';
+                    document.getElementById('p2-indicator').classList.add('hidden'); document.getElementById('p2-progress-container').classList.add('hidden');
+                    document.getElementById('rot-hint-p2').classList.add('hidden');
                     worlds[2].rollOver.visible = false;
                     camera1.aspect = window.innerWidth / window.innerHeight; camera1.updateProjectionMatrix();
                 }
 
                 if (state.mode === 'blueprint') {
-                    document.getElementById('objective-panel').classList.remove('hidden');
-                    document.getElementById('free-panel').classList.add('hidden');
-                    createBlueprint(worlds[1]);
-                    if(state.players === 2) createBlueprint(worlds[2]);
+                    document.getElementById('objective-panel').classList.remove('hidden'); document.getElementById('free-panel').classList.add('hidden');
+                    createBlueprint(worlds[1]); if(state.players === 2) createBlueprint(worlds[2]);
                 } else {
-                    document.getElementById('objective-panel').classList.add('hidden');
-                    document.getElementById('free-panel').classList.remove('hidden');
+                    document.getElementById('objective-panel').classList.add('hidden'); document.getElementById('free-panel').classList.remove('hidden');
                 }
-                
                 camera1.position.set(500, 800, 800); controls1.target.set(0,0,0); controls1.update();
                 camera2.position.set(-500, 800, -800); controls2.target.copy(p2CursorPos); controls2.update();
             }
         }
 
-        // DOM Listeners
         document.getElementById('btn-mode-free').onclick = (e) => { state.mode = 'free'; e.target.className = "flex-1 py-3 px-4 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold transition-all"; document.getElementById('btn-mode-bp').className = "flex-1 py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all"; };
         document.getElementById('btn-mode-bp').onclick = (e) => { state.mode = 'blueprint'; e.target.className = "flex-1 py-3 px-4 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold transition-all"; document.getElementById('btn-mode-free').className = "flex-1 py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all"; };
         document.getElementById('btn-players-1').onclick = (e) => { state.players = 1; e.target.className = "flex-1 py-3 px-4 rounded-xl border-2 border-indigo-500 bg-indigo-50 text-indigo-700 font-bold transition-all"; document.getElementById('btn-players-2').className = "flex-1 py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all"; };
         document.getElementById('btn-players-2').onclick = (e) => { state.players = 2; e.target.className = "flex-1 py-3 px-4 rounded-xl border-2 border-indigo-500 bg-indigo-50 text-indigo-700 font-bold transition-all"; document.getElementById('btn-players-1').className = "flex-1 py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all"; };
         
-        document.getElementById('toggle-powerups').onchange = (e) => { state.powerupsEnabled = e.target.checked; };
+        document.querySelectorAll('.device-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                document.querySelectorAll('.device-btn').forEach(b => b.className = "device-btn flex-1 py-3 px-1 rounded-xl border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold transition-all text-xs sm:text-sm");
+                e.target.className = "device-btn flex-1 py-3 px-1 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold transition-all text-xs sm:text-sm";
+                state.device = e.target.dataset.device;
+                document.body.className = `text-slate-800 device-${state.device}`;
+                
+                document.getElementById('inst-desktop').classList.toggle('hidden', state.device !== 'desktop');
+                document.getElementById('inst-mobile').classList.toggle('hidden', state.device !== 'mobile');
+                document.getElementById('inst-gamepad').classList.toggle('hidden', state.device !== 'gamepad');
+            };
+        });
 
+        document.getElementById('toggle-powerups').onchange = (e) => { state.powerupsEnabled = e.target.checked; };
         document.getElementById('btn-start').onclick = () => setUIState('game');
         document.getElementById('btn-quit').onclick = () => setUIState('home');
         document.getElementById('btn-instructions').onclick = () => document.getElementById('instructions-modal').classList.remove('hidden');
+        document.getElementById('btn-help-game').onclick = () => document.getElementById('instructions-modal').classList.remove('hidden');
         document.getElementById('btn-close-instructions').onclick = () => document.getElementById('instructions-modal').classList.add('hidden');
 
+        document.getElementById('btn-rotate-mobile').onclick = () => {
+            state.rotations[1] = (state.rotations[1] + Math.PI/2) % (Math.PI*2);
+            updateRollOvers();
+        };
+
         const btnDelete = document.getElementById('mode-delete');
-        btnDelete.onclick = () => {
-            state.isDeleteMode = !state.isDeleteMode;
-            btnDelete.className = state.isDeleteMode ? "px-4 py-3 rounded-xl font-bold text-sm bg-red-500 text-white transition-all flex items-center gap-2" : "px-4 py-3 rounded-xl font-bold text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center gap-2";
+        btnDelete.onclick = () => { state.isDeleteMode = !state.isDeleteMode; btnDelete.className = state.isDeleteMode ? "px-4 py-3 rounded-xl font-bold text-sm bg-red-500 text-white transition-all flex items-center gap-2 border-2 border-transparent" : "px-4 py-3 rounded-xl font-bold text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center gap-2 border-2 border-transparent"; };
+
+        const btnPaint = document.getElementById('mode-paint');
+        btnPaint.onclick = () => { 
+            state.isPaintMode = !state.isPaintMode; 
+            btnPaint.className = state.isPaintMode ? "mobile-only px-4 py-3 rounded-xl font-bold text-sm bg-indigo-500 text-white transition-all flex items-center gap-2 border-2 border-transparent" : "mobile-only px-4 py-3 rounded-xl font-bold text-sm bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-all flex items-center gap-2 border-2 border-transparent"; 
+            controls1.enabled = !state.isPaintMode;
         };
 
         function updateRollOvers() {
             const c1 = state.activePowerup[1] === 'mega' ? 0x0000ff : BLOCK_TYPES[state.currentMatIndex].color;
-            updateRollOverShape(worlds[1], state.currentShape, false, c1);
+            updateRollOverShape(worlds[1], state.currentShape, false, c1, state.rotations[1]);
             const c2 = state.activePowerup[2] === 'mega' ? 0x0000ff : BLOCK_TYPES[state.currentMatIndex].color;
-            updateRollOverShape(worlds[2], state.currentShape, true, c2);
+            updateRollOverShape(worlds[2], state.currentShape, true, c2, state.rotations[2]);
         }
 
         function setMaterial(index) {
             if (index < 0 || index >= BLOCK_TYPES.length) return;
-            state.currentMatIndex = index;
-            state.isDeleteMode = false; 
-            btnDelete.className = "px-4 py-3 rounded-xl font-bold text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center gap-2";
-            
+            state.currentMatIndex = index; state.isDeleteMode = false; btnDelete.className = "px-4 py-3 rounded-xl font-bold text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center gap-2 border-2 border-transparent";
             updateRollOvers();
-            
-            Array.from(document.getElementById('material-container').children).forEach((c, i) => {
-                c.className = `group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all w-16 flex-shrink-0 ${i === index ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-slate-100'}`;
-                c.querySelector('span').className = `text-[10px] font-semibold ${i === index ? 'text-blue-700' : 'text-slate-500'}`;
-            });
+            Array.from(document.getElementById('material-container').children).forEach((c, i) => { c.className = `group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all w-16 flex-shrink-0 ${i === index ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-slate-100'}`; c.querySelector('span').className = `text-[10px] font-semibold ${i === index ? 'text-blue-700' : 'text-slate-500'}`; });
         }
 
         function setShape(shapeId) {
@@ -802,14 +1121,11 @@
                 else b.classList.replace('border-blue-500', 'border-transparent');
             });
             updateRollOvers();
-            
-            // Dim material selector if a 'Thing' is selected because things have custom unchangeable colors
-            const isThing = ['door', 'tree', 'cat'].includes(shapeId);
+            const isThing = shapeId.startsWith('thing_');
             document.getElementById('material-container').style.opacity = isThing ? '0.4' : '1';
             document.getElementById('material-container').style.pointerEvents = isThing ? 'none' : 'auto';
         }
 
-        // UI Generators
         const matContainer = document.getElementById('material-container');
         BLOCK_TYPES.forEach((type, index) => {
             const btn = document.createElement('button');
@@ -818,158 +1134,6 @@
             btn.innerHTML = `<div class="w-8 h-8 rounded-lg shadow-inner mb-1 border border-black/10" style="background-color: #${type.color.toString(16).padStart(6, '0')}; ${type.transparent ? 'opacity: 0.7;' : ''}"></div><span class="text-[10px] font-semibold ${isActive ? 'text-blue-700' : 'text-slate-500'}">${type.name}</span>`;
             btn.onclick = () => setMaterial(index);
             matContainer.appendChild(btn);
-        });
-
-        document.querySelectorAll('.shape-btn').forEach(btn => {
-            btn.onclick = (e) => setShape(e.currentTarget.dataset.shape);
-        });
-
-        document.addEventListener('pointermove', handlePointerMove);
-        document.addEventListener('pointerdown', handlePointerDown);
-        document.addEventListener('pointerup', handlePointerUp);
-        document.addEventListener('contextmenu', e => e.preventDefault());
-
-        // Player 2 Keyboard Controller
-        function orbitCamera(cam, ctrl, angle) {
-            const offset = cam.position.clone().sub(ctrl.target);
-            offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-            cam.position.copy(ctrl.target).add(offset);
-            ctrl.update();
-        }
-
-        function zoomCamera(cam, ctrl, factor) {
-            const offset = cam.position.clone().sub(ctrl.target);
-            offset.multiplyScalar(factor);
-            if (offset.length() > ctrl.minDistance && offset.length() < ctrl.maxDistance) {
-                cam.position.copy(ctrl.target).add(offset);
-                ctrl.update();
-            }
-        }
-
-        document.addEventListener('keydown', (e) => {
-            p2Keys[e.code] = true;
-
-            // Intercept Shift to temporarily disable camera orbit for P1 speed building
-            if (e.key === 'Shift') controls1.enabled = false;
-
-            if (!state.isPlaying) return;
-
-            if (e.key >= '1' && e.key <= '6') {
-                setMaterial(parseInt(e.key) - 1);
-                return;
-            }
-            if (e.key === '7') setShape('box');
-            if (e.key === '8') setShape('sphere');
-            if (e.key === '9') setShape('cylinder');
-            if (e.key === '0') setShape('door');
-            if (e.key === '-') setShape('tree');
-            if (e.key === '=') setShape('cat');
-
-            if (state.players !== 2) return;
-            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-                e.preventDefault();
-            }
-
-            const camDir = new THREE.Vector3();
-            camera2.getWorldDirection(camDir);
-            camDir.y = 0;
-            camDir.normalize();
-            
-            const absX = Math.abs(camDir.x);
-            const absZ = Math.abs(camDir.z);
-            const forward = (absX > absZ) ? new THREE.Vector3(Math.sign(camDir.x), 0, 0) : new THREE.Vector3(0, 0, Math.sign(camDir.z));
-            const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
-            let moved = false;
-            const step = VOXEL_SIZE;
-            const w2 = worlds[2];
-
-            switch(e.code) {
-                case 'KeyW': p2CursorPos.add(forward.clone().multiplyScalar(step)); moved = true; break;
-                case 'KeyS': p2CursorPos.add(forward.clone().multiplyScalar(-step)); moved = true; break;
-                case 'KeyD': p2CursorPos.add(right.clone().multiplyScalar(step)); moved = true; break;
-                case 'KeyA': p2CursorPos.add(right.clone().multiplyScalar(-step)); moved = true; break;
-                case 'KeyE': p2CursorPos.y += step; moved = true; break;
-                case 'KeyQ': p2CursorPos.y -= step; moved = true; break;
-                
-                case 'Space': 
-                    const isSolid = w2.voxels.some(v => v.position.distanceTo(p2CursorPos) < 5);
-                    if (!isSolid) {
-                        if (state.activePowerup[2] === 'mega') {
-                            executeMega(p2CursorPos, w2, 2);
-                            clearPowerup(2);
-                        } else {
-                            placeBlock(p2CursorPos, w2, 2);
-                        }
-                        Sounds.place();
-                    }
-                    break;
-                case 'KeyX':
-                case 'Backspace':
-                    const block = w2.voxels.find(v => v.position.distanceTo(p2CursorPos) < 5);
-                    if (block) {
-                        if (state.activePowerup[2] === 'bomb') executeBomb(p2CursorPos, w2, 2);
-                        else removeBlock(block, w2, 2);
-                        Sounds.delete();
-                        if (state.activePowerup[2] === 'bomb') clearPowerup(2);
-                    } else if (state.activePowerup[2] === 'bomb') {
-                        executeBomb(p2CursorPos, w2, 2);
-                        clearPowerup(2);
-                    }
-                    break;
-
-                case 'ArrowLeft': orbitCamera(camera2, controls2, 0.1); break;
-                case 'ArrowRight': orbitCamera(camera2, controls2, -0.1); break;
-                case 'ArrowUp': zoomCamera(camera2, controls2, 0.9); break;
-                case 'ArrowDown': zoomCamera(camera2, controls2, 1.1); break;
-            }
-
-            if (moved) {
-                if (p2CursorPos.y < VOXEL_SIZE/2) p2CursorPos.y = VOXEL_SIZE/2;
-                
-                const limit = GRID_SIZE / 2 - VOXEL_SIZE / 2;
-                p2CursorPos.x = Math.max(-limit, Math.min(limit, p2CursorPos.x));
-                p2CursorPos.z = Math.max(-limit, Math.min(limit, p2CursorPos.z));
-
-                w2.rollOver.position.copy(p2CursorPos);
-                
-                controls2.target.copy(p2CursorPos);
-                controls2.update();
-
-                const hit = w2.powerups.find(p => p.position.distanceTo(p2CursorPos) < VOXEL_SIZE * 1.5);
-                if (hit) collectPowerup(hit, w2, 2);
-
-                // Speed Building & Destroying Trigger Checks upon movement
-                if (p2Keys['Space']) {
-                    const checkSolid = w2.voxels.some(v => v.position.distanceTo(p2CursorPos) < 5);
-                    if (!checkSolid) {
-                        if (state.activePowerup[2] === 'mega') {
-                            executeMega(p2CursorPos, w2, 2);
-                            clearPowerup(2);
-                        } else {
-                            placeBlock(p2CursorPos, w2, 2);
-                        }
-                        Sounds.place();
-                    }
-                }
-                if (p2Keys['KeyX'] || p2Keys['Backspace']) {
-                    const targetBlock = w2.voxels.find(v => v.position.distanceTo(p2CursorPos) < 5);
-                    if (targetBlock) {
-                        if (state.activePowerup[2] === 'bomb') executeBomb(p2CursorPos, w2, 2);
-                        else removeBlock(targetBlock, w2, 2);
-                        Sounds.delete();
-                        if (state.activePowerup[2] === 'bomb') clearPowerup(2);
-                    }
-                }
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            p2Keys[e.code] = false;
-            if (e.key === 'Shift') {
-                controls1.enabled = true;
-                p1MouseDown = false; 
-            }
         });
 
         window.addEventListener('resize', () => {
@@ -982,52 +1146,194 @@
             }
         });
 
-        // --- RENDER LOOP ---
+        // --- RENDER & PHYSICS LOOP ---
+        let prevTime = performance.now();
         function animate() {
             requestAnimationFrame(animate);
+            const time = performance.now();
+            const delta = ( time - prevTime ) / 1000;
 
             if (state.isPlaying) {
-                [1, 2].forEach(p => {
-                    worlds[p].powerups.forEach(pow => {
-                        pow.rotation.y += 0.05; pow.rotation.x += 0.02;
-                        if (pow.position.y > VOXEL_SIZE) pow.position.y -= 2;
-                    });
-                });
+                // Gamepad Polling (1P Mode Only)
+                if (state.device === 'gamepad' && state.players === 1) {
+                    const gamepads = navigator.getGamepads();
+                    const gp = gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3]; 
+                    
+                    if (gp) {
+                        const now = performance.now();
+                        const w = worlds[1];
+                        let moved = false;
 
-                if (state.mode === 'blueprint' && !state.winner) {
-                    document.getElementById('bp-time').innerText = ((Date.now() - state.startTime)/1000).toFixed(1);
+                        // Movement (Left Stick & D-Pad Y)
+                        if (now - gpLastMove > 120) { 
+                            const camDir = new THREE.Vector3(); camera1.getWorldDirection(camDir); camDir.y = 0; camDir.normalize();
+                            const absX = Math.abs(camDir.x); const absZ = Math.abs(camDir.z);
+                            const forward = (absX > absZ) ? new THREE.Vector3(Math.sign(camDir.x), 0, 0) : new THREE.Vector3(0, 0, Math.sign(camDir.z));
+                            const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+                            // Axes 0 (LX), Axes 1 (LY)
+                            if (Math.abs(gp.axes[0]) > 0.5) { gpCursorPos.add(right.clone().multiplyScalar(gp.axes[0] > 0 ? VOXEL_SIZE : -VOXEL_SIZE)); moved = true; }
+                            if (Math.abs(gp.axes[1]) > 0.5) { gpCursorPos.add(forward.clone().multiplyScalar(gp.axes[1] > 0 ? -VOXEL_SIZE : VOXEL_SIZE)); moved = true; }
+                            
+                            // Buttons 12 (DPad Up), 13 (DPad Down)
+                            if (gp.buttons[12]?.pressed) { gpCursorPos.y += VOXEL_SIZE; moved = true; }
+                            if (gp.buttons[13]?.pressed) { gpCursorPos.y -= VOXEL_SIZE; moved = true; }
+                            
+                            if (moved) {
+                                gpLastMove = now;
+                                if (gpCursorPos.y < VOXEL_SIZE/2) gpCursorPos.y = VOXEL_SIZE/2;
+                                gpCursorPos.x = Math.max(-GRID_SIZE/2, Math.min(GRID_SIZE/2, gpCursorPos.x));
+                                gpCursorPos.z = Math.max(-GRID_SIZE/2, Math.min(GRID_SIZE/2, gpCursorPos.z));
+                                w.rollOver.position.copy(gpCursorPos);
+                                w.rollOver.visible = true;
+                                
+                                const hit = w.powerups.find(p => p.position.distanceTo(gpCursorPos) < VOXEL_SIZE * 1.5);
+                                if (hit) collectPowerup(hit, w, 1);
+                            }
+                        }
+
+                        // Camera Orbit (Right Stick)
+                        if (Math.abs(gp.axes[2]) > 0.2) {
+                            const o = camera1.position.clone().sub(controls1.target); o.applyAxisAngle(new THREE.Vector3(0,1,0), -gp.axes[2] * 0.05); camera1.position.copy(controls1.target).add(o); controls1.update();
+                        }
+                        if (Math.abs(gp.axes[3]) > 0.2) {
+                            const z = camera1.position.clone().sub(controls1.target); z.multiplyScalar(gp.axes[3] > 0 ? 1.03 : 0.97); 
+                            if(z.length()>controls1.minDistance && z.length()<controls1.maxDistance) {camera1.position.copy(controls1.target).add(z); controls1.update();}
+                        }
+
+                        // Buttons (Debounced)
+                        // A Button (0) - Place
+                        if (gp.buttons[0]?.pressed && !gpButtons[0]) {
+                            gpButtons[0] = true;
+                            if (state.walkMode) {
+                                document.dispatchEvent(new MouseEvent('click')); // Trigger interaction
+                            } else if (!w.voxels.some(v => v.position.distanceTo(gpCursorPos) < 5)) {
+                                state.activePowerup[1] === 'mega' ? (executeMega(gpCursorPos, w, 1), clearPowerup(1)) : placeBlock(gpCursorPos, w, 1);
+                                Sounds.place();
+                            }
+                        } else if (!gp.buttons[0]?.pressed) gpButtons[0] = false;
+
+                        // B Button (1) - Delete
+                        if (gp.buttons[1]?.pressed && !gpButtons[1]) {
+                            gpButtons[1] = true;
+                            const block = w.voxels.find(v => v.position.distanceTo(gpCursorPos) < 5);
+                            if (block) {
+                                state.activePowerup[1] === 'bomb' ? (executeBomb(gpCursorPos, w, 1), clearPowerup(1)) : removeBlock(block, w, 1);
+                                Sounds.delete();
+                            } else if (state.activePowerup[1] === 'bomb') { executeBomb(gpCursorPos, w, 1); clearPowerup(1); }
+                        } else if (!gp.buttons[1]?.pressed) gpButtons[1] = false;
+
+                        // X Button (2) - Rotate
+                        if (gp.buttons[2]?.pressed && !gpButtons[2]) {
+                            gpButtons[2] = true;
+                            state.rotations[1] = (state.rotations[1] + Math.PI/2) % (Math.PI*2);
+                            updateRollOvers();
+                        } else if (!gp.buttons[2]?.pressed) gpButtons[2] = false;
+
+                        // Bumpers (4 LB, 5 RB) - Cycle Material
+                        if (gp.buttons[5]?.pressed && !gpButtons[5]) {
+                            gpButtons[5] = true; setMaterial((state.currentMatIndex + 1) % BLOCK_TYPES.length);
+                        } else if (!gp.buttons[5]?.pressed) gpButtons[5] = false;
+
+                        if (gp.buttons[4]?.pressed && !gpButtons[4]) {
+                            gpButtons[4] = true; setMaterial((state.currentMatIndex - 1 + BLOCK_TYPES.length) % BLOCK_TYPES.length);
+                        } else if (!gp.buttons[4]?.pressed) gpButtons[4] = false;
+                    }
                 }
 
-                if (state.players === 2) {
-                    const w = window.innerWidth, h = window.innerHeight;
-                    
-                    renderer.setViewport(0, 0, w/2, h);
-                    renderer.setScissor(0, 0, w/2, h);
-                    renderer.setScissorTest(true);
-                    controls1.update();
-                    renderer.render(worlds[1].scene, camera1);
+                [1, 2].forEach(p => {
+                    for (let i = worlds[p].powerups.length - 1; i >= 0; i--) {
+                        let pow = worlds[p].powerups[i];
+                        pow.rotation.y += 0.05; 
+                        pow.rotation.x += 0.02; 
+                        if (pow.position.y > VOXEL_SIZE) {
+                            pow.position.y -= 2; 
+                        } else {
+                            worlds[p].scene.remove(pow);
+                            const objIdx = worlds[p].objects.indexOf(pow);
+                            if (objIdx > -1) worlds[p].objects.splice(objIdx, 1);
+                            worlds[p].powerups.splice(i, 1);
+                        }
+                    }
+                });
+                if (state.mode === 'blueprint' && !state.winner) document.getElementById('bp-time').innerText = ((Date.now() - state.startTime)/1000).toFixed(1);
 
-                    renderer.setViewport(w/2, 0, w/2, h);
-                    renderer.setScissor(w/2, 0, w/2, h);
-                    renderer.setScissorTest(true);
-                    controls2.update();
-                    renderer.render(worlds[2].scene, camera2);
+                // First Person Physics Walk Mode (Player 1)
+                if (state.walkMode && fpControls.isLocked) {
+                    walkVelocity.x -= walkVelocity.x * 10.0 * delta;
+                    walkVelocity.z -= walkVelocity.z * 10.0 * delta;
+                    walkVelocity.y -= 9.8 * 100.0 * delta; // Gravity
+
+                    walkDirection.z = Number( walkKeys.w ) - Number( walkKeys.s );
+                    walkDirection.x = Number( walkKeys.d ) - Number( walkKeys.a );
+                    walkDirection.normalize(); 
+
+                    if ( walkKeys.w || walkKeys.s ) walkVelocity.z -= walkDirection.z * 1000.0 * delta;
+                    if ( walkKeys.a || walkKeys.d ) walkVelocity.x -= walkDirection.x * 1000.0 * delta;
+
+                    const curPos = camera1.position.clone();
+                    const newY = curPos.y + ( walkVelocity.y * delta );
+                    
+                    // Basic floor / Voxel collision logic
+                    let onObject = false;
+                    let steppedUp = false;
+
+                    // Approximate bounding check underneath player
+                    worlds[1].voxels.forEach(v => {
+                        const dx = Math.abs(curPos.x - v.position.x);
+                        const dz = Math.abs(curPos.z - v.position.z);
+                        if (dx < VOXEL_SIZE/2 + 10 && dz < VOXEL_SIZE/2 + 10) {
+                            // Check floor
+                            const top = v.position.y + VOXEL_SIZE/2;
+                            if (newY - 20 <= top && curPos.y - 20 >= top - 10) { 
+                                walkVelocity.y = Math.max( 0, walkVelocity.y );
+                                camera1.position.y = top + 20;
+                                onObject = true;
+                                canJump = true;
+                            }
+                            // Auto climb stairs
+                            if (v.userData.isStairs && walkDirection.length() > 0) {
+                                if (newY - 20 <= top && curPos.y - 20 < top) {
+                                    camera1.position.y = top + 20;
+                                    walkVelocity.y = 0;
+                                    onObject = true;
+                                    canJump = true;
+                                }
+                            }
+                        }
+                    });
+
+                    if ( !onObject ) {
+                        camera1.position.y = newY;
+                        if ( camera1.position.y < 20 ) { 
+                            walkVelocity.y = 0;
+                            camera1.position.y = 20;
+                            canJump = true;
+                        }
+                    }
+
+                    fpControls.moveRight( - walkVelocity.x * delta );
+                    fpControls.moveForward( - walkVelocity.z * delta );
+                }
+
+                if (!state.walkMode && state.players === 2) {
+                    const w = window.innerWidth, h = window.innerHeight;
+                    renderer.setViewport(0, 0, w/2, h); renderer.setScissor(0, 0, w/2, h); renderer.setScissorTest(true);
+                    controls1.update(); renderer.render(worlds[1].scene, camera1);
+                    renderer.setViewport(w/2, 0, w/2, h); renderer.setScissor(w/2, 0, w/2, h); renderer.setScissorTest(true);
+                    controls2.update(); renderer.render(worlds[2].scene, camera2);
                 } else {
-                    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                    renderer.setScissorTest(false);
-                    controls1.update();
+                    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight); renderer.setScissorTest(false);
+                    if(!state.walkMode) controls1.update();
                     renderer.render(worlds[1].scene, camera1);
                 }
             } else {
-                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                renderer.setScissorTest(false);
-                camera1.position.x = Math.sin(Date.now() * 0.0005) * 1000;
-                camera1.position.z = Math.cos(Date.now() * 0.0005) * 1000;
-                camera1.lookAt(0,0,0);
-                renderer.render(worlds[1].scene, camera1);
+                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight); renderer.setScissorTest(false);
+                camera1.position.x = Math.sin(time * 0.0005) * 1000; camera1.position.z = Math.cos(time * 0.0005) * 1000;
+                camera1.lookAt(0,0,0); renderer.render(worlds[1].scene, camera1);
             }
+            prevTime = time;
         }
-        
         animate(); 
     </script>
 </body>
