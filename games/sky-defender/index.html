@@ -29,6 +29,10 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
+        
+        /* Mobile Controls */
+        #joystickZone { touch-action: none; }
+        .active-mode { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.3) !important; }
     </style>
 </head>
 <body>
@@ -54,6 +58,12 @@
             
             <div id="gameOverStats" class="hidden text-xl text-white mb-6 text-center hud-text"></div>
 
+            <div class="flex flex-wrap justify-center gap-2 mb-6 z-10 pointer-events-auto">
+                <button id="selDesktop" class="active-mode px-4 py-2 bg-gray-800 text-white rounded-lg border-2 border-transparent hover:bg-gray-700 transition font-bold">🖥️ Desktop</button>
+                <button id="selGamepad" class="px-4 py-2 bg-gray-800 text-white rounded-lg border-2 border-transparent hover:bg-gray-700 transition font-bold">🎮 Gamepad</button>
+                <button id="selMobile" class="px-4 py-2 bg-gray-800 text-white rounded-lg border-2 border-transparent hover:bg-gray-700 transition font-bold">📱 Tablet/Phone</button>
+            </div>
+
             <div class="flex flex-col gap-4 w-64">
                 <button id="start1PBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold rounded shadow-[0_4px_0_rgb(37,99,235)] transform transition active:translate-y-1 active:shadow-none pointer-events-auto">1 PLAYER</button>
                 <button id="start2PBtn" class="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xl font-bold rounded shadow-[0_4px_0_rgb(22,163,74)] transform transition active:translate-y-1 active:shadow-none pointer-events-auto">2 PLAYERS</button>
@@ -77,23 +87,8 @@
                 <button id="closeInstBtn" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl font-bold">&times;</button>
                 <h2 class="text-3xl font-bold mb-6 text-center text-blue-300 border-b border-gray-600 pb-2">FLIGHT MANUAL</h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <h3 class="text-xl font-bold text-blue-400 mb-2">Player 1</h3>
-                        <ul class="space-y-1 text-gray-200">
-                            <li><strong class="text-white">Move:</strong> W, A, S, D (Matches Screen)</li>
-                            <li><strong class="text-white">Shoot:</strong> Left Shift</li>
-                            <li><strong class="text-white">Barrel Roll:</strong> Q (Left) / E (Right)</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-bold text-green-400 mb-2">Player 2</h3>
-                        <ul class="space-y-1 text-gray-200">
-                            <li><strong class="text-white">Move:</strong> Arrow Keys (Matches Screen)</li>
-                            <li><strong class="text-white">Shoot:</strong> Right Shift</li>
-                            <li><strong class="text-white">Barrel Roll:</strong> ; (Left) / ' (Right)</li>
-                        </ul>
-                    </div>
+                <div id="dynamicInstructions" class="mb-6">
+                    <!-- Injected by JS based on selected mode -->
                 </div>
 
                 <h3 class="text-xl font-bold text-yellow-400 mb-2 border-t border-gray-600 pt-4">Mechanics & Power-ups</h3>
@@ -106,6 +101,25 @@
                 </ul>
             </div>
         </div>
+
+        <!-- Mobile Controls (Hidden by default) -->
+        <div id="mobileControls" class="hidden absolute inset-0 pointer-events-none z-10">
+            <div id="joystickZone" class="absolute bottom-8 left-8 w-32 h-32 bg-white bg-opacity-20 rounded-full pointer-events-auto border-2 border-white border-opacity-30">
+                <div id="joystickKnob" class="absolute top-10 left-10 w-12 h-12 bg-white bg-opacity-70 rounded-full shadow-lg transform transition-transform duration-75"></div>
+            </div>
+            <div class="absolute bottom-8 right-8 flex items-end gap-2 sm:gap-4 pointer-events-auto">
+                <button id="btnRollL" class="w-14 h-14 sm:w-16 sm:h-16 bg-blue-600 bg-opacity-60 text-white rounded-full font-bold text-sm shadow-lg active:bg-opacity-80 transition-colors">Roll L</button>
+                <button id="btnShoot" class="w-20 h-20 sm:w-24 sm:h-24 bg-red-600 bg-opacity-60 text-white rounded-full font-bold text-xl sm:text-2xl shadow-lg active:bg-opacity-80 transition-colors">FIRE</button>
+                <button id="btnRollR" class="w-14 h-14 sm:w-16 sm:h-16 bg-blue-600 bg-opacity-60 text-white rounded-full font-bold text-sm shadow-lg active:bg-opacity-80 transition-colors">Roll R</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orientation Warning Overlay -->
+    <div id="orientationWarning" class="hidden absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center text-white p-8 text-center pointer-events-auto">
+        <svg class="w-24 h-24 mb-6 text-blue-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        <h2 class="text-3xl font-bold mb-4">Rotate Device</h2>
+        <p class="text-xl max-w-md text-gray-300">This game must be played in horizontal (landscape) mode so you can properly spot approaching enemies.<br><br>Please turn your tablet or phone sideways.</p>
     </div>
 
 <script>
@@ -151,11 +165,27 @@
         btnPauseInst: document.getElementById('pauseInstBtn'),
         btnResume: document.getElementById('resumeBtn'),
         btnQuit: document.getElementById('quitBtn'),
-        btnCloseInst: document.getElementById('closeInstBtn')
+        btnCloseInst: document.getElementById('closeInstBtn'),
+        
+        // New elements
+        dynamicInstructions: document.getElementById('dynamicInstructions'),
+        selDesktop: document.getElementById('selDesktop'),
+        selGamepad: document.getElementById('selGamepad'),
+        selMobile: document.getElementById('selMobile'),
+        mobileControls: document.getElementById('mobileControls'),
+        orientationWarning: document.getElementById('orientationWarning'),
+        btnStart2P: document.getElementById('start2PBtn')
     };
 
-    // --- INPUT ---
+    // --- INPUT & DEVICE STATE ---
     const keys = {};
+    let currentMode = 'desktop'; // 'desktop', 'gamepad', 'mobile'
+    
+    // Virtual Joystick State
+    const touchState = { active: false, x: 0, y: 0 };
+    let touchFiring = false;
+    let touchRollL = false;
+    let touchRollR = false;
 
     // --- MATERIALS (Daylight & Realistic) ---
     const matPlanePhysical = { metalness: 0.7, roughness: 0.3, clearcoat: 0.8 };
@@ -315,32 +345,62 @@
             let dx = 0, dy = 0, isShooting = false;
             let wantsRollLeft = false, wantsRollRight = false;
             
-            if (this.playerNum === 1) {
-                if (keys.KeyW || keys.w) dy += this.speed; // Up
-                if (keys.KeyS || keys.s) dy -= this.speed; // Down
-                if (keys.KeyA || keys.a) dx += this.speed; // +X is visually Left
-                if (keys.KeyD || keys.d) dx -= this.speed; // -X is visually Right
-                if (keys.ShiftLeft) isShooting = true;
-                if (keys.KeyQ || keys.q) wantsRollLeft = true;
-                if (keys.KeyE || keys.e) wantsRollRight = true;
+            if (currentMode === 'gamepad') {
+                const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+                const gp = gamepads[this.playerNum - 1]; // P1 gets gp[0], P2 gets gp[1]
+                
+                if (gp) {
+                    // Left Stick
+                    if (Math.abs(gp.axes[1]) > 0.15) dy -= gp.axes[1] * this.speed; // Y axis (inverted pitch)
+                    if (Math.abs(gp.axes[0]) > 0.15) dx += gp.axes[0] * this.speed; // X axis
+                    
+                    // D-Pad Fallbacks
+                    if (gp.buttons[12]?.pressed) dy += this.speed;
+                    if (gp.buttons[13]?.pressed) dy -= this.speed;
+                    if (gp.buttons[14]?.pressed) dx += this.speed;
+                    if (gp.buttons[15]?.pressed) dx -= this.speed;
 
-                if (numPlayers === 1) {
+                    // Action Buttons (A/Trigger/X/B to shoot, Bumpers to roll)
+                    if (gp.buttons[0]?.pressed || gp.buttons[7]?.pressed || gp.buttons[2]?.pressed || gp.buttons[1]?.pressed) isShooting = true;
+                    if (gp.buttons[4]?.pressed) wantsRollLeft = true; // LB
+                    if (gp.buttons[5]?.pressed) wantsRollRight = true; // RB
+                }
+            } else if (currentMode === 'mobile' && this.playerNum === 1) {
+                // Mobile controls apply to Player 1
+                dx += touchState.x * this.speed;
+                dy += touchState.y * this.speed;
+                if (touchFiring) isShooting = true;
+                if (touchRollL) { wantsRollLeft = true; touchRollL = false; }
+                if (touchRollR) { wantsRollRight = true; touchRollR = false; }
+            } else {
+                // Keyboard fallback / Desktop mode
+                if (this.playerNum === 1) {
+                    if (keys.KeyW || keys.w) dy += this.speed; // Up
+                    if (keys.KeyS || keys.s) dy -= this.speed; // Down
+                    if (keys.KeyA || keys.a) dx += this.speed; // +X is visually Left
+                    if (keys.KeyD || keys.d) dx -= this.speed; // -X is visually Right
+                    if (keys.ShiftLeft || keys.Space) isShooting = true;
+                    if (keys.KeyQ || keys.q) wantsRollLeft = true;
+                    if (keys.KeyE || keys.e) wantsRollRight = true;
+
+                    if (numPlayers === 1) {
+                        if (keys.ArrowUp) dy += this.speed;
+                        if (keys.ArrowDown) dy -= this.speed;
+                        if (keys.ArrowLeft) dx += this.speed;
+                        if (keys.ArrowRight) dx -= this.speed;
+                        if (keys.ShiftRight || keys.Enter) isShooting = true;
+                        if (keys.Semicolon || keys[';']) wantsRollLeft = true;
+                        if (keys.Quote || keys["'"]) wantsRollRight = true;
+                    }
+                } else {
                     if (keys.ArrowUp) dy += this.speed;
                     if (keys.ArrowDown) dy -= this.speed;
                     if (keys.ArrowLeft) dx += this.speed;
                     if (keys.ArrowRight) dx -= this.speed;
-                    if (keys.ShiftRight) isShooting = true;
+                    if (keys.ShiftRight || keys.Enter) isShooting = true;
                     if (keys.Semicolon || keys[';']) wantsRollLeft = true;
                     if (keys.Quote || keys["'"]) wantsRollRight = true;
                 }
-            } else {
-                if (keys.ArrowUp) dy += this.speed;
-                if (keys.ArrowDown) dy -= this.speed;
-                if (keys.ArrowLeft) dx += this.speed;
-                if (keys.ArrowRight) dx -= this.speed;
-                if (keys.ShiftRight) isShooting = true;
-                if (keys.Semicolon || keys[';']) wantsRollLeft = true;
-                if (keys.Quote || keys["'"]) wantsRollRight = true;
             }
 
             // Handle Barrel Roll triggers
@@ -836,12 +896,91 @@
         }
     }
 
+    function updateInstructionsUI() {
+        if (currentMode === 'mobile') {
+            ui.dynamicInstructions.innerHTML = `
+                <div class="mb-4">
+                    <h3 class="text-xl font-bold text-blue-400 mb-2">Tablet / Phone Controls</h3>
+                    <ul class="space-y-1 text-gray-200">
+                        <li><strong class="text-white">Move:</strong> Use the virtual thumbstick on the bottom left.</li>
+                        <li><strong class="text-white">Shoot:</strong> Press the red FIRE button on the right.</li>
+                        <li><strong class="text-white">Barrel Roll:</strong> Tap the Roll L or Roll R buttons to dodge.</li>
+                        <li><strong class="text-white text-yellow-300">Orientation:</strong> Ensure your device is held horizontally!</li>
+                    </ul>
+                </div>`;
+        } else if (currentMode === 'gamepad') {
+            ui.dynamicInstructions.innerHTML = `
+                <div class="mb-4">
+                    <h3 class="text-xl font-bold text-blue-400 mb-2">Gamepad Controls</h3>
+                    <ul class="space-y-1 text-gray-200">
+                        <li><strong class="text-white">Move:</strong> Left Thumbstick or D-Pad.</li>
+                        <li><strong class="text-white">Shoot:</strong> A Button / Right Trigger (RT).</li>
+                        <li><strong class="text-white">Barrel Roll:</strong> Left Bumper (LB) / Right Bumper (RB).</li>
+                        <li><strong class="text-white">Pause:</strong> Start Button.</li>
+                        <li><strong class="text-white">Players:</strong> P1 uses Gamepad 1. P2 uses Gamepad 2.</li>
+                    </ul>
+                </div>`;
+        } else {
+            ui.dynamicInstructions.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-blue-400 mb-2">Player 1</h3>
+                        <ul class="space-y-1 text-gray-200">
+                            <li><strong class="text-white">Move:</strong> W, A, S, D (Matches Screen)</li>
+                            <li><strong class="text-white">Shoot:</strong> Left Shift / Spacebar</li>
+                            <li><strong class="text-white">Barrel Roll:</strong> Q (Left) / E (Right)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-green-400 mb-2">Player 2</h3>
+                        <ul class="space-y-1 text-gray-200">
+                            <li><strong class="text-white">Move:</strong> Arrow Keys (Matches Screen)</li>
+                            <li><strong class="text-white">Shoot:</strong> Right Shift / Enter</li>
+                            <li><strong class="text-white">Barrel Roll:</strong> ; (Left) / ' (Right)</li>
+                        </ul>
+                    </div>
+                </div>`;
+        }
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        [ui.selDesktop, ui.selGamepad, ui.selMobile].forEach(btn => btn.classList.remove('active-mode', 'border-blue-500'));
+        if (mode === 'desktop') ui.selDesktop.classList.add('active-mode', 'border-blue-500');
+        if (mode === 'gamepad') ui.selGamepad.classList.add('active-mode', 'border-blue-500');
+        if (mode === 'mobile') ui.selMobile.classList.add('active-mode', 'border-blue-500');
+        
+        // Hide 2P button on mobile (Screen is too small to share controls)
+        ui.btnStart2P.style.display = (mode === 'mobile') ? 'none' : 'block';
+        
+        updateInstructionsUI();
+        checkOrientation();
+    }
+
+    function checkOrientation() {
+        if (currentMode === 'mobile' && window.innerHeight > window.innerWidth) {
+            ui.orientationWarning.classList.remove('hidden');
+        } else {
+            ui.orientationWarning.classList.add('hidden');
+        }
+    }
+
     function showInstructions() { ui.instructions.classList.remove('hidden'); }
     function hideInstructions() { ui.instructions.classList.add('hidden'); }
 
     function startGame(selectedPlayers) {
         [ui.btnStart1P, ui.btnStart2P, ui.btnMenuInst, ui.btnPauseInst, ui.btnResume, ui.btnQuit].forEach(b => b.blur());
         clearGameEntities();
+
+        if (currentMode === 'mobile') {
+            ui.mobileControls.classList.remove('hidden');
+            // Try to force fullscreen on mobile
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+        } else {
+            ui.mobileControls.classList.add('hidden');
+        }
 
         numPlayers = selectedPlayers || 1;
         players.push(new Player3D(1));
@@ -862,22 +1001,37 @@
         clearGameEntities();
         ui.pause.classList.add('hidden');
         ui.instructions.classList.add('hidden');
+        ui.mobileControls.classList.add('hidden');
         ui.center.classList.remove('opacity-0', 'pointer-events-none');
         ui.title.innerText = "SKY DEFENDER";
         ui.gameOverStats.classList.add('hidden');
+        
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(()=>{});
+        }
     }
 
     function gameOver() {
         isPlaying = false;
         setTimeout(() => {
+            ui.mobileControls.classList.add('hidden');
             ui.title.innerText = "MISSION FAILED";
             ui.gameOverStats.innerHTML = `Final Score: <span class="text-yellow-400 font-bold">${score}</span>`;
             ui.gameOverStats.classList.remove('hidden');
             ui.center.classList.remove('opacity-0', 'pointer-events-none');
+            
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(()=>{});
+            }
         }, 2000);
     }
 
     // --- EVENT LISTENERS ---
+    window.addEventListener('resize', () => {
+        onWindowResize();
+        checkOrientation();
+    }, false);
+
     window.addEventListener('keydown', (e) => {
         if (e.code) keys[e.code] = true;
         if (e.key) keys[e.key] = true;
@@ -907,9 +1061,81 @@
     ui.btnResume.addEventListener('click', togglePause);
     ui.btnQuit.addEventListener('click', quitToMenu);
 
+    ui.selDesktop.addEventListener('click', () => setMode('desktop'));
+    ui.selGamepad.addEventListener('click', () => setMode('gamepad'));
+    ui.selMobile.addEventListener('click', () => setMode('mobile'));
+
+    // Mobile Virtual Controls setup
+    const jZone = document.getElementById('joystickZone');
+    const jKnob = document.getElementById('joystickKnob');
+
+    function updateJoystick(e) {
+        const touch = e.targetTouches[0];
+        const rect = jZone.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const maxDist = rect.width / 2;
+
+        let deltaX = touch.clientX - centerX;
+        let deltaY = touch.clientY - centerY;
+        const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (dist > maxDist) {
+            deltaX = (deltaX / dist) * maxDist;
+            deltaY = (deltaY / dist) * maxDist;
+        }
+
+        jKnob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        
+        // Normalize for speed (-1 to 1) and invert Y for pitch standard
+        touchState.x = deltaX / maxDist;
+        touchState.y = -(deltaY / maxDist);
+    }
+
+    jZone.addEventListener('touchstart', (e) => { e.preventDefault(); touchState.active = true; updateJoystick(e); }, {passive: false});
+    jZone.addEventListener('touchmove', (e) => { e.preventDefault(); updateJoystick(e); }, {passive: false});
+    jZone.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        touchState.active = false;
+        touchState.x = 0; touchState.y = 0;
+        jKnob.style.transform = `translate(0px, 0px)`;
+    }, {passive: false});
+
+    const btnShoot = document.getElementById('btnShoot');
+    btnShoot.addEventListener('touchstart', (e) => { e.preventDefault(); touchFiring = true; btnShoot.classList.add('bg-opacity-100'); });
+    btnShoot.addEventListener('touchend', (e) => { e.preventDefault(); touchFiring = false; btnShoot.classList.remove('bg-opacity-100'); });
+
+    const btnRollL = document.getElementById('btnRollL');
+    btnRollL.addEventListener('touchstart', (e) => { e.preventDefault(); touchRollL = true; btnRollL.classList.add('bg-opacity-100'); });
+    btnRollL.addEventListener('touchend', (e) => { e.preventDefault(); btnRollL.classList.remove('bg-opacity-100'); });
+
+    const btnRollR = document.getElementById('btnRollR');
+    btnRollR.addEventListener('touchstart', (e) => { e.preventDefault(); touchRollR = true; btnRollR.classList.add('bg-opacity-100'); });
+    btnRollR.addEventListener('touchend', (e) => { e.preventDefault(); btnRollR.classList.remove('bg-opacity-100'); });
+
+    // Gamepad connection listener (Auto-switches to Gamepad mode when connected)
+    window.addEventListener("gamepadconnected", (e) => {
+        if (currentMode !== 'gamepad') setMode('gamepad');
+    });
+
+    // Initialize default mode
+    setMode('desktop');
+
     // --- MAIN LOOP ---
     function animate() {
         requestAnimationFrame(animate);
+
+        // Gamepad pause button check (Start = button 9)
+        if (currentMode === 'gamepad' && isPlaying) {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const gp = gamepads[0]; // Check P1 gamepad for pause
+            if (gp && gp.buttons[9]?.pressed && !keys.gpPausePressed) {
+                keys.gpPausePressed = true;
+                togglePause();
+            } else if (gp && !gp.buttons[9]?.pressed) {
+                keys.gpPausePressed = false;
+            }
+        }
 
         // Always animate ground, buildings, and clouds slightly for life
         if (!isPaused) {
