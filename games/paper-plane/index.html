@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Paper Plane Extreme</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        body { overflow: hidden; background-color: #111; color: white; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
+        .screen { background: rgba(0, 0, 0, 0.85); border-radius: 15px; padding: 40px; text-align: center; pointer-events: auto; max-width: 400px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        
+        h1 { font-size: 2.5rem; margin-bottom: 10px; color: #4facfe; text-transform: uppercase; letter-spacing: 2px; }
+        h2 { font-size: 1.8rem; margin-bottom: 20px; color: #fff; }
+        p { margin-bottom: 20px; color: #ccc; line-height: 1.5; }
+        
+        .stat-box { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .stat-box span { font-weight: bold; color: #4facfe; font-size: 1.2rem; }
+        
+        button { background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%); color: #000; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin: 10px; width: 80%; text-transform: uppercase; pointer-events: auto; }
+        button:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); }
+        button:active { transform: scale(0.95); }
+        button.secondary { background: #333; color: white; }
+        button.secondary:hover { box-shadow: 0 5px 15px rgba(255,255,255,0.2); }
+        
+        #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: none; justify-content: space-between; pointer-events: none; z-index: 5; font-size: 1.2rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+        #pauseBtn { pointer-events: auto; background: rgba(0,0,0,0.5); color: white; border: 1px solid white; padding: 10px 20px; font-size: 1rem; width: auto; margin: 0; border-radius: 8px; }
+        
+        #levelUpMessage { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; font-weight: bold; color: #f9d423; text-shadow: 0 0 20px rgba(249, 212, 35, 0.8); opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 6; }
+        
+        .floating-text { position: absolute; color: #f9d423; font-size: 2rem; font-weight: bold; text-shadow: 0 0 10px #ff416c; pointer-events: none; animation: floatUp 1s ease-out forwards; z-index: 20; }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-50px) scale(1.5); opacity: 0; } }
+
+        /* Specific screen toggles */
+        #homeScreen, #instructionsScreen, #pauseScreen, #gameOverScreen { display: none; }
+        .active-screen { display: block !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Heads Up Display -->
+    <div id="hud">
+        <div>
+            <div>Score: <span id="scoreDisplay">0</span></div>
+            <div>Style: <span id="styleDisplay">0</span></div>
+            <div>Level: <span id="levelDisplay">1</span></div>
+        </div>
+        <button id="pauseBtn">PAUSE</button>
+    </div>
+
+    <!-- Level Up Notification -->
+    <div id="levelUpMessage">LEVEL UP!</div>
+
+    <!-- UI Overlay Layer -->
+    <div class="ui-layer">
+        
+        <!-- Home Screen -->
+        <div id="homeScreen" class="screen active-screen">
+            <h1>Paper Plane Extreme</h1>
+            <div class="stat-box">
+                High Score: <span id="homeHighScore">0.0</span>s
+            </div>
+            <button id="playBtn">Play Game</button>
+            <button id="instructionsBtn" class="secondary">Instructions</button>
+        </div>
+
+        <!-- Instructions Screen -->
+        <div id="instructionsScreen" class="screen">
+            <h2>How to Play</h2>
+            <p><strong>Mobile:</strong> Tilt your phone left/right to steer. Tilt forward/back to adjust altitude.</p>
+            <p><strong>Desktop:</strong> Use Arrow Keys or WASD to fly the plane.</p>
+            <p>Dodge the geometric students and fans in the hallway. Survive as long as you can!</p>
+            <button id="backBtn" class="secondary">Back</button>
+        </div>
+
+        <!-- Pause Screen -->
+        <div id="pauseScreen" class="screen">
+            <h2>Game Paused</h2>
+            <button id="resumeBtn">Resume</button>
+            <button id="quitBtn" class="secondary">Quit to Home</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="screen">
+            <h1 style="color: #ff416c;">CRASHED!</h1>
+            <p id="newHighScoreMsg" style="color: #f9d423; font-weight: bold; display: none;">New High Score!</p>
+            <div class="stat-box">
+                Total Score: <span id="finalScore">0</span><br>
+                Level Reached: <span id="finalLevel">1</span>
+            </div>
+            <button id="restartBtn">Play Again</button>
+            <button id="homeBtn" class="secondary">Home Screen</button>
+        </div>
+
+    </div>
+
+    <!-- Three.js (Must be connected to internet for this CDN to load initially) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- GAME STATE ---
+        let gameState = 'HOME'; // HOME, PLAYING, PAUSED, GAMEOVER
+        let score = 0;
+        let highScore = parseFloat(localStorage.getItem('paperPlaneHighScore')) || 0;
+        let level = 1;
+        let baseSpeed = 30;
+        let currentSpeed = baseSpeed;
+        let timeInLevel = 0;
+        let nextLevelTime = 20; 
+        let isInvincible = false;
+        let invincibilityTimer = 0;
+        
+        // --- NEW STATE VARIABLES ---
+        let stylePoints = 0;
+        let velocity = new THREE.Vector3(0, 0, 0);
+        let isRolling = false;
+        let rollTimer = 0;
+        let rollDirection = 1;
+        let lastTap = { left: 0, right: 0 };
+        
+        // --- DOM ELEMENTS ---
+        const $ = id => document.getElementById(id);
+        const screens = {
+            home: $('homeScreen'),
+            instructions: $('instructionsScreen'),
+            pause: $('pauseScreen'),
+            gameOver: $('gameOverScreen')
+        };
+        const hud = $('hud');
+        
+        // --- AUDIO SYSTEM (Web Audio API) ---
+        let audioCtx;
+        let musicOscillator, musicGain, noiseNode, noiseGain;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playBoop() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playCrash() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playPowerUpSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+            osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playShieldDown() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function startWindSound() {
+            if (!audioCtx) return;
+            if (noiseNode) return;
+            
+            // Generate white noise buffer
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = buffer;
+            noiseNode.loop = true;
+            
+            // Filter noise to sound like wind
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+            
+            noiseGain = audioCtx.createGain();
+            noiseGain.gain.value = 0.5;
+            
+            noiseNode.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseNode.start();
+        }
+
+        function stopWindSound() {
+            if (noiseNode) {
+                noiseNode.stop();
+                noiseNode.disconnect();
+                noiseNode = null;
+            }
+        }
+
+        // --- PROCEDURAL TEXTURES (No External Files Needed) ---
+        
+        // Floor Tile Texture
+        const tileCanvas = document.createElement('canvas');
+        tileCanvas.width = 512; tileCanvas.height = 512;
+        const tCtx = tileCanvas.getContext('2d');
+        tCtx.fillStyle = '#b0b5b9'; tCtx.fillRect(0,0,512,512); // Base tile color
+        for(let i=0; i<4000; i++) { // Add linoleum speckles
+            tCtx.fillStyle = Math.random()>0.5 ? '#9aa0a6' : '#cdd1d5';
+            tCtx.fillRect(Math.random()*512, Math.random()*512, 3, 3);
+        }
+        tCtx.strokeStyle = '#80868b'; tCtx.lineWidth = 4; // Tile grout lines
+        tCtx.strokeRect(0,0,512,512);
+        const tileTex = new THREE.CanvasTexture(tileCanvas);
+        tileTex.wrapS = THREE.RepeatWrapping; tileTex.wrapT = THREE.RepeatWrapping;
+
+        // Locker Texture
+        const lockerCanvas = document.createElement('canvas');
+        lockerCanvas.width = 512; lockerCanvas.height = 512;
+        const lCtx = lockerCanvas.getContext('2d');
+        lCtx.fillStyle = '#2c3e50'; lCtx.fillRect(0,0,512,512); // Deep blue lockers
+        lCtx.strokeStyle = '#1a252f'; lCtx.lineWidth = 6;
+        for(let i=0; i<4; i++) {
+            let x = i * 128;
+            lCtx.strokeRect(x, 0, 128, 512); // Locker outline
+            lCtx.fillStyle = '#111'; // Vents
+            for(let v=0; v<6; v++) lCtx.fillRect(x + 20, 30 + v*8, 88, 4);
+            for(let v=0; v<6; v++) lCtx.fillRect(x + 20, 450 + v*8, 88, 4);
+            lCtx.fillStyle = '#bdc3c7'; // Lock & Handle
+            lCtx.fillRect(x + 90, 230, 8, 40);
+            lCtx.fillStyle = '#7f8c8d'; 
+            lCtx.fillRect(x + 92, 240, 4, 15); // handle indent
+        }
+        const lockerTex = new THREE.CanvasTexture(lockerCanvas);
+        lockerTex.wrapS = THREE.RepeatWrapping; lockerTex.wrapT = THREE.RepeatWrapping;
+
+        // Drop Ceiling Texture
+        const ceilCanvas = document.createElement('canvas');
+        ceilCanvas.width = 256; ceilCanvas.height = 256;
+        const cCtx = ceilCanvas.getContext('2d');
+        cCtx.fillStyle = '#eeeeee'; cCtx.fillRect(0,0,256,256); // Acoustic tile base
+        for(let i=0; i<2000; i++) {
+            cCtx.fillStyle = '#dddddd';
+            cCtx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
+        }
+        cCtx.strokeStyle = '#cccccc'; cCtx.lineWidth = 2;
+        cCtx.strokeRect(0,0,256,256);
+        const ceilTex = new THREE.CanvasTexture(ceilCanvas);
+        ceilTex.wrapS = THREE.RepeatWrapping; ceilTex.wrapT = THREE.RepeatWrapping;
+
+        // --- THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x1a1a24, 10, 80); // Realistic depth fog
+        scene.background = new THREE.Color(0x1a1a24);
+        
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 150);
+        camera.position.set(0, 1.5, 4);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // High res
+        renderer.shadowMap.enabled = true; // Enable shadows
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+        
+        const playerLight = new THREE.PointLight(0xffffff, 0.6, 20); // Bounce light
+        playerLight.position.set(0, 3, 5);
+        scene.add(playerLight);
+
+        // --- GAME OBJECTS ---
+        
+        // 1. Realistic Folded Paper Plane
+        const planeGeo = new THREE.BufferGeometry();
+        const v = new Float32Array([
+            // Left Wing (Nose, Back Left, Back Center)
+            0, 0, -1.5,    -0.8, 0.2, 1,    0, -0.3, 1,
+            // Right Wing (Nose, Back Center, Back Right)
+            0, 0, -1.5,    0, -0.3, 1,      0.8, 0.2, 1,
+            // Left inner vertical fold
+            0, 0, -1.5,    0, 0.4, 1,       -0.1, 0.2, 1,
+            // Right inner vertical fold
+            0, 0, -1.5,    0.1, 0.2, 1,     0, 0.4, 1
+        ]);
+        planeGeo.setAttribute('position', new THREE.BufferAttribute(v, 3));
+        planeGeo.computeVertexNormals();
+        const planeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff, roughness: 0.8, metalness: 0.1, side: THREE.DoubleSide
+        });
+        const player = new THREE.Mesh(planeGeo, planeMaterial);
+        player.castShadow = true;
+        scene.add(player);
+        const playerBox = new THREE.Box3();
+
+        // 2. Realistic Hallway Environment (Treadmill Segments)
+        const hallwayGroup = new THREE.Group();
+        scene.add(hallwayGroup);
+        const segments = [];
+        const segmentLength = 30;
+        const numSegments = 4;
+        const hallwayWidth = 14;
+        const hallwayHeight = 7;
+
+        // Segment Materials
+        const tileTexClone = tileTex.clone(); tileTexClone.repeat.set(hallwayWidth/2, segmentLength/2); tileTexClone.needsUpdate = true;
+        const floorMat = new THREE.MeshStandardMaterial({ map: tileTexClone, roughness: 0.2, metalness: 0.1 });
+        const lockerTexClone = lockerTex.clone(); lockerTexClone.repeat.set(segmentLength/4, 1); lockerTexClone.needsUpdate = true;
+        const wallMat = new THREE.MeshStandardMaterial({ map: lockerTexClone, roughness: 0.7 });
+        const ceilTexClone = ceilTex.clone(); ceilTexClone.repeat.set(hallwayWidth/2, segmentLength/2); ceilTexClone.needsUpdate = true;
+        const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTexClone, roughness: 0.9 });
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Fluorescent lights
+
+        // Build Infinite Hallway Segments
+        for(let i=0; i<numSegments; i++) {
+            const seg = new THREE.Group();
+            
+            // Floor
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(hallwayWidth, segmentLength), floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -hallwayHeight/2;
+            floor.receiveShadow = true;
+            seg.add(floor);
+
+            // Ceiling
+            const ceil = new THREE.Mesh(new THREE.PlaneGeometry(hallwayWidth, segmentLength), ceilMat);
+            ceil.rotation.x = Math.PI / 2;
+            ceil.position.y = hallwayHeight/2;
+            seg.add(ceil);
+
+            // Fluorescent Lights (every 10 units)
+            for(let j=0; j<3; j++) {
+                const lightFixture = new THREE.Mesh(new THREE.PlaneGeometry(3, 1), lightMat);
+                lightFixture.rotation.x = Math.PI / 2;
+                lightFixture.position.set(0, hallwayHeight/2 - 0.01, (j*10) - segmentLength/2 + 5);
+                seg.add(lightFixture);
+                // Actual light source that casts shadows
+                const ptLight = new THREE.PointLight(0xffffff, 0.4, 30);
+                ptLight.position.copy(lightFixture.position);
+                ptLight.position.y -= 0.5;
+                ptLight.castShadow = true;
+                seg.add(ptLight);
+            }
+
+            // Left Wall (Lockers)
+            const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMat);
+            leftWall.rotation.y = Math.PI / 2;
+            leftWall.position.set(-hallwayWidth/2, 0, 0);
+            leftWall.receiveShadow = true;
+            seg.add(leftWall);
+
+            // Right Wall (Lockers)
+            const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMat);
+            rightWall.rotation.y = -Math.PI / 2;
+            rightWall.position.set(hallwayWidth/2, 0, 0);
+            rightWall.receiveShadow = true;
+            seg.add(rightWall);
+
+            seg.position.z = -i * segmentLength;
+            hallwayGroup.add(seg);
+            segments.push(seg);
+        }
+
+        // 3. Obstacles (Realistic Students & Fans)
+        let obstacles = [];
+        let obstacleTimer = 0;
+
+        function createStudent() {
+            const student = new THREE.Group();
+            // Random colors for variety
+            const skinColors = [0x8d5524, 0xc68642, 0xe0ac69, 0xf1c27d, 0xffdbac];
+            const shirtColors = [0xff3366, 0x3366ff, 0x33cc66, 0xffcc00, 0x9933cc];
+            const skin = skinColors[Math.floor(Math.random() * skinColors.length)];
+            const shirt = shirtColors[Math.floor(Math.random() * shirtColors.length)];
+
+            const skinMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.6 });
+            const shirtMat = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.8 });
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), skinMat);
+            head.position.y = 2.8;
+            head.castShadow = true;
+            student.add(head);
+
+            // Torso
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.5, 0.6), shirtMat);
+            torso.position.y = 1.6;
+            torso.castShadow = true;
+            student.add(torso);
+
+            // Legs (Animated in loop)
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.5), pantsMat);
+            leftLeg.position.set(-0.35, 0.8, 0);
+            leftLeg.castShadow = true;
+            student.add(leftLeg);
+            
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.5), pantsMat);
+            rightLeg.position.set(0.35, 0.8, 0);
+            rightLeg.castShadow = true;
+            student.add(rightLeg);
+
+            // Arms (Animated in loop)
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.4, 0.4), skinMat);
+            leftArm.position.set(-0.8, 1.6, 0);
+            leftArm.castShadow = true;
+            student.add(leftArm);
+            
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.4, 0.4), skinMat);
+            rightArm.position.set(0.8, 1.6, 0);
+            rightArm.castShadow = true;
+            student.add(rightArm);
+
+            // Shift entire group so (0,0,0) is at their feet
+            student.position.y = -hallwayHeight/2;
+            student.userData = { type: 'student', leftLeg, rightLeg, leftArm, rightArm, walkOffset: Math.random() * Math.PI * 2 };
+            return student;
+        }
+
+        function createFan() {
+            const fan = new THREE.Group();
+            const metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+
+            // Base
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.2, 16), darkMat);
+            base.position.y = 0.1;
+            base.castShadow = true;
+            fan.add(base);
+
+            // Pole
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3, 8), metalMat);
+            pole.position.y = 1.5;
+            pole.castShadow = true;
+            fan.add(pole);
+
+            // Motor housing
+            const motor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1), darkMat);
+            motor.position.y = 3;
+            motor.castShadow = true;
+            fan.add(motor);
+
+            // Blades (Animated in loop)
+            const bladeGroup = new THREE.Group();
+            const bladeGeo = new THREE.PlaneGeometry(0.5, 2);
+            for(let i=0; i<4; i++) {
+                const blade = new THREE.Mesh(bladeGeo, metalMat);
+                blade.rotation.z = (Math.PI / 2) * i;
+                blade.position.set(Math.cos(blade.rotation.z)*1, Math.sin(blade.rotation.z)*1, 0);
+                bladeGroup.add(blade);
+            }
+            bladeGroup.position.set(0, 3, 0.6);
+            fan.add(bladeGroup);
+            
+            // Wire Cage
+            const cage = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.05, 8, 32), metalMat);
+            cage.position.set(0, 3, 0.6);
+            cage.castShadow = true;
+            fan.add(cage);
+
+            fan.position.y = -hallwayHeight/2;
+            fan.userData = { type: 'fan', bladeGroup };
+            return fan;
+        }
+
+        function createProjector() {
+            const proj = new THREE.Group();
+            const metalMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+            const lensMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x4488ff, emissiveIntensity: 0.5 });
+
+            // Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 1.8), metalMat);
+            body.position.y = 0.3;
+            body.castShadow = true;
+            proj.add(body);
+
+            // Lens
+            const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16), lensMat);
+            lens.rotation.x = Math.PI / 2;
+            lens.position.set(0, 0.3, 0.9);
+            proj.add(lens);
+
+            // Mount (goes up to the ceiling)
+            const mount = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.4, 8), darkMat);
+            mount.position.y = 1.3;
+            mount.castShadow = true;
+            proj.add(mount);
+
+            // Set base position to the ceiling minus the height of the projector mount
+            proj.position.y = hallwayHeight / 2 - 2.0; 
+            proj.userData = { type: 'projector' };
+            return proj;
+        }
+
+        function createPowerUp() {
+            const pGroup = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.6, wireframe: false });
+            
+            // Core
+            const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), mat);
+            core.position.y = 0.5; // Offset so bottom is at 0
+            
+            // Outer ring
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 8, 16), mat);
+            ring.position.y = 0.5;
+            ring.rotation.x = Math.PI / 2;
+            
+            pGroup.add(core, ring);
+            
+            // Randomly position Y anywhere between the floor and ceiling
+            pGroup.position.y = (Math.random() * (hallwayHeight - 2)) - (hallwayHeight / 2) + 0.5;
+            pGroup.userData = { type: 'powerup', isPowerUp: true, core: core, ring: ring };
+            return pGroup;
+        }
+
+        function createObstacle() {
+            const rand = Math.random();
+            let mesh;
+            
+            if (rand < 0.35) {
+                mesh = createStudent();
+                mesh.userData.boxSize = new THREE.Vector3(1.6, 3.6, 1.2);
+            } else if (rand < 0.70) {
+                mesh = createFan();
+                mesh.userData.boxSize = new THREE.Vector3(3.2, 4.6, 1.2);
+            } else if (rand < 0.90) {
+                mesh = createProjector();
+                mesh.userData.boxSize = new THREE.Vector3(1.6, 2.0, 1.8);
+            } else {
+                mesh = createPowerUp();
+                mesh.userData.boxSize = new THREE.Vector3(1.4, 1.4, 1.4);
+            }
+
+            mesh.userData.box = new THREE.Box3();
+            // Random X position avoiding walls
+            mesh.position.x = (Math.random() * (hallwayWidth - 4)) - ((hallwayWidth - 4) / 2);
+            mesh.position.z = -100; // Spawn far ahead out of sight
+            
+            scene.add(mesh);
+            obstacles.push(mesh);
+        }
+
+        function clearObstacles() {
+            obstacles.forEach(obs => scene.remove(obs));
+            obstacles = [];
+        }
+
+        // --- INPUT CONTROLS ---
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false, q: false, e: false };
+        let tilt = { x: 0, y: 0 }; 
+        let targetPos = new THREE.Vector3(0, 0, 0);
+
+        window.addEventListener('keydown', (e) => { 
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k) || keys.hasOwnProperty(e.key)) {
+                if (keys.hasOwnProperty(k)) keys[k] = true; 
+                if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+            }
+            if (k === 'q') triggerRoll(-1);
+            if (k === 'e') triggerRoll(1);
+        });
+        
+        window.addEventListener('keyup', (e) => { 
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k) || keys.hasOwnProperty(e.key)) {
+                if (keys.hasOwnProperty(k)) keys[k] = false;
+                if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+            }
+        });
+
+        // Mobile double tap for barrel roll
+        window.addEventListener('touchstart', (e) => {
+            if (gameState !== 'PLAYING') return;
+            const touchX = e.touches[0].clientX;
+            const now = performance.now();
+            if (touchX < window.innerWidth / 2) {
+                if (now - lastTap.left < 300) triggerRoll(-1);
+                lastTap.left = now;
+            } else {
+                if (now - lastTap.right < 300) triggerRoll(1);
+                lastTap.right = now;
+            }
+        });
+
+        function requestOrientationPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                        }
+                    }).catch(console.error);
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation);
+            }
+        }
+
+        function handleOrientation(event) {
+            if (gameState !== 'PLAYING') return;
+            let b = event.beta;
+            let g = event.gamma;
+            let pitch = (b - 45) / 30; 
+            let roll = g / 30;
+            tilt.y = -Math.max(-1, Math.min(1, pitch)); 
+            tilt.x = Math.max(-1, Math.min(1, roll));
+        }
+
+        // --- GAME LOGIC ---
+        const clock = new THREE.Clock();
+
+        function showFloatingText(text, points) {
+            stylePoints += points;
+            $('styleDisplay').innerText = stylePoints;
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.innerText = text;
+            el.style.left = (Math.random() * 20 + 40) + '%';
+            el.style.top = (Math.random() * 20 + 30) + '%';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        function triggerRoll(dir) {
+            if (!isRolling && gameState === 'PLAYING') {
+                isRolling = true;
+                rollDirection = dir;
+                rollTimer = 0.6; // 0.6 seconds to complete the roll
+                playPowerUpSound(); 
+                showFloatingText("BARREL ROLL! +50", 50);
+            }
+        }
+
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.remove('active-screen'));
+            if (screenName !== 'HUD') {
+                screens[screenName].classList.add('active-screen');
+                hud.style.display = 'none';
+            } else {
+                hud.style.display = 'flex';
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            playBoop();
+            requestOrientationPermission();
+            
+            gameState = 'PLAYING';
+            score = 0;
+            stylePoints = 0;
+            $('styleDisplay').innerText = '0';
+            level = 1;
+            currentSpeed = baseSpeed;
+            timeInLevel = 0;
+            nextLevelTime = 20;
+            isInvincible = false;
+            invincibilityTimer = 0;
+            isRolling = false;
+            velocity.set(0, 0, 0);
+            player.material.emissive.setHex(0x000000);
+            player.position.set(0, 0, 0);
+            player.rotation.set(0, 0, 0);
+            targetPos.set(0, 0, 0);
+            
+            // Reset hallway segments
+            for(let i=0; i<numSegments; i++) {
+                segments[i].position.z = -i * segmentLength;
+            }
+
+            clearObstacles();
+            switchScreen('HUD');
+            startWindSound();
+            clock.start();
+        }
+
+        function pauseGame() {
+            playBoop();
+            gameState = 'PAUSED';
+            switchScreen('pause');
+            stopWindSound();
+        }
+
+        function resumeGame() {
+            playBoop();
+            gameState = 'PLAYING';
+            switchScreen('HUD');
+            startWindSound();
+            clock.start(); 
+        }
+
+        function gameOver() {
+            playCrash();
+            stopWindSound();
+            gameState = 'GAMEOVER';
+            
+            let totalScore = Math.floor(score * 10) + stylePoints;
+            let isNewHigh = false;
+            if (totalScore > highScore) {
+                highScore = totalScore;
+                localStorage.setItem('paperPlaneHighScore', highScore.toString());
+                isNewHigh = true;
+            }
+            
+            $('finalScore').innerText = totalScore;
+            $('finalLevel').innerText = level;
+            $('newHighScoreMsg').style.display = isNewHigh ? 'block' : 'none';
+            $('homeHighScore').innerText = highScore.toString();
+            
+            switchScreen('gameOver');
+        }
+
+        function levelUp() {
+            level++;
+            currentSpeed += 5; 
+            nextLevelTime += 5; 
+            timeInLevel = 0;
+            
+            const msg = $('levelUpMessage');
+            msg.style.opacity = 1;
+            setTimeout(() => { msg.style.opacity = 0; }, 2000);
+            
+            if (noiseGain) noiseGain.gain.value = Math.min(1.0, 0.5 + (level * 0.05));
+        }
+
+        // --- MAIN ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameState === 'PLAYING') {
+                const dt = Math.min(clock.getDelta(), 0.1); // Cap delta to prevent huge jumps on lag
+                const time = clock.getElapsedTime();
+                
+                // 1. Update Time & Score
+                score += dt;
+                timeInLevel += dt;
+                $('scoreDisplay').innerText = Math.floor(score * 10);
+                $('levelDisplay').innerText = level;
+                
+                if (timeInLevel >= nextLevelTime) levelUp();
+
+                if (isInvincible) {
+                    invincibilityTimer -= dt;
+                    player.material.emissive.setHex(0x00ffff);
+                    player.material.emissiveIntensity = 0.5 + Math.sin(time * 15) * 0.5;
+                    if (invincibilityTimer <= 0) {
+                        isInvincible = false;
+                        player.material.emissive.setHex(0x000000);
+                        playShieldDown();
+                    }
+                }
+
+                // Handle Barrel Roll state
+                if (isRolling) {
+                    rollTimer -= dt;
+                    if (rollTimer <= 0) {
+                        isRolling = false;
+                    }
+                }
+
+                // 2. Player Input Handling (Now with Momentum for higher difficulty)
+                const accel = 60;
+                const friction = 3.5;
+                let inputX = 0;
+                let inputY = 0;
+
+                if (keys.a || keys.ArrowLeft) inputX = -1;
+                if (keys.d || keys.ArrowRight) inputX = 1;
+                if (keys.w || keys.ArrowUp) inputY = 1;
+                if (keys.s || keys.ArrowDown) inputY = -1;
+
+                if (Math.abs(tilt.x) > 0.1 || Math.abs(tilt.y) > 0.1) {
+                    inputX = tilt.x;
+                    inputY = tilt.y;
+                }
+
+                // Apply inertia
+                velocity.x += inputX * accel * dt;
+                velocity.y += inputY * accel * dt;
+                velocity.x -= velocity.x * friction * dt;
+                velocity.y -= velocity.y * friction * dt;
+
+                targetPos.x += velocity.x * dt;
+                targetPos.y += velocity.y * dt;
+
+                // Clamp to realistic hallway bounds
+                targetPos.x = Math.max(-hallwayWidth/2 + 1, Math.min(hallwayWidth/2 - 1, targetPos.x));
+                targetPos.y = Math.max(-hallwayHeight/2 + 0.5, Math.min(hallwayHeight/2 - 1.5, targetPos.y));
+
+                player.position.lerp(targetPos, 0.2);
+
+                // Add slight bobbing to plane
+                player.position.y += Math.sin(time * 10) * 0.02;
+
+                // Bank & Pitch animations
+                let targetBank = -inputX * 0.8;
+                if (isRolling) {
+                    // Force complete 360 rotation visually during roll
+                    targetBank -= rollDirection * (Math.PI * 2 * (rollTimer / 0.6));
+                }
+                player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, targetBank, 0.2);
+                player.rotation.x = THREE.MathUtils.lerp(player.rotation.x, inputY * 0.3, 0.2);
+
+                // Smooth Camera Follow (Fixes going out of bounds)
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, player.position.x * 0.6, 0.05);
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, player.position.y * 0.5 + 2.0, 0.05);
+                camera.lookAt(player.position.x * 0.3, player.position.y * 0.3, player.position.z - 10);
+
+                // Dynamic light follow
+                playerLight.position.x = player.position.x;
+                playerLight.position.y = player.position.y + 1;
+
+                // 3. Move Environment (Treadmill effect)
+                for(let i=0; i<numSegments; i++) {
+                    segments[i].position.z += currentSpeed * dt;
+                    // If segment goes behind camera, wrap to front of the hallway
+                    if (segments[i].position.z > segmentLength) {
+                        let minZ = 0;
+                        segments.forEach(s => { if(s.position.z < minZ) minZ = s.position.z; });
+                        segments[i].position.z = minZ - segmentLength;
+                    }
+                }
+
+                // 4. Obstacle Logic
+                obstacleTimer += dt;
+                const spawnRate = Math.max(0.3, 1.5 - (level * 0.1)); 
+                if (obstacleTimer >= spawnRate) {
+                    createObstacle();
+                    obstacleTimer = 0;
+                }
+
+                // Update player bounding box & shrink slightly to make it forgiving
+                playerBox.setFromObject(player);
+                if (isRolling) {
+                    playerBox.expandByScalar(-0.6); // Much smaller hitbox during roll
+                } else {
+                    playerBox.expandByScalar(-0.2);
+                }
+
+                // Create a slightly larger box for near-miss detection
+                const nearMissBox = playerBox.clone().expandByScalar(1.5);
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obs = obstacles[i];
+                    obs.position.z += currentSpeed * dt; 
+                    
+                    // Specific Object Animations
+                    if (obs.userData.type === 'student') {
+                        // Swing legs and arms walking
+                        const wTime = time * 8 + obs.userData.walkOffset;
+                        obs.userData.leftLeg.rotation.x = Math.sin(wTime) * 0.5;
+                        obs.userData.rightLeg.rotation.x = Math.sin(wTime + Math.PI) * 0.5;
+                        obs.userData.leftArm.rotation.x = Math.sin(wTime + Math.PI) * 0.3;
+                        obs.userData.rightArm.rotation.x = Math.sin(wTime) * 0.3;
+                    } else if (obs.userData.type === 'fan') {
+                        // Spin fan blades rapidly
+                        obs.userData.bladeGroup.rotation.z += 15 * dt;
+                        
+                        // Fan Wind Effect (Blow airplane away based on proximity)
+                        const dx = player.position.x - obs.position.x;
+                        const dy = player.position.y - obs.position.y;
+                        const dz = player.position.z - obs.position.z;
+                        const distSq = dx*dx + dy*dy + dz*dz;
+                        
+                        if (distSq < 40 && dz < 0) { // If close and in front of the fan
+                            const dist = Math.sqrt(distSq);
+                            const windForce = (1 - dist / 6.32) * 50 * dt; // Turbulence intensity
+                            velocity.x += (dx / dist) * windForce; 
+                            velocity.y += (dy / dist) * windForce;
+                        }
+                    } else if (obs.userData.type === 'powerup') {
+                        obs.userData.core.rotation.y += 2 * dt;
+                        obs.userData.core.rotation.x += 1 * dt;
+                        obs.userData.ring.rotation.z -= 3 * dt;
+                        obs.position.y += Math.sin(time * 5 + i) * 0.02; // hover
+                    }
+
+                    // Collision Check using manually sized boxes
+                    const box = obs.userData.box;
+                    const bSize = obs.userData.boxSize;
+                    box.min.set(obs.position.x - bSize.x/2, obs.position.y, obs.position.z - bSize.z/2);
+                    box.max.set(obs.position.x + bSize.x/2, obs.position.y + bSize.y, obs.position.z + bSize.z/2);
+
+                    if (playerBox.intersectsBox(box)) {
+                        if (obs.userData.isPowerUp) {
+                            playPowerUpSound();
+                            isInvincible = true;
+                            invincibilityTimer = 6.0; // 6 seconds of shield
+                            scene.remove(obs);
+                            obstacles.splice(i, 1);
+                            continue;
+                        } else if (!isInvincible) {
+                            gameOver();
+                        } else {
+                            // Hit an obstacle while invincible (smash through it)
+                            playShieldDown(); 
+                            scene.remove(obs);
+                            obstacles.splice(i, 1);
+                            continue;
+                        }
+                    } else if (!obs.userData.isPowerUp && nearMissBox.intersectsBox(box)) {
+                        // Near Miss logic
+                        if (!obs.userData.passedNear && obs.position.z > player.position.z) {
+                            obs.userData.passedNear = true;
+                            showFloatingText("NEAR MISS! +20", 20);
+                        }
+                    }
+
+                    if (obs.position.z > 10) {
+                        scene.remove(obs);
+                        obstacles.splice(i, 1);
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- EVENT LISTENERS ---
+        $('homeHighScore').innerText = highScore.toFixed(1);
+        
+        $('playBtn').addEventListener('click', startGame);
+        $('restartBtn').addEventListener('click', startGame);
+        
+        $('instructionsBtn').addEventListener('click', () => {
+            playBoop();
+            switchScreen('instructions');
+        });
+        
+        $('backBtn').addEventListener('click', () => {
+            playBoop();
+            switchScreen('home');
+        });
+        
+        $('pauseBtn').addEventListener('click', pauseGame);
+        $('resumeBtn').addEventListener('click', resumeGame);
+        
+        $('quitBtn').addEventListener('click', () => {
+            playBoop();
+            gameState = 'HOME';
+            clearObstacles();
+            switchScreen('home');
+        });
+        
+        $('homeBtn').addEventListener('click', () => {
+            playBoop();
+            gameState = 'HOME';
+            clearObstacles();
+            switchScreen('home');
+        });
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start Loop
+        animate();
+    </script>
+</body>
+</html>
