@@ -157,6 +157,8 @@
         let rollTimer = 0;
         let rollDirection = 1;
         let lastTap = { left: 0, right: 0 };
+        let baseBeta = null; // Gyroscope calibration
+        let baseGamma = null;
         
         // --- DOM ELEMENTS ---
         const $ = id => document.getElementById(id);
@@ -551,27 +553,43 @@
 
         function handleOrientation(event) {
             if (gameState !== 'PLAYING' || selectedDevice !== 'mobile') return;
-            // Adapting for landscape orientation based on device orientation values
-            // When in landscape, beta and gamma roles might swap depending on how it's held.
-            // Using window.orientation to detect how device is rotated
-            let pitch, roll;
             
-            if (window.orientation === 90) {
-                // Home button on right
-                pitch = event.gamma / 30;
-                roll = event.beta / 30;
-            } else if (window.orientation === -90) {
-                // Home button on left
-                pitch = -event.gamma / 30;
-                roll = -event.beta / 30;
+            let b = event.beta;
+            let g = event.gamma;
+            
+            if (b === null || g === null) return;
+
+            // Auto-calibrate center point when the game starts
+            if (baseBeta === null) baseBeta = b;
+            if (baseGamma === null) baseGamma = g;
+
+            let pitch = 0;
+            let roll = 0;
+
+            // Modern orientation check with fallback
+            let orientation = (screen.orientation || {}).angle ?? window.orientation ?? 0;
+            
+            if (orientation === 90) {
+                roll = b - baseBeta;
+                pitch = g - baseGamma;
+            } else if (orientation === -90 || orientation === 270) {
+                roll = -(b - baseBeta);
+                pitch = -(g - baseGamma);
             } else {
                 // Portrait fallback
-                pitch = (event.beta - 45) / 30; 
-                roll = event.gamma / 30;
+                pitch = b - baseBeta;
+                roll = g - baseGamma;
             }
+
+            // Wrap around edge cases (e.g. crossing 180/-180 boundary)
+            if (roll > 180) roll -= 360; else if (roll < -180) roll += 360;
+            if (pitch > 180) pitch -= 360; else if (pitch < -180) pitch += 360;
+
+            // Sensitivity setting (degrees needed to reach max steering)
+            const sensitivity = 25; 
             
-            tilt.y = -Math.max(-1, Math.min(1, pitch)); 
-            tilt.x = Math.max(-1, Math.min(1, roll));
+            tilt.y = -Math.max(-1, Math.min(1, pitch / sensitivity)); // Tilt forward to dive
+            tilt.x = Math.max(-1, Math.min(1, roll / sensitivity));   // Tilt right to turn right
         }
 
         // Gamepad Integration
@@ -635,6 +653,10 @@
             isInvincible = false; invincibilityTimer = 0; isRolling = false; velocity.set(0, 0, 0);
             player.material.emissive.setHex(0x000000); player.position.set(0, 0, 0); player.rotation.set(0, 0, 0); targetPos.set(0, 0, 0);
             
+            baseBeta = null; // Reset Gyro Calibration
+            baseGamma = null;
+            tilt = { x: 0, y: 0 }; // Reset previous tilts
+
             for(let i=0; i<numSegments; i++) segments[i].position.z = -i * segmentLength;
             clearObstacles(); switchScreen('HUD'); startWindSound(); clock.start();
         }
