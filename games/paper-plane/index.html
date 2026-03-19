@@ -10,26 +10,28 @@
         canvas { display: block; width: 100vw; height: 100vh; }
         
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
-        .screen { background: rgba(0, 0, 0, 0.85); border-radius: 15px; padding: 40px; text-align: center; pointer-events: auto; max-width: 450px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        .screen { background: rgba(0, 0, 0, 0.85); border-radius: 15px; padding: 40px; text-align: center; pointer-events: auto; max-width: 450px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; transition: all 0.3s ease; }
         
-        h1 { font-size: 2.5rem; margin-bottom: 10px; color: #4facfe; text-transform: uppercase; letter-spacing: 2px; }
-        h2 { font-size: 1.8rem; margin-bottom: 20px; color: #fff; }
-        p { margin-bottom: 20px; color: #ccc; line-height: 1.5; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; color: #4facfe; text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s ease; }
+        h2 { font-size: 1.8rem; margin-bottom: 20px; color: #fff; transition: all 0.3s ease; }
+        p { margin-bottom: 20px; color: #ccc; line-height: 1.5; transition: all 0.3s ease; }
         
-        .stat-box { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .stat-box { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; margin-bottom: 20px; transition: all 0.3s ease; }
         .stat-box span { font-weight: bold; color: #4facfe; font-size: 1.2rem; }
         
         /* Device Selector Styles */
-        .device-selector { margin-bottom: 20px; }
+        .device-selector { margin-bottom: 20px; transition: all 0.3s ease; }
         .device-selector p { margin-bottom: 10px; color: #fff; font-size: 1rem; }
         .device-options { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-        .device-btn { padding: 10px 15px; font-size: 0.9rem; border-radius: 20px; width: auto; background: #333; color: white; margin: 0; text-transform: none; border: 2px solid transparent; flex: 1; min-width: 100px; }
+        .device-btn { padding: 10px 15px; font-size: 0.9rem; border-radius: 20px; width: auto; background: #333; color: white; margin: 0; text-transform: none; border: 2px solid transparent; flex: 1; min-width: 100px; transition: all 0.2s; }
         .device-btn.active { background: #4facfe; color: #000; border-color: #fff; box-shadow: 0 0 10px rgba(79, 172, 254, 0.8); }
 
-        button.primary { background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%); color: #000; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin: 10px; width: 80%; text-transform: uppercase; pointer-events: auto; }
+        .action-buttons { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
+        
+        button.primary { background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%); color: #000; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, padding 0.3s, font-size 0.3s; margin: 0; width: 80%; text-transform: uppercase; pointer-events: auto; }
         button.primary:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); }
         button.primary:active { transform: scale(0.95); }
-        button.secondary { background: #333; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin: 10px; width: 80%; text-transform: uppercase; pointer-events: auto; }
+        button.secondary { background: #333; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, padding 0.3s, font-size 0.3s; margin: 0; width: 80%; text-transform: uppercase; pointer-events: auto; }
         button.secondary:hover { box-shadow: 0 5px 15px rgba(255,255,255,0.2); }
         
         #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: none; justify-content: space-between; pointer-events: none; z-index: 5; font-size: 1.2rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
@@ -40,11 +42,23 @@
         .floating-text { position: absolute; color: #f9d423; font-size: 2rem; font-weight: bold; text-shadow: 0 0 10px #ff416c; pointer-events: none; animation: floatUp 1s ease-out forwards; z-index: 20; }
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-50px) scale(1.5); opacity: 0; } }
 
-        /* Mobile Landscape Enforcement */
+        /* Mobile Landscape Enforcement & UI Optimization */
         #landscapeWarning { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; color: #fff; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; font-size: 1.5rem; font-weight: bold; }
+        
         @media (orientation: portrait) {
             body.mobile-mode #landscapeWarning { display: flex; }
         }
+
+        body.mobile-mode .screen { padding: 15px 25px; max-height: 95vh; overflow-y: auto; max-width: 600px; }
+        body.mobile-mode h1 { font-size: 1.5rem; margin-bottom: 5px; }
+        body.mobile-mode h2 { font-size: 1.3rem; margin-bottom: 10px; }
+        body.mobile-mode p { margin-bottom: 10px; font-size: 0.85rem; }
+        body.mobile-mode .stat-box { margin-bottom: 10px; padding: 5px; }
+        body.mobile-mode .device-selector { margin-bottom: 10px; }
+        body.mobile-mode .device-selector p { margin-bottom: 5px; }
+        body.mobile-mode .device-btn { padding: 8px 10px; font-size: 0.8rem; }
+        body.mobile-mode .action-buttons { flex-direction: row; justify-content: center; width: 100%; gap: 10px; }
+        body.mobile-mode button.primary, body.mobile-mode button.secondary { width: auto; flex: 1; padding: 10px 15px; font-size: 1rem; }
 
         /* Specific screen toggles */
         #homeScreen, #instructionsScreen, #pauseScreen, #gameOverScreen { display: none; }
@@ -95,8 +109,10 @@
                 </div>
             </div>
 
-            <button id="playBtn" class="primary">Play Game</button>
-            <button id="instructionsBtn" class="secondary">Instructions</button>
+            <div class="action-buttons">
+                <button id="playBtn" class="primary">Play Game</button>
+                <button id="instructionsBtn" class="secondary">Instructions</button>
+            </div>
         </div>
 
         <!-- Instructions Screen -->
@@ -112,8 +128,10 @@
         <!-- Pause Screen -->
         <div id="pauseScreen" class="screen">
             <h2>Game Paused</h2>
-            <button id="resumeBtn" class="primary">Resume</button>
-            <button id="quitBtn" class="secondary">Quit to Home</button>
+            <div class="action-buttons">
+                <button id="resumeBtn" class="primary">Resume</button>
+                <button id="quitBtn" class="secondary">Quit to Home</button>
+            </div>
         </div>
 
         <!-- Game Over Screen -->
@@ -124,8 +142,10 @@
                 Total Score: <span id="finalScore">0</span><br>
                 Level Reached: <span id="finalLevel">1</span>
             </div>
-            <button id="restartBtn" class="primary">Play Again</button>
-            <button id="homeBtn" class="secondary">Home Screen</button>
+            <div class="action-buttons">
+                <button id="restartBtn" class="primary">Play Again</button>
+                <button id="homeBtn" class="secondary">Home Screen</button>
+            </div>
         </div>
 
     </div>
@@ -472,6 +492,41 @@
             return proj;
         }
 
+        function createHangingSign() {
+            const sign = new THREE.Group();
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const glowMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 0.5 });
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, 0.2), glowMat); body.position.y = 0; body.castShadow = true; sign.add(body);
+            const chain1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.5), darkMat); chain1.position.set(-1, 0.75, 0); sign.add(chain1);
+            const chain2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.5), darkMat); chain2.position.set(1, 0.75, 0); sign.add(chain2);
+            
+            sign.position.y = hallwayHeight / 2 - 1.5; 
+            sign.userData = { type: 'sign' };
+            return sign;
+        }
+
+        function createLockerDoor(side) {
+            const doorGroup = new THREE.Group();
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x4aa3df, roughness: 0.6, metalness: 0.2 });
+            const door = new THREE.Mesh(new THREE.BoxGeometry(2.5, 4.5, 0.15), doorMat);
+            
+            if (side === 'left') {
+                door.position.set(1.25, 0, 0);
+                doorGroup.rotation.y = Math.PI / 2.2; 
+                doorGroup.position.x = -hallwayWidth/2;
+            } else {
+                door.position.set(-1.25, 0, 0);
+                doorGroup.rotation.y = -Math.PI / 2.2;
+                doorGroup.position.x = hallwayWidth/2;
+            }
+            
+            door.castShadow = true; doorGroup.add(door);
+            doorGroup.position.y = -hallwayHeight/2 + 2.25; 
+            doorGroup.userData = { type: 'locker_door', side: side };
+            return doorGroup;
+        }
+
         function createPowerUp() {
             const pGroup = new THREE.Group();
             const mat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.6, wireframe: false });
@@ -485,17 +540,27 @@
             return pGroup;
         }
 
-        function createObstacle() {
+        function createObstacle(zOffset = 0) {
             const rand = Math.random(); let mesh;
+            let isWallBound = false;
             
-            if (rand < 0.35) { mesh = createStudent(); mesh.userData.boxSize = new THREE.Vector3(1.6, 3.6, 1.2); } 
-            else if (rand < 0.70) { mesh = createFan(); mesh.userData.boxSize = new THREE.Vector3(3.2, 4.6, 1.2); } 
-            else if (rand < 0.90) { mesh = createProjector(); mesh.userData.boxSize = new THREE.Vector3(1.6, 2.0, 1.8); } 
+            if (rand < 0.20) { mesh = createStudent(); mesh.userData.boxSize = new THREE.Vector3(1.6, 3.6, 1.2); } 
+            else if (rand < 0.40) { mesh = createFan(); mesh.userData.boxSize = new THREE.Vector3(3.2, 4.6, 1.2); } 
+            else if (rand < 0.55) { mesh = createProjector(); mesh.userData.boxSize = new THREE.Vector3(1.6, 2.0, 1.8); } 
+            else if (rand < 0.70) { mesh = createHangingSign(); mesh.userData.boxSize = new THREE.Vector3(3.5, 1.5, 0.6); }
+            else if (rand < 0.85) { 
+                const side = Math.random() > 0.5 ? 'left' : 'right';
+                mesh = createLockerDoor(side); 
+                mesh.userData.boxSize = new THREE.Vector3(3.5, 4.5, 1.0); 
+                isWallBound = true;
+            } 
             else { mesh = createPowerUp(); mesh.userData.boxSize = new THREE.Vector3(1.4, 1.4, 1.4); }
 
             mesh.userData.box = new THREE.Box3();
-            mesh.position.x = (Math.random() * (hallwayWidth - 4)) - ((hallwayWidth - 4) / 2);
-            mesh.position.z = -100; 
+            if (!isWallBound) {
+                mesh.position.x = (Math.random() * (hallwayWidth - 4)) - ((hallwayWidth - 4) / 2);
+            }
+            mesh.position.z = -100 + zOffset; 
             
             scene.add(mesh);
             obstacles.push(mesh);
@@ -646,8 +711,40 @@
             else { hud.style.display = 'flex'; }
         }
 
+        async function lockFullscreenAndOrientation() {
+            if (selectedDevice !== 'mobile') return;
+            try {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) await docEl.requestFullscreen();
+                else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
+                
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape');
+                }
+            } catch (err) {
+                console.warn("Fullscreen/Orientation lock failed:", err);
+            }
+        }
+
+        function exitFullscreen() {
+            try {
+                if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen();
+                else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+                
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            } catch (err) {
+                console.warn("Fullscreen exit failed:", err);
+            }
+        }
+
         function startGame() {
             initAudio(); playBoop(); requestOrientationPermission();
+            
+            // Auto-lock browser to landscape to prevent gyro-steering from flipping screen
+            lockFullscreenAndOrientation();
+
             gameState = 'PLAYING'; score = 0; stylePoints = 0; $('styleDisplay').innerText = '0';
             level = 1; currentSpeed = baseSpeed; timeInLevel = 0; nextLevelTime = 20;
             isInvincible = false; invincibilityTimer = 0; isRolling = false; velocity.set(0, 0, 0);
@@ -662,7 +759,7 @@
         }
 
         function pauseGame() { playBoop(); gameState = 'PAUSED'; switchScreen('pause'); stopWindSound(); }
-        function resumeGame() { playBoop(); gameState = 'PLAYING'; switchScreen('HUD'); startWindSound(); clock.start(); }
+        function resumeGame() { playBoop(); lockFullscreenAndOrientation(); gameState = 'PLAYING'; switchScreen('HUD'); startWindSound(); clock.start(); }
 
         function gameOver() {
             playCrash(); stopWindSound(); gameState = 'GAMEOVER';
@@ -752,7 +849,16 @@
                 }
 
                 obstacleTimer += dt;
-                if (obstacleTimer >= Math.max(0.3, 1.5 - (level * 0.1))) { createObstacle(); obstacleTimer = 0; }
+                const spawnRate = Math.max(0.2, 1.2 - (level * 0.1));
+                if (obstacleTimer >= spawnRate) { 
+                    // Randomly spawn 1, 2, or 3 obstacles at once
+                    const spawnCount = Math.random() > 0.7 ? 3 : (Math.random() > 0.4 ? 2 : 1);
+                    for (let j = 0; j < spawnCount; j++) {
+                        // Offset Z slightly so they don't perfectly overlap, creating a cluster effect
+                        createObstacle(Math.random() * 15); 
+                    }
+                    obstacleTimer = 0; 
+                }
 
                 playerBox.setFromObject(player);
                 if (isRolling) playerBox.expandByScalar(-0.6); else playerBox.expandByScalar(-0.2);
@@ -773,6 +879,11 @@
                             const dist = Math.sqrt(distSq); const windForce = (1 - dist / 6.32) * 50 * dt; 
                             velocity.x += (dx / dist) * windForce; velocity.y += (dy / dist) * windForce;
                         }
+                    } else if (obs.userData.type === 'sign') {
+                        obs.rotation.x = Math.sin(time * 3 + i) * 0.1; // Gentle sway on chains
+                    } else if (obs.userData.type === 'locker_door') {
+                        const baseRot = obs.userData.side === 'left' ? Math.PI / 2.2 : -Math.PI / 2.2;
+                        obs.rotation.y = baseRot + Math.sin(time * 5 + i) * 0.15; // Flapping door in wind
                     } else if (obs.userData.type === 'powerup') {
                         obs.userData.core.rotation.y += 2 * dt; obs.userData.core.rotation.x += 1 * dt; obs.userData.ring.rotation.z -= 3 * dt;
                         obs.position.y += Math.sin(time * 5 + i) * 0.02; 
@@ -804,8 +915,8 @@
         $('instructionsBtn').addEventListener('click', () => { playBoop(); switchScreen('instructions'); });
         $('backBtn').addEventListener('click', () => { playBoop(); switchScreen('home'); });
         $('pauseBtn').addEventListener('click', pauseGame); $('resumeBtn').addEventListener('click', resumeGame);
-        $('quitBtn').addEventListener('click', () => { playBoop(); gameState = 'HOME'; clearObstacles(); switchScreen('home'); });
-        $('homeBtn').addEventListener('click', () => { playBoop(); gameState = 'HOME'; clearObstacles(); switchScreen('home'); });
+        $('quitBtn').addEventListener('click', () => { exitFullscreen(); playBoop(); gameState = 'HOME'; clearObstacles(); switchScreen('home'); });
+        $('homeBtn').addEventListener('click', () => { exitFullscreen(); playBoop(); gameState = 'HOME'; clearObstacles(); switchScreen('home'); });
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
