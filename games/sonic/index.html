@@ -51,90 +51,108 @@
     </div>
 
     <!-- UI Layer -->
-    <div id="ui-layer" class="absolute inset-0 z-10 flex flex-col pointer-events-none">
+    <div id="ui-layer" class="absolute inset-0 z-10 flex flex-col pointer-events-none transition-all duration-300">
         
-        <!-- HUD -->
-        <div id="hud" class="w-full flex justify-between items-start p-4 hidden">
-            <div class="flex gap-4 md:gap-8 flex-col md:flex-row">
-                <div class="flex flex-col gap-2">
-                    <div class="text-sm md:text-base text-shadow text-white mb-1">LEVEL: <span id="levelDisplay">1</span></div>
-                    <div class="text-sm md:text-base text-shadow text-red-400 mb-1">LIVES: <span id="livesDisplay">3</span></div>
-                    <div class="text-xl md:text-2xl text-shadow text-yellow-300">SCORE: <span id="scoreDisplay">0</span></div>
-                    <div class="text-xl md:text-2xl text-shadow text-yellow-100 flex items-center gap-2">
-                        <div class="w-4 h-4 rounded-full border-4 border-yellow-400 bg-transparent"></div>
-                        <span id="ringsDisplay">0</span>
-                    </div>
-                </div>
-                <!-- Item Banks -->
-                <div class="flex gap-4 mt-2 md:mt-0 items-start">
-                    <div id="p1-bank" class="flex flex-col items-center gap-1 hidden">
-                        <span id="p1-bank-label" class="text-[8px] md:text-[10px] text-blue-300 text-shadow">P1 (SHIFT)</span>
-                        <div class="flex gap-1">
-                            <div id="p1-item-0" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
-                            <div id="p1-item-1" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
-                            <div id="p1-item-2" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
-                        </div>
-                    </div>
-                    <div id="p2-bank" class="flex flex-col items-center gap-1 hidden">
-                        <span class="text-[8px] md:text-[10px] text-orange-300 text-shadow">P2 (E)</span>
-                        <div class="flex gap-1">
-                            <div id="p2-item-0" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
-                            <div id="p2-item-1" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
-                            <div id="p2-item-2" class="w-8 h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-lg md:text-xl shadow-inner"></div>
-                        </div>
-                    </div>
+        <!-- Flat Horizontal HUD -->
+        <div id="hud" class="absolute top-0 left-0 w-full flex justify-between items-start hidden transition-all duration-300 pointer-events-none z-20" style="padding: max(0.5rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left));">
+            
+            <!-- Left Side: Stats Bar -->
+            <div class="flex flex-wrap gap-x-3 gap-y-1 items-center bg-black/50 px-3 py-1.5 rounded-xl border-2 border-white/20 backdrop-blur-sm shadow-md" id="hud-stats">
+                <div class="text-[10px] sm:text-xs md:text-sm text-shadow text-white">LVL: <span id="levelDisplay">1</span></div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-shadow text-red-400">❤: <span id="livesDisplay">3</span></div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-shadow text-yellow-300">PTS: <span id="scoreDisplay">0</span></div>
+                <div class="text-[10px] sm:text-xs md:text-sm text-shadow text-yellow-100 flex items-center gap-1">
+                    <div class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-[2px] border-yellow-400 bg-transparent"></div>
+                    <span id="ringsDisplay">0</span>
                 </div>
             </div>
-            <button id="btn-pause" class="pointer-events-auto bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-md pixel-shadow border-2 border-white">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-            </button>
+
+            <!-- Right Side: Item Banks & Pause -->
+            <div class="flex gap-2 items-start pointer-events-none">
+                <!-- P1 Bank -->
+                <div id="p1-bank" class="flex items-center gap-1 hidden bg-black/50 px-2 py-1 rounded-xl border-2 border-white/20 backdrop-blur-sm">
+                    <span id="p1-bank-label" class="text-[8px] sm:text-[10px] text-blue-300 text-shadow mr-1 hidden sm:inline">P1</span>
+                    <div id="p1-item-0" class="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-sm sm:text-lg md:text-xl shadow-inner"></div>
+                    <div id="p1-item-1" class="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-sm sm:text-lg md:text-xl shadow-inner"></div>
+                    <div id="p1-item-2" class="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-sm sm:text-lg md:text-xl shadow-inner"></div>
+                </div>
+                <!-- P2 Bank -->
+                <div id="p2-bank" class="flex items-center gap-1 hidden bg-black/50 px-2 py-1 rounded-xl border-2 border-white/20 backdrop-blur-sm">
+                    <span class="text-[8px] sm:text-[10px] text-orange-300 text-shadow mr-1 hidden sm:inline">P2</span>
+                    <div id="p2-item-0" class="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-sm sm:text-lg md:text-xl shadow-inner"></div>
+                    <div id="p2-item-1" class="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-sm sm:text-lg md:text-xl shadow-inner"></div>
+                    <div id="p2-item-2" class="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 border-2 border-white/50 bg-black/40 rounded flex items-center justify-center text-sm sm:text-lg md:text-xl shadow-inner"></div>
+                </div>
+                <button id="btn-pause" class="pointer-events-auto bg-blue-600 hover:bg-blue-500 text-white p-1.5 sm:p-2 rounded-xl pixel-shadow border-2 border-white transition-all shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+            </div>
         </div>
 
-        <!-- Touch Controls (Mobile) -->
-        <div id="touch-controls" class="absolute bottom-8 left-0 w-full px-6 flex justify-between pointer-events-none hidden">
-            <div class="flex gap-4">
-                <button id="t-left" class="w-16 h-16 bg-white/20 rounded-full border-2 border-white/50 pointer-events-auto active:bg-white/40 flex items-center justify-center backdrop-blur-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <!-- Touch Controls (Mobile/Tablet) -->
+        <div id="touch-controls" class="absolute bottom-0 left-0 w-full flex justify-between pointer-events-none hidden transition-all duration-300 z-20" style="padding-bottom: max(1rem, env(safe-area-inset-bottom)); padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right));">
+            <div class="flex gap-2 sm:gap-4">
+                <button id="t-left" class="tc-btn w-14 h-14 sm:w-20 sm:h-20 bg-white/20 rounded-full border-2 border-white/50 pointer-events-auto active:bg-white/40 flex items-center justify-center backdrop-blur-sm transition-all shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
-                <button id="t-right" class="w-16 h-16 bg-white/20 rounded-full border-2 border-white/50 pointer-events-auto active:bg-white/40 flex items-center justify-center backdrop-blur-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                <button id="t-right" class="tc-btn w-14 h-14 sm:w-20 sm:h-20 bg-white/20 rounded-full border-2 border-white/50 pointer-events-auto active:bg-white/40 flex items-center justify-center backdrop-blur-sm transition-all shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
             </div>
-            <div class="flex gap-4">
-                <button id="t-action" class="w-16 h-16 bg-blue-500/50 rounded-full border-2 border-blue-200/50 pointer-events-auto active:bg-blue-500/80 flex items-center justify-center backdrop-blur-sm text-2xl text-shadow">
+            <div class="flex gap-2 sm:gap-4">
+                <button id="t-action" class="tc-btn w-14 h-14 sm:w-20 sm:h-20 bg-blue-500/50 rounded-full border-2 border-blue-200/50 pointer-events-auto active:bg-blue-500/80 flex items-center justify-center backdrop-blur-sm text-xl sm:text-3xl text-shadow transition-all shadow-lg">
                     ⭐
                 </button>
-                <button id="t-jump" class="w-16 h-16 bg-red-500/50 rounded-full border-2 border-red-200/50 pointer-events-auto active:bg-red-500/80 flex items-center justify-center backdrop-blur-sm text-xl">
+                <button id="t-jump" class="tc-btn w-14 h-14 sm:w-20 sm:h-20 bg-red-500/50 rounded-full border-2 border-red-200/50 pointer-events-auto active:bg-red-500/80 flex items-center justify-center backdrop-blur-sm text-lg sm:text-2xl font-bold transition-all shadow-lg">
                     J
                 </button>
             </div>
         </div>
 
-        <!-- Home Screen -->
-        <div id="home-screen" class="absolute inset-0 bg-sky-900/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto z-40">
-            <h1 class="text-4xl md:text-6xl text-center text-blue-400 mb-2 text-shadow" style="-webkit-text-stroke: 2px white;">WEB DASH</h1>
-            
-            <div class="mb-6 text-center bg-black/50 p-4 rounded-lg border-2 border-white/20 w-64 md:w-80">
-                <h3 class="text-yellow-300 mb-3 text-shadow text-sm">TOP SCORES</h3>
-                <ul id="high-score-board" class="text-xs md:text-sm text-white space-y-2">
-                    <li class="text-gray-400">No scores yet!</li>
-                </ul>
-            </div>
-
-            <!-- Device Mode Selection -->
-            <div class="mb-8 flex flex-col items-center">
-                <h3 class="text-[10px] text-white mb-2 tracking-widest text-shadow">SELECT DEVICE</h3>
-                <div class="flex gap-2">
-                    <button class="mode-btn font-sans font-bold px-4 py-2 rounded-lg border-2 border-white transition-colors bg-blue-600 text-white shadow-md" data-mode="desktop">DESKTOP</button>
-                    <button class="mode-btn font-sans font-bold px-4 py-2 rounded-lg border-2 border-white transition-colors bg-gray-600 text-white/70 shadow-md" data-mode="mobile">MOBILE</button>
-                    <button class="mode-btn font-sans font-bold px-4 py-2 rounded-lg border-2 border-white transition-colors bg-gray-600 text-white/70 shadow-md" data-mode="gamepad">GAMEPAD</button>
+        <!-- Optimized Home Screen (Landscape 2-Column Split) -->
+        <div id="home-screen" class="absolute inset-0 bg-sky-900/80 backdrop-blur-sm flex items-center justify-center pointer-events-auto z-40 p-4 overflow-y-auto">
+            <div class="flex flex-col sm:flex-row w-full max-w-4xl justify-center items-center gap-6 sm:gap-12">
+                
+                <!-- Left Side: Title & Scores -->
+                <div class="flex flex-col items-center sm:items-end w-full sm:w-1/2">
+                    <h1 class="text-5xl md:text-7xl text-center sm:text-right text-blue-400 mb-4 text-shadow" style="-webkit-text-stroke: 2px white; line-height: 1.1;">WEB<br>DASH</h1>
+                    
+                    <div class="bg-black/50 p-3 rounded-lg border-2 border-white/20 w-56 text-center sm:text-right shadow-md">
+                        <h3 class="text-yellow-300 mb-2 text-shadow text-[10px] sm:text-xs">TOP SCORES</h3>
+                        <ul id="high-score-board" class="text-[10px] text-white space-y-1">
+                            <li class="text-gray-400">No scores yet!</li>
+                        </ul>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="flex flex-col gap-4 w-64">
-                <button id="btn-1p" class="bg-blue-600 hover:bg-blue-500 border-4 border-white py-4 px-6 text-xl pixel-shadow transition-transform active:translate-y-1">1 PLAYER</button>
-                <button id="btn-2p" class="bg-orange-600 hover:bg-orange-500 border-4 border-white py-4 px-6 text-xl pixel-shadow transition-transform active:translate-y-1">2 PLAYERS</button>
-                <button id="btn-instructions" class="bg-purple-600 hover:bg-purple-500 border-4 border-white py-4 px-6 text-xl pixel-shadow transition-transform active:translate-y-1">HOW TO PLAY</button>
+
+                <!-- Right Side: Device & Play Buttons -->
+                <div class="flex flex-col items-center sm:items-start w-full sm:w-1/2 gap-4">
+                    
+                    <!-- Device Mode Selection -->
+                    <div class="flex flex-col items-center sm:items-start bg-black/40 p-2 sm:p-3 rounded-lg border-2 border-white/20 w-full max-w-xs shadow-md">
+                        <h3 class="text-[8px] sm:text-[10px] text-white mb-2 tracking-widest text-shadow">SELECT DEVICE</h3>
+                        <div class="flex flex-wrap justify-center sm:justify-start gap-1.5">
+                            <button class="mode-btn font-sans font-bold px-2 py-1 text-[10px] sm:text-xs rounded border-2 border-white transition-colors bg-blue-600 text-white" data-mode="desktop">DESKTOP</button>
+                            <button class="mode-btn font-sans font-bold px-2 py-1 text-[10px] sm:text-xs rounded border-2 border-white transition-colors bg-gray-600 text-white/70" data-mode="tablet">TABLET</button>
+                            <button class="mode-btn font-sans font-bold px-2 py-1 text-[10px] sm:text-xs rounded border-2 border-white transition-colors bg-gray-600 text-white/70" data-mode="phone">PHONE</button>
+                            <button class="mode-btn font-sans font-bold px-2 py-1 text-[10px] sm:text-xs rounded border-2 border-white transition-colors bg-gray-600 text-white/70" data-mode="gamepad">GAMEPAD</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col gap-2.5 w-full max-w-xs">
+                        <button id="btn-1p" class="bg-blue-600 hover:bg-blue-500 border-[3px] border-white py-2 px-4 text-xs sm:text-sm md:text-base pixel-shadow transition-transform active:translate-y-1 w-full text-left flex justify-between items-center">
+                            <span>1 PLAYER</span> <span>▶</span>
+                        </button>
+                        <button id="btn-2p" class="bg-orange-600 hover:bg-orange-500 border-[3px] border-white py-2 px-4 text-xs sm:text-sm md:text-base pixel-shadow transition-transform active:translate-y-1 w-full text-left flex justify-between items-center">
+                            <span>2 PLAYERS</span> <span>▶</span>
+                        </button>
+                        <button id="btn-instructions" class="bg-purple-600 hover:bg-purple-500 border-[3px] border-white py-2 px-4 text-xs sm:text-sm md:text-base pixel-shadow transition-transform active:translate-y-1 w-full text-left flex justify-between items-center">
+                            <span>HOW TO PLAY</span> <span>?</span>
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -142,20 +160,20 @@
         <div id="instructions-screen" class="absolute inset-0 bg-sky-900/95 backdrop-blur-md flex flex-col items-center justify-center pointer-events-auto hidden z-50 overflow-y-auto py-8">
             <h2 class="text-3xl md:text-5xl text-yellow-300 mb-6 text-shadow text-center">HOW TO PLAY</h2>
             <div class="max-w-2xl w-full px-6 text-xs md:text-sm leading-relaxed text-white space-y-4 font-sans" style="font-family: system-ui, sans-serif;">
-                <div class="bg-black/40 p-5 rounded-lg border-2 border-white/20">
+                <div class="bg-black/40 p-4 rounded-lg border-2 border-white/20">
                     <h3 class="text-yellow-400 mb-2 font-bold text-lg" style="font-family: 'Press Start 2P', system-ui;">CONTROLS</h3>
                     <p><span class="text-blue-400 font-bold">P1:</span> <span id="inst-p1">Arrow Keys to Move & Jump</span> <br> <span class="text-orange-400 font-bold">P2:</span> <span id="inst-p2">W,A,S,D to Move & Jump</span></p>
                 </div>
-                <div class="bg-black/40 p-5 rounded-lg border-2 border-white/20">
+                <div class="bg-black/40 p-4 rounded-lg border-2 border-white/20">
                     <h3 class="text-yellow-400 mb-2 font-bold text-lg" style="font-family: 'Press Start 2P', system-ui;">LIVES & LOOPS</h3>
-                    <p>You have 3 lives. Loops are fully integrated into the continuous ground track. Just run straight into them with high speed (by holding forward) to stick to the track and loop through!</p>
+                    <p>You have 3 lives. Loops are integrated directly into the continuous ground track. Run into them with high speed (hold forward) to stick to the track and loop through!</p>
                 </div>
-                <div class="bg-black/40 p-5 rounded-lg border-2 border-white/20">
+                <div class="bg-black/40 p-4 rounded-lg border-2 border-white/20">
                     <h3 class="text-yellow-400 mb-2 font-bold text-lg" style="font-family: 'Press Start 2P', system-ui;">POWERUPS</h3>
-                    <p class="mb-3 text-green-300 text-xs md:text-sm">You can <b>BANK up to 3</b> powerups! <span id="inst-action">Press ENTER/SHIFT (P1) or E (P2) to use the oldest one.</span></p>
+                    <p class="text-green-300 text-xs md:text-sm">You can <b>BANK up to 3</b> powerups! <span id="inst-action">Press ENTER/SHIFT (P1) or E (P2) to use the oldest one.</span></p>
                 </div>
             </div>
-            <button id="btn-close-instructions" class="mt-8 bg-gray-600 hover:bg-gray-500 border-4 border-white py-3 px-8 text-xl pixel-shadow transition-transform active:translate-y-1">BACK</button>
+            <button id="btn-close-instructions" class="mt-6 bg-gray-600 hover:bg-gray-500 border-4 border-white py-2 px-8 text-lg pixel-shadow transition-transform active:translate-y-1">BACK</button>
         </div>
 
         <!-- Level Complete Screen -->
@@ -170,23 +188,25 @@
             <div class="text-xl md:text-2xl mb-8">LIVES REMAINING: <span id="lives-left" class="text-yellow-300">0</span></div>
         </div>
 
-        <!-- Pause Menu -->
-        <div id="pause-screen" class="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto hidden z-30">
-            <h2 class="text-4xl text-white mb-8 text-shadow">PAUSED</h2>
-            <div class="flex flex-col gap-4 w-64">
-                <button id="btn-resume" class="bg-green-600 hover:bg-green-500 border-4 border-white py-4 px-6 text-xl pixel-shadow transition-transform active:translate-y-1">RESUME</button>
-                <button id="btn-quit-pause" class="bg-red-600 hover:bg-red-500 border-4 border-white py-4 px-6 text-xl pixel-shadow transition-transform active:translate-y-1">HOME</button>
+        <!-- Pause Menu (Flat layout for landscape) -->
+        <div id="pause-screen" class="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto hidden z-30 p-4">
+            <h2 class="text-4xl text-white mb-6 text-shadow">PAUSED</h2>
+            <div class="flex flex-row gap-4 w-full max-w-sm justify-center">
+                <button id="btn-resume" class="bg-green-600 hover:bg-green-500 border-[3px] border-white py-3 px-6 text-sm sm:text-lg pixel-shadow transition-transform active:translate-y-1 w-full">RESUME</button>
+                <button id="btn-quit-pause" class="bg-red-600 hover:bg-red-500 border-[3px] border-white py-3 px-6 text-sm sm:text-lg pixel-shadow transition-transform active:translate-y-1 w-full">HOME</button>
             </div>
         </div>
 
-        <!-- Game Over Menu -->
-        <div id="gameover-screen" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center pointer-events-auto hidden z-30">
-            <h2 class="text-4xl md:text-6xl text-red-500 mb-4 text-shadow">GAME OVER</h2>
-            <div class="text-xl mb-2">Final Score: <span id="go-score" class="text-yellow-300">0</span></div>
-            <div class="text-sm text-gray-400 mb-8">High Score: <span id="go-highscore">0</span></div>
-            <div class="flex flex-col gap-4 w-64">
-                <button id="btn-restart" class="bg-blue-600 hover:bg-blue-500 border-4 border-white py-4 px-6 text-xl pixel-shadow transition-transform active:translate-y-1">RETRY</button>
-                <button id="btn-quit-go" class="bg-gray-600 hover:bg-gray-500 border-4 border-white py-4 px-6 text-xl pixel-shadow transition-transform active:translate-y-1">HOME</button>
+        <!-- Game Over Menu (Flat layout for landscape) -->
+        <div id="gameover-screen" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center pointer-events-auto hidden z-50 p-4">
+            <h2 class="text-4xl md:text-6xl text-red-500 mb-2 md:mb-4 text-shadow">GAME OVER</h2>
+            <div class="flex flex-row gap-6 mb-6">
+                <div class="text-sm sm:text-xl">Score: <span id="go-score" class="text-yellow-300">0</span></div>
+                <div class="text-sm sm:text-xl text-gray-400">High: <span id="go-highscore">0</span></div>
+            </div>
+            <div class="flex flex-row gap-4 w-full justify-center max-w-sm">
+                <button id="btn-restart" class="bg-blue-600 hover:bg-blue-500 border-[3px] border-white py-2 px-6 text-sm sm:text-lg pixel-shadow active:translate-y-1 w-full">RETRY</button>
+                <button id="btn-quit-go" class="bg-gray-600 hover:bg-gray-500 border-[3px] border-white py-2 px-6 text-sm sm:text-lg pixel-shadow active:translate-y-1 w-full">HOME</button>
             </div>
         </div>
     </div>
@@ -214,7 +234,7 @@
         let isLevelComplete = false;
 
         // Device Mode Settings
-        let deviceMode = 'desktop'; // desktop, mobile, gamepad
+        let deviceMode = 'desktop'; // desktop, tablet, phone, gamepad
         
         function setDeviceMode(mode) {
             deviceMode = mode;
@@ -230,24 +250,43 @@
                 activeBtn.classList.add('bg-blue-600', 'text-white');
             }
 
-            // Orientation Warning
+            // Orientation Warning overlay
             let warnEl = document.getElementById('orientation-warning');
-            if (mode === 'mobile') warnEl.classList.add('active-mobile');
+            if (mode === 'tablet' || mode === 'phone') warnEl.classList.add('active-mobile');
             else warnEl.classList.remove('active-mobile');
 
-            // Controls Visibility
+            // Controls & HUD Scale Adjustments
             let touchControls = document.getElementById('touch-controls');
-            if (mode === 'mobile') touchControls.classList.remove('hidden');
-            else touchControls.classList.add('hidden');
+            let tcBtns = document.querySelectorAll('.tc-btn');
 
-            // Dynamic Instructions
+            if (mode === 'tablet' || mode === 'phone') {
+                touchControls.classList.remove('hidden');
+                
+                if (mode === 'phone') {
+                    // Force touch buttons to be smaller specifically for phones
+                    tcBtns.forEach(btn => {
+                        btn.classList.remove('w-20', 'h-20', 'sm:w-20', 'sm:h-20');
+                        btn.classList.add('w-14', 'h-14', 'sm:w-16', 'sm:h-16');
+                    });
+                } else {
+                    // Normal touch scale for Tablets
+                    tcBtns.forEach(btn => {
+                        btn.classList.remove('w-14', 'h-14', 'sm:w-16', 'sm:h-16');
+                        btn.classList.add('w-20', 'h-20', 'sm:w-20', 'sm:h-20');
+                    });
+                }
+            } else {
+                touchControls.classList.add('hidden');
+            }
+
+            // Dynamic Instructions mapping
             let p1Text = "", p2Text = "", actionText = "", bankLabel = "";
             if (mode === 'desktop') {
                 p1Text = "Arrow Keys to Move & Jump";
                 p2Text = "W,A,S,D to Move & Jump";
                 actionText = "Press ENTER/SHIFT (P1) or E (P2) to use the oldest one.";
                 bankLabel = "P1 (SHIFT)";
-            } else if (mode === 'mobile') {
+            } else if (mode === 'tablet' || mode === 'phone') {
                 p1Text = "On-screen Touch Controls (Arrows & Jump)";
                 p2Text = "N/A (Mobile is best for 1 Player)";
                 actionText = "Tap the ⭐ button to use the oldest one.";
@@ -272,7 +311,12 @@
 
         // Auto-detect mobile on load
         if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            setDeviceMode('mobile');
+            // Simple heuristic to split phone vs tablet based on screen dimensions
+            if (Math.min(window.innerWidth, window.innerHeight) < 700) {
+                setDeviceMode('phone');
+            } else {
+                setDeviceMode('tablet');
+            }
         } else {
             setDeviceMode('desktop');
         }
@@ -403,7 +447,7 @@
                 this.animWalkState = 0; this.direction = 1;
 
                 this.isLooping = false; this.loopObj = null; this.loopAngle = 0; this.loopCooldown = 0;
-                this.zLayer = 1; // 0 = Back (behind front loop ribbon), 1 = Front (normal drawing)
+                this.zLayer = 1; 
             }
 
             update() {
@@ -421,7 +465,7 @@
                     this.maxSpeed = this.baseMaxSpeed; this.speed = this.baseSpeed;
                 }
 
-                // Controls (Checking Keyboard OR Touch OR Gamepad)
+                // Controls 
                 let movingLeft = !isLevelComplete && (this.controls.left.some(k => keys[k]) || (this.id === 1 && touchState.left) || (this.id === 1 && gamepadState.left));
                 let movingRight = !isLevelComplete && (this.controls.right.some(k => keys[k]) || (this.id === 1 && touchState.right) || (this.id === 1 && gamepadState.right));
                 let jumping = !isLevelComplete && (this.controls.jump.some(k => keys[k]) || (this.id === 1 && touchState.jump) || (this.id === 1 && gamepadState.jump));
@@ -440,14 +484,12 @@
                 // --- Improved Seamless Loop Physics ---
                 if (this.isLooping && this.loopObj) {
                     
-                    // Power through the loop if holding direction, else let gravity take effect
                     if ((this.vx > 0 && movingRight) || (this.vx < 0 && movingLeft)) {
                         this.vx += Math.sign(this.vx) * 0.5;
                     } else {
                         this.vx -= Math.cos(this.loopAngle) * 0.4; 
                     }
 
-                    // Speed caps strictly for loop safety
                     if (this.vx > 25) this.vx = 25;
                     if (this.vx < -25) this.vx = -25;
 
@@ -457,27 +499,23 @@
                     this.y = this.loopObj.cy + Math.sin(this.loopAngle) * (this.loopObj.radius - this.radius);
                     this.rotation = this.loopAngle;
 
-                    // Manage dynamic Z-Layer to create true 2.5D spiral overlap
                     this.zLayer = Math.cos(this.loopAngle) > 0 ? 0 : 1;
 
-                    // Fall out of the loop if speed drops too low while in the top half (sin < 0)
                     if (Math.abs(this.vx) < 4 && Math.sin(this.loopAngle) < 0) {
                         this.isLooping = false; this.die(); 
                     }
 
-                    // Successful Loop Exit
                     if ((this.vx > 0 && this.loopAngle <= -3 * Math.PI / 2) || 
                         (this.vx < 0 && this.loopAngle >= 5 * Math.PI / 2)) {
                         this.isLooping = false;
                         this.x = this.loopObj.cx; 
-                        this.y = this.loopObj.gy - 20 - this.radius; // Output exactly onto the top of the ramp
+                        this.y = this.loopObj.gy - 20 - this.radius; 
                         this.isGrounded = true; 
                         this.loopCooldown = 15;
                     }
                     return; 
                 }
 
-                // Normal movement applied outside the loop
                 if (movingLeft) { this.vx -= this.speed; this.direction = -1; }
                 if (movingRight) { this.vx += this.speed; this.direction = 1; }
                 
@@ -485,7 +523,6 @@
                     this.vy = this.jumpPower; this.isGrounded = false; playSound('jump');
                 }
 
-                // Standard Physics
                 this.vx *= this.friction; this.vy += this.gravity;
                 if (this.vx > this.maxSpeed) this.vx = this.maxSpeed;
                 if (this.vx < -this.maxSpeed) this.vx = -this.maxSpeed;
@@ -493,33 +530,28 @@
 
                 this.x += this.vx; this.y += this.vy;
 
-                // --- Grounded Ramp Curve Logic ---
+                // Grounded Ramp Logic
                 let onRamp = false;
                 if (!this.isLooping) {
                     for (let loop of loops) {
                         let dx = this.x - loop.cx;
-                        // Ramp zone is 160px wide around the loop center
                         if (Math.abs(dx) <= 160) {
-                            // Calculate parabolic curve: y = gy - 20 + 20 * (dx/160)^2
                             let rampY = loop.gy - 20 + 20 * Math.pow(Math.abs(dx) / 160, 2);
                             
-                            // Catch player if they fall onto or run across the ramp
                             if (this.y + this.radius >= rampY - 10 && this.vy >= 0) {
                                 this.y = rampY - this.radius;
                                 this.vy = 0;
                                 this.isGrounded = true;
                                 onRamp = true;
                                 
-                                // Adjust Z-layer while on ramp: left side is back(0), right side is front(1)
                                 this.zLayer = dx < 0 ? 0 : 1;
 
-                                // Trigger loop entrance if crossing center at high speed
                                 let prevDx = this.prevX - loop.cx;
                                 if (this.loopCooldown === 0 && Math.abs(this.vx) > 6) {
                                     if ((prevDx <= 0 && dx >= 0) || (prevDx >= 0 && dx <= 0)) {
                                         this.isLooping = true;
                                         this.loopObj = loop;
-                                        this.loopAngle = Math.PI / 2; // Always lock to bottom center
+                                        this.loopAngle = Math.PI / 2; 
                                         this.x = loop.cx; 
                                         playSound('jump');
                                     }
@@ -646,7 +678,7 @@
                 this.cx = x; 
                 this.gy = y; 
                 this.radius = 80; 
-                this.cy = this.gy - 100; // Positions the loop track correctly above the ground block
+                this.cy = this.gy - 100; 
             }
             drawBack(ctx, camX) {
                 let visW = canvas.width / currentZoom;
@@ -654,33 +686,29 @@
                 let theme = getTheme();
                 ctx.save(); ctx.translate(this.cx - camX, this.cy);
                 
-                // Draw Base Dirt Block resting on continuous platform
                 let blockW = 280;
                 let blockH = 200;
                 
                 ctx.fillStyle = theme.dirt;
                 ctx.beginPath();
                 ctx.rect(-blockW/2, -100, blockW, blockH); 
-                ctx.arc(0, 0, this.radius - 12, 0, Math.PI * 2, true); // Subtract hole
+                ctx.arc(0, 0, this.radius - 12, 0, Math.PI * 2, true); 
                 ctx.fill();
 
-                // Block Outlines
                 ctx.lineWidth = 4; ctx.strokeStyle = '#000';
                 ctx.beginPath(); ctx.rect(-blockW/2, -100, blockW, blockH); ctx.stroke();
                 ctx.beginPath(); ctx.arc(0, 0, this.radius - 12, 0, Math.PI * 2, true); ctx.stroke();
 
-                // Block Grass Top
                 ctx.fillStyle = theme.grass;
                 ctx.fillRect(-blockW/2, -100, blockW, 20);
                 ctx.strokeRect(-blockW/2, -100, blockW, 20);
 
-                // Back Track Layer: Left Ramp transitioning to Right Side Arc
                 ctx.beginPath();
                 ctx.moveTo(-160, 100);
-                ctx.quadraticCurveTo(-80, 100, 0, 80); // Parabolic swoop to bottom center
-                ctx.arc(0, 0, this.radius, Math.PI/2, -Math.PI/2, true); // Up the right side to top
+                ctx.quadraticCurveTo(-80, 100, 0, 80); 
+                ctx.arc(0, 0, this.radius, Math.PI/2, -Math.PI/2, true); 
 
-                ctx.lineWidth = 24; ctx.strokeStyle = '#000'; ctx.stroke(); // Outline
+                ctx.lineWidth = 24; ctx.strokeStyle = '#000'; ctx.stroke(); 
                 ctx.lineWidth = 18; ctx.strokeStyle = theme.dirt; ctx.stroke();
                 ctx.lineWidth = 10; ctx.strokeStyle = theme.grass; ctx.stroke();
                 ctx.lineWidth = 10; ctx.strokeStyle = theme.check; ctx.setLineDash([15, 15]); ctx.stroke();
@@ -694,11 +722,10 @@
                 let theme = getTheme();
                 ctx.save(); ctx.translate(this.cx - camX, this.cy);
 
-                // Front Track Layer: Right Ramp overlapping the base, transitioning to Left Side Arc
                 ctx.beginPath();
                 ctx.moveTo(160, 100);
-                ctx.quadraticCurveTo(80, 100, 0, 80); // Parabolic swoop from right
-                ctx.arc(0, 0, this.radius, Math.PI/2, -Math.PI/2, false); // Up the left side
+                ctx.quadraticCurveTo(80, 100, 0, 80); 
+                ctx.arc(0, 0, this.radius, Math.PI/2, -Math.PI/2, false); 
 
                 ctx.setLineDash([]);
                 ctx.lineWidth = 24; ctx.strokeStyle = '#000'; ctx.stroke();
@@ -877,15 +904,12 @@
                 let loopCx = nextX + width / 2;
                 loops.push(new LoopDeLoop(loopCx, nextY));
                 
-                // Solid continuous ground entirely beneath the loop
                 platforms.push(new Platform(nextX, nextY, width, canvas.height * 3));
                 
-                // Rings ONLY in the path of the loop track
                 let numRings = 8;
                 let loopCy = nextY - 100;
-                let ringRadius = 60; // Just inside the track radius (80)
+                let ringRadius = 60;
                 for(let i=0; i<numRings; i++) {
-                    // Spread rings across the upper curve of the loop
                     let angle = Math.PI + (i / (numRings - 1)) * Math.PI * 1.8; 
                     let rx = loopCx + Math.cos(angle) * ringRadius;
                     let ry = loopCy + Math.sin(angle) * ringRadius;
@@ -908,7 +932,22 @@
                     for(let i=0; i<numRings; i++) rings.push(new Ring(startRx + i * 40, nextY - 40 - Math.sin((i/(numRings-1)) * Math.PI) * 60));
                 }
                 
-                if (Math.random() < 0.35) powerups.push(new Powerup(nextX + width/2, nextY));
+                if (Math.random() < 0.35) {
+                    let pu = new Powerup(nextX + width/2, nextY);
+                    let puBox = { left: pu.x - 15, right: pu.x + pu.w + 15, top: pu.y - 15, bottom: pu.y + pu.h };
+                    let overlapsSpike = spikes.some(s => rectIntersect(puBox, { left: s.x, right: s.x + s.w, top: s.y, bottom: s.y + s.h }));
+                    
+                    if (!overlapsSpike) {
+                        powerups.push(pu);
+                    } else {
+                        pu.x = nextX + width/4;
+                        let newPuBox = { left: pu.x - 15, right: pu.x + pu.w + 15, top: pu.y - 15, bottom: pu.y + pu.h };
+                        let stillOverlaps = spikes.some(s => rectIntersect(newPuBox, { left: s.x, right: s.x + s.w, top: s.y, bottom: s.y + s.h }));
+                        if (!stillOverlaps) {
+                            powerups.push(pu);
+                        }
+                    }
+                }
             }
             
             lastPlatformX = nextX + width; lastPlatformY = nextY;
@@ -948,7 +987,6 @@
                 let pBox = { left: p.x - p.radius, right: p.x + p.radius, top: p.y - p.radius, bottom: p.y + p.radius };
                 let pPrevBox = { left: p.prevX - p.radius, right: p.prevX + p.radius, top: p.prevY - p.radius, bottom: p.prevY + p.radius };
 
-                // Bypass normal floor collisions if tracking on a ramp
                 if (!p.isLooping && !p.onRamp) {
                     for (let plat of platforms) {
                         let platBox = { left: plat.x, right: plat.x + plat.w, top: plat.y, bottom: plat.y + plat.h };
@@ -1112,6 +1150,10 @@
             let targetZoom = 1.0;
             let desiredWidth = canvas.width;
 
+            if (deviceMode === 'phone') {
+                desiredWidth = Math.max(desiredWidth, 900); // Forces zoom out on narrow phones
+            }
+
             if (alivePlayers.length > 0) {
                 let maxPlayerX = Math.max(...alivePlayers.map(p => p.x));
                 let minPlayerX = Math.min(...alivePlayers.map(p => p.x));
@@ -1169,9 +1211,7 @@
 
             drawBackground(visibleWidth, visibleHeight, topY);
             
-            // Loop base, hole, and back ribbon drawn first
             loops.forEach(l => l.drawBack(ctx, cameraX));
-            
             platforms.forEach(p => p.draw(ctx, cameraX));
             spikes.forEach(s => s.draw(ctx, cameraX));
             enemies.forEach(e => e.draw(ctx, cameraX));
@@ -1179,13 +1219,8 @@
             goals.forEach(g => g.draw(ctx, cameraX));
             rings.forEach(r => r.draw(ctx, cameraX));
             
-            // Players drawn next (their zLayer places them logically over or under the front ribbon)
             players.filter(p => p.zLayer === 0).forEach(p => p.draw(ctx, cameraX));
-
-            // Overlapping front ribbon drawn to complete the 3D effect
             loops.forEach(l => l.drawFront(ctx, cameraX));
-            
-            // Front-layered players drawn on top of the front ribbon
             players.filter(p => p.zLayer !== 0).forEach(p => p.draw(ctx, cameraX));
 
             ctx.restore();
