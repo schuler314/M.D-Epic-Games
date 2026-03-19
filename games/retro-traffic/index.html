@@ -44,8 +44,8 @@
         <!-- The Three.js Canvas Container -->
         <div id="canvas-container" class="absolute inset-0"></div>
 
-        <!-- Bottom Controls -->
-        <div id="bottom-controls" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-4">
+        <!-- Game Controls (Dynamically positioned based on device) -->
+        <div id="game-controls" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-4 transition-all duration-300 hover:opacity-100">
             <button id="btn-pause" class="hidden px-6 py-2 bg-gray-800/80 text-white rounded arcade-font border border-gray-500 hover:bg-gray-700 shadow-md transform transition hover:scale-105 active:scale-95">PAUSE</button>
             <button id="btn-options" class="px-6 py-2 bg-gray-800/80 text-white rounded arcade-font border border-gray-500 hover:bg-gray-700 shadow-md transform transition hover:scale-105 active:scale-95">OPTIONS</button>
         </div>
@@ -98,7 +98,19 @@
             <h1 class="text-5xl md:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 arcade-font mb-2 text-center leading-tight drop-shadow-[0_0_10px_rgba(236,72,153,0.8)]">
                 3D NEON<br>RACER
             </h1>
-            <p class="text-gray-300 mb-8 arcade-font text-sm text-center px-4 mt-4">P1: W/A/S/D or Pad 1 | P2: Arrows or Pad 2<br>Shields (Green) | Coins (Gold) | Time Warps (Blue) | Bombs (Red)</p>
+            
+            <!-- DEVICE SELECTION -->
+            <div class="flex gap-2 md:gap-4 mt-4 mb-2">
+                <button id="btn-device-kb" class="px-4 py-2 bg-pink-600 text-white border-2 border-pink-400 rounded arcade-font text-xs md:text-sm transition transform scale-105 shadow-[0_0_10px_rgba(236,72,153,0.6)]">KEYBOARD</button>
+                <button id="btn-device-gp" class="px-4 py-2 bg-transparent text-gray-400 border-2 border-gray-600 rounded arcade-font text-xs md:text-sm transition hover:text-white">GAMEPAD</button>
+                <button id="btn-device-mobile" class="px-4 py-2 bg-transparent text-gray-400 border-2 border-gray-600 rounded arcade-font text-xs md:text-sm transition hover:text-white">MOBILE</button>
+            </div>
+            
+            <p id="instructions-text" class="text-gray-300 mb-6 arcade-font text-sm text-center px-4 h-16 flex flex-col justify-center">
+                P1: W/A/S/D | P2: ARROWS<br>
+                <span class="text-xs text-gray-400 mt-1">Shields (Green) | Coins (Gold) | Time Warps (Blue) | Bombs (Red)</span>
+            </p>
+
             <div class="flex gap-4">
                 <button id="btn-1p" class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 rounded-lg text-xl arcade-font shadow-[0_0_15px_rgba(59,130,246,0.6)] transform transition hover:scale-105 active:scale-95 border-2 border-blue-400">
                     1 PLAYER
@@ -182,6 +194,13 @@
         <div id="touch-p1-r" class="absolute top-0 left-[25%] w-1/4 h-full z-0 pointer-events-auto"></div>
         <div id="touch-p2-l" class="absolute top-0 left-[50%] w-1/4 h-full z-0 pointer-events-auto"></div>
         <div id="touch-p2-r" class="absolute top-0 left-[75%] w-1/4 h-full z-0 pointer-events-auto"></div>
+
+        <!-- Mobile Rotate Warning -->
+        <div id="ui-rotate-warning" class="absolute inset-0 flex flex-col items-center justify-center bg-black/95 z-50 hidden">
+            <h2 class="text-4xl md:text-6xl text-yellow-400 arcade-font text-center animate-pulse drop-shadow-[0_0_15px_rgba(250,204,21,1)]">PLEASE ROTATE<br>DEVICE</h2>
+            <p class="text-xl text-white arcade-font mt-6 text-center leading-relaxed">PORTRAIT MODE REQUIRED<br>FOR BEST EXPERIENCE</p>
+            <button id="btn-ignore-rotate" class="mt-8 px-6 py-2 bg-transparent border-2 border-gray-500 text-gray-400 hover:bg-gray-500 hover:text-white rounded-lg text-sm arcade-font transition">CONTINUE ANYWAY</button>
+        </div>
     </div>
 
     <!-- Background Music (Loaded from GitHub Raw URL) -->
@@ -194,6 +213,7 @@ window.onload = function() {
     const uiHud = document.getElementById('ui-hud');
     const uiGameOver = document.getElementById('ui-game-over');
     const uiLevelComplete = document.getElementById('ui-level-complete');
+    const rotateWarning = document.getElementById('ui-rotate-warning');
     
     const p1LivesDisplay = document.getElementById('p1-lives-display');
     const p2LivesDisplay = document.getElementById('p2-lives-display');
@@ -215,7 +235,7 @@ window.onload = function() {
     const btnSaveScore = document.getElementById('btn-save-score');
     
     // Options Elements
-    const bottomControls = document.getElementById('bottom-controls');
+    const gameControls = document.getElementById('game-controls');
     const btnOptions = document.getElementById('btn-options');
     const uiOptions = document.getElementById('ui-options');
     const btnCloseOptions = document.getElementById('btn-close-options');
@@ -267,6 +287,79 @@ window.onload = function() {
     const btnRestart = document.getElementById('btn-restart');
     const p2LivesContainer = document.getElementById('p2-lives-container');
     
+    // Device Selection Elements
+    const btnKb = document.getElementById('btn-device-kb');
+    const btnGp = document.getElementById('btn-device-gp');
+    const btnMobile = document.getElementById('btn-device-mobile');
+    const instText = document.getElementById('instructions-text');
+    const btnIgnoreRotate = document.getElementById('btn-ignore-rotate');
+    
+    let inputMode = 'KEYBOARD';
+    let ignoreRotation = false;
+
+    btnIgnoreRotate.addEventListener('click', () => {
+        ignoreRotation = true;
+        checkOrientation();
+    });
+
+    function checkOrientation() {
+        if (ignoreRotation) {
+            rotateWarning.classList.add('hidden');
+            return;
+        }
+        // Enforce portrait warning on mobile devices (if width > height, it's landscape)
+        if (inputMode === 'MOBILE' && window.innerWidth > window.innerHeight) {
+            rotateWarning.classList.remove('hidden');
+        } else {
+            rotateWarning.classList.add('hidden');
+        }
+    }
+
+    function updateDeviceUI(mode) {
+        inputMode = mode;
+        const inactiveClass = 'px-4 py-2 bg-transparent text-gray-400 border-2 border-gray-600 rounded arcade-font text-xs md:text-sm transition hover:text-white';
+        btnKb.className = inactiveClass;
+        btnGp.className = inactiveClass;
+        btnMobile.className = inactiveClass;
+
+        const powerupsHTML = `<span class="text-xs text-gray-400 mt-1">Shields (Green) | Coins (Gold) | Time Warps (Blue) | Bombs (Red)</span>`;
+
+        if (mode === 'KEYBOARD') {
+            btnKb.className = 'px-4 py-2 bg-pink-600 text-white border-2 border-pink-400 rounded arcade-font text-xs md:text-sm transition transform scale-105 shadow-[0_0_10px_rgba(236,72,153,0.6)]';
+            instText.innerHTML = `P1: W/A/S/D | P2: ARROWS<br>${powerupsHTML}`;
+            
+            // Move controls to bottom for Keyboard
+            gameControls.classList.remove('top-24', 'scale-75', 'opacity-60');
+            gameControls.classList.add('bottom-6');
+        } else if (mode === 'GAMEPAD') {
+            btnGp.className = 'px-4 py-2 bg-cyan-600 text-white border-2 border-cyan-400 rounded arcade-font text-xs md:text-sm transition transform scale-105 shadow-[0_0_10px_rgba(34,211,238,0.6)]';
+            instText.innerHTML = `P1: PAD 1 (D-PAD/STICK) | P2: PAD 2 (D-PAD/STICK)<br>${powerupsHTML}`;
+            
+            // Move controls to bottom for Gamepad
+            gameControls.classList.remove('top-24', 'scale-75', 'opacity-60');
+            gameControls.classList.add('bottom-6');
+        } else if (mode === 'MOBILE') {
+            btnMobile.className = 'px-4 py-2 bg-yellow-600 text-white border-2 border-yellow-400 rounded arcade-font text-xs md:text-sm transition transform scale-105 shadow-[0_0_10px_rgba(250,204,21,0.6)]';
+            instText.innerHTML = `TAP LEFT/RIGHT SCREEN SIDES TO STEER<br>USE PORTRAIT ORIENTATION FOR BEST VIEW<br>${powerupsHTML}`;
+            
+            // Move controls safely under the top score for Mobile, out of thumb-steering zones
+            gameControls.classList.remove('bottom-6');
+            gameControls.classList.add('top-24', 'scale-75', 'opacity-60');
+        }
+        checkOrientation();
+    }
+
+    btnKb.addEventListener('click', () => updateDeviceUI('KEYBOARD'));
+    btnGp.addEventListener('click', () => updateDeviceUI('GAMEPAD'));
+    btnMobile.addEventListener('click', () => updateDeviceUI('MOBILE'));
+
+    // Auto-detect mobile to set default (Only auto-detect if the screen is actually mobile-sized)
+    if (('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth <= 1024) {
+        updateDeviceUI('MOBILE');
+    } else {
+        updateDeviceUI('KEYBOARD');
+    }
+
     const touchZones = {
         'p1-l': document.getElementById('touch-p1-l'),
         'p1-r': document.getElementById('touch-p1-r'),
@@ -674,6 +767,7 @@ window.onload = function() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        checkOrientation(); // Re-evaluate rotation warning on resize/rotate
     });
 
     function togglePause() {
@@ -714,12 +808,12 @@ window.onload = function() {
         uiMenu.classList.add('hidden');
         uiPause.classList.add('hidden');
         uiOptions.classList.remove('hidden');
-        bottomControls.classList.add('hidden');
+        gameControls.classList.add('hidden');
     });
 
     btnCloseOptions.addEventListener('click', () => {
         uiOptions.classList.add('hidden');
-        bottomControls.classList.remove('hidden');
+        gameControls.classList.remove('hidden');
         
         if (prevState === 'PLAYING' || prevState === 'PAUSED') {
             GAME_STATE = 'PAUSED';
@@ -835,7 +929,7 @@ window.onload = function() {
         uiGameOver.classList.add('hidden');
         uiPause.classList.add('hidden');
         uiLevelComplete.classList.add('hidden');
-        bottomControls.classList.remove('hidden');
+        gameControls.classList.remove('hidden');
         btnPause.classList.remove('hidden');
         btnPause.innerText = 'PAUSE';
         uiHud.classList.remove('opacity-0');
@@ -873,7 +967,7 @@ window.onload = function() {
             SoundEngine.gameOver();
             uiHud.classList.remove('opacity-100');
             uiHud.classList.add('opacity-0');
-            bottomControls.classList.add('hidden');
+            gameControls.classList.add('hidden');
             
             setTimeout(() => {
                 uiGameOver.classList.remove('hidden');
