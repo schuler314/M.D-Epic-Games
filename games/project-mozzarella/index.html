@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLASSIFIED: Project M.O.Z.Z.A.R.E.L.L.A. Simulator</title>
+    
+    <!-- Google Fonts: Share Tech Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        mono: ['"Share Tech Mono"', 'monospace'],
+                    },
+                    colors: {
+                        terminal: {
+                            DEFAULT: '#00ff41',
+                            dark: '#008f11',
+                            bg: '#050505',
+                            panel: '#0a0a0a',
+                            highlight: '#aaffb0'
+                        },
+                        alert: {
+                            DEFAULT: '#ff003c',
+                            dark: '#880011'
+                        }
+                    },
+                    boxShadow: {
+                        'neon': '0 0 5px theme("colors.terminal.dark"), 0 0 15px theme("colors.terminal.dark")',
+                        'neon-strong': '0 0 10px theme("colors.terminal.DEFAULT"), 0 0 20px theme("colors.terminal.dark")',
+                        'alert': '0 0 10px theme("colors.alert.DEFAULT")'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #030303;
+            background-image: 
+                linear-gradient(rgba(0, 255, 65, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.04) 1px, transparent 1px);
+            background-size: 30px 30px;
+            touch-action: manipulation;
+        }
+
+        .scanline {
+            width: 100%;
+            height: 150px;
+            z-index: 50;
+            position: fixed;
+            pointer-events: none;
+            background: linear-gradient(0deg, rgba(0,255,65,0) 0%, rgba(0,255,65,0.05) 50%, rgba(0,255,65,0) 100%);
+            animation: scan 8s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: -150px; }
+            100% { top: 100%; }
+        }
+
+        .typing-cursor::after {
+            content: '█';
+            animation: blink 1s step-end infinite;
+            margin-left: 4px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #030303; border-left: 1px solid #008f11; }
+        ::-webkit-scrollbar-thumb { background: #00ff41; opacity: 0.5; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaffb0; }
+
+        #game-container {
+            border: 2px solid #008f11;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.15);
+            background-color: #020202;
+            background-image: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
+        }
+    </style>
+</head>
+<body class="font-mono text-terminal min-h-screen relative overflow-x-hidden selection:bg-terminal selection:text-black antialiased pb-12">
+
+    <div class="scanline"></div>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 relative z-10">
+        
+        <!-- Header -->
+        <header class="mb-6 border-b-2 border-terminal-dark/50 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+                <div class="inline-block border border-alert text-alert px-2 py-0.5 text-xs font-bold mb-3 tracking-widest bg-alert/10 shadow-alert animate-pulse">
+                    LEVEL 10 CLEARANCE
+                </div>
+                <h1 id="typewriter-title" class="text-2xl md:text-3xl lg:text-4xl font-bold text-terminal-highlight shadow-neon inline-block min-h-[2.5rem] typing-cursor uppercase"></h1>
+            </div>
+            <div class="text-sm bg-terminal-panel/80 p-3 border border-terminal-dark/50 rounded shadow-neon text-right">
+                <p><span class="opacity-60">TO:</span> <span class="text-white">Codename "Agent 8"</span></p>
+                <p><span class="opacity-60">FROM:</span> "Wrench", R&D</p>
+            </div>
+        </header>
+
+        <!-- Main Workspace Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            
+            <!-- LEFT COLUMN: Canvas & Controls (Spans 2 columns on wide screens) -->
+            <div class="lg:col-span-2 flex flex-col gap-4">
+                
+                <div class="flex justify-between items-end px-1">
+                    <h2 class="text-xl font-bold text-terminal-highlight flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        LIVE SIMULATOR
+                    </h2>
+                    <span id="system-status" class="text-xs border border-terminal text-terminal px-2 py-1 bg-terminal/10">STATUS: IDLE_PREVIEW</span>
+                </div>
+
+                <div id="game-container" class="relative rounded-lg overflow-hidden w-full aspect-[2/1]">
+                    <canvas id="gameCanvas" width="800" height="400" class="w-full h-full block"></canvas>
+                    
+                    <!-- HUD -->
+                    <div class="absolute top-4 left-4 pointer-events-none drop-shadow-md bg-black/50 px-3 py-1 border border-terminal-dark/50 rounded">
+                        <p class="text-lg font-bold text-terminal-highlight">DIST: <span id="hud-score">0</span>m</p>
+                    </div>
+                    <div class="absolute top-4 right-4 pointer-events-none drop-shadow-md bg-black/50 px-3 py-1 border border-terminal-dark/50 rounded text-right">
+                        <p class="text-lg font-bold">SYS: <span id="hud-mode" class="text-terminal">STANDARD ROAD</span></p>
+                    </div>
+
+                    <!-- CRITICAL FAILURE OVERLAY (Hidden by default) -->
+                    <div id="game-over-panel" class="absolute inset-0 hidden flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
+                        <div class="bg-alert-dark/20 border border-alert p-6 rounded text-center shadow-[0_0_30px_rgba(255,0,60,0.4)]">
+                            <h2 class="text-3xl md:text-4xl font-bold text-alert mb-2">CRITICAL FAILURE</h2>
+                            <p class="text-white mb-1">TOTAL DISTANCE: <span id="final-score" class="font-bold text-terminal-highlight">0</span>m</p>
+                            <p class="text-white mb-6">PIZZAS DEPLOYED: <span id="final-pizzas" class="font-bold text-orange-400">0</span></p>
+                            <p class="text-terminal-dark animate-pulse text-sm">[ AUTO-REBOOTING IN 3 SECONDS... ]</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Primary Action Button -->
+                <button id="start-btn" class="w-full py-4 bg-terminal text-black font-bold text-xl rounded shadow-neon-strong hover:bg-terminal-highlight hover:scale-[1.01] active:scale-[0.99] transition-all uppercase tracking-widest border border-transparent">
+                    [ INITIATE FIELD TEST ]
+                </button>
+
+                <!-- Mobile Action Buttons (Visible only when playing on small screens) -->
+                <div id="mobile-controls" class="hidden md:hidden flex-row gap-2 h-16">
+                    <button id="btn-up" class="flex-1 bg-terminal-panel border border-terminal-dark rounded text-center active:bg-terminal active:text-black font-bold">⬆️ FLY</button>
+                    <button id="btn-fire" class="flex-1 bg-terminal-panel border border-orange-500 rounded text-center text-orange-400 active:bg-orange-500 active:text-black font-bold shadow-[0_0_10px_rgba(249,115,22,0.3)]">🍕 FIRE</button>
+                    <button id="btn-down" class="flex-1 bg-terminal-panel border border-terminal-dark rounded text-center active:bg-terminal active:text-black font-bold">⬇️ DIVE</button>
+                </div>
+                
+                <div class="text-xs opacity-70 border border-terminal-dark/30 p-3 rounded bg-terminal-panel/50 text-center">
+                    <span class="hidden md:inline"><strong>KEYBOARD CONTROLS:</strong> [W]/[UP] = Ascend | [S]/[DOWN] = Descend | [SPACE] = Fire Pizza</span>
+                    <span class="md:hidden"><strong>TOUCH CONTROLS:</strong> Tap UP/DOWN halves of screen to steer. Double-tap to fire.</span>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Modification Bay -->
+            <div class="lg:col-span-1 flex flex-col gap-4">
+                <h2 class="text-xl font-bold text-terminal-highlight flex items-center gap-2 px-1">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    MODIFICATION BAY
+                </h2>
+                
+                <section class="bg-terminal-panel/80 border border-terminal-dark rounded-lg p-5 shadow-neon flex-1 overflow-y-auto">
+                    
+                    <div class="space-y-6">
+                        <!-- Color -->
+                        <div>
+                            <p class="text-xs text-terminal-dark mb-2 font-bold tracking-wider">01. CHASSIS ALLOY</p>
+                            <div class="flex gap-3 config-group" data-type="color">
+                                <button data-val="#00ff41" class="w-10 h-10 rounded border-2 border-transparent bg-[#00ff41] transition-all ring-2 ring-white scale-110 shadow-neon"></button>
+                                <button data-val="#ff003c" class="w-10 h-10 rounded border-2 border-transparent bg-[#ff003c] transition-all"></button>
+                                <button data-val="#9d00ff" class="w-10 h-10 rounded border-2 border-transparent bg-[#9d00ff] transition-all"></button>
+                                <button data-val="#eab308" class="w-10 h-10 rounded border-2 border-transparent bg-[#eab308] transition-all"></button>
+                            </div>
+                        </div>
+
+                        <!-- Wheels -->
+                        <div>
+                            <p class="text-xs text-terminal-dark mb-2 font-bold tracking-wider">02. PROPULSION TREAD</p>
+                            <div class="flex gap-2 config-group" data-type="wheels">
+                                <button data-val="STANDARD" class="flex-1 py-1.5 rounded text-xs transition-all bg-terminal border-terminal text-black shadow-neon font-bold">STD</button>
+                                <button data-val="HOVER" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">HOVER</button>
+                                <button data-val="TRACKS" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">TRACKS</button>
+                            </div>
+                        </div>
+
+                        <!-- Frame -->
+                        <div>
+                            <p class="text-xs text-terminal-dark mb-2 font-bold tracking-wider">03. VEHICLE FRAME</p>
+                            <div class="flex gap-2 config-group" data-type="frame">
+                                <button data-val="INTERCEPTOR" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">LIGHT</button>
+                                <button data-val="STANDARD" class="flex-1 py-1.5 rounded text-xs transition-all bg-terminal border-terminal text-black shadow-neon font-bold">STD</button>
+                                <button data-val="JUGGERNAUT" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">HEAVY</button>
+                            </div>
+                        </div>
+
+                        <!-- Exhaust -->
+                        <div>
+                            <p class="text-xs text-terminal-dark mb-2 font-bold tracking-wider">04. EXHAUST CORE</p>
+                            <div class="flex gap-3 config-group" data-type="exhaust">
+                                <button data-val="#00ffff" class="w-8 h-8 rounded border-2 border-transparent bg-[#00ffff] transition-all ring-2 ring-white scale-110 shadow-neon"></button>
+                                <button data-val="#00ff41" class="w-8 h-8 rounded border-2 border-transparent bg-[#00ff41] transition-all"></button>
+                                <button data-val="#ff003c" class="w-8 h-8 rounded border-2 border-transparent bg-[#ff003c] transition-all"></button>
+                                <button data-val="#ffffff" class="w-8 h-8 rounded border-2 border-transparent bg-[#ffffff] transition-all"></button>
+                            </div>
+                        </div>
+
+                        <!-- Topping -->
+                        <div>
+                            <p class="text-xs text-orange-500 mb-2 font-bold tracking-wider">05. PIZZA AMMUNITION</p>
+                            <div class="flex gap-2 config-group" data-type="topping">
+                                <button data-val="PEPPERONI" class="flex-1 py-1.5 rounded text-xs transition-all bg-orange-500 border-orange-500 text-black shadow-[0_0_10px_rgba(249,115,22,0.5)] font-bold">PEPPERONI</button>
+                                <button data-val="MUSHROOM" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-orange-500/40 text-orange-500 hover:bg-orange-500/20">MUSHROOM</button>
+                                <button data-val="OLIVE" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-orange-500/40 text-orange-500 hover:bg-orange-500/20">OLIVE</button>
+                            </div>
+                        </div>
+
+                        <!-- Spoiler -->
+                        <div>
+                            <p class="text-xs text-terminal-dark mb-2 font-bold tracking-wider">06. REAR SPOILER</p>
+                            <div class="flex gap-2 config-group" data-type="spoiler">
+                                <button data-val="NONE" class="flex-1 py-1.5 rounded text-xs transition-all bg-terminal border-terminal text-black shadow-neon font-bold">NONE</button>
+                                <button data-val="SPORT" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">SPORT</button>
+                                <button data-val="GT" class="flex-1 py-1.5 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">GT</button>
+                            </div>
+                        </div>
+
+                        <!-- Extras (Decal & Underglow) -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-terminal-dark mb-2 font-bold tracking-wider">DECAL</p>
+                                <div class="flex flex-col gap-2 config-group" data-type="decal">
+                                    <button data-val="NONE" class="py-1 rounded text-xs transition-all bg-terminal text-black shadow-neon font-bold">OFF</button>
+                                    <button data-val="STAR" class="py-1 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">★ STAR</button>
+                                    <button data-val="BOLT" class="py-1 rounded text-xs transition-all bg-transparent border border-terminal-dark/50 text-terminal-dark hover:bg-terminal-dark/20">⚡ BOLT</button>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-terminal-dark mb-2 font-bold tracking-wider">UNDERGLOW</p>
+                                <div class="flex flex-col gap-2 config-group" data-type="underglow">
+                                    <button data-val="NONE" class="py-1 rounded text-xs transition-all bg-terminal text-black shadow-neon font-bold">OFF</button>
+                                    <button data-val="#00ffff" class="py-1 rounded text-xs transition-all bg-transparent border border-[#00ffff]/50 text-[#00ffff] hover:bg-[#00ffff]/20">CYAN</button>
+                                    <button data-val="#ff00ff" class="py-1 rounded text-xs transition-all bg-transparent border border-[#ff00ff]/50 text-[#ff00ff] hover:bg-[#ff00ff]/20">MAGENTA</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="randomize-btn" class="w-full mt-2 bg-terminal-dark/10 border border-terminal-dark text-terminal-highlight hover:bg-terminal-dark/40 transition-colors py-3 rounded text-sm font-bold tracking-widest flex items-center justify-center gap-2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                            RANDOMIZE
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <h3 class="text-xl font-bold mb-4 text-terminal-dark border-b border-terminal-dark/30 pb-2">FIELD MANUAL & BLUEPRINTS</h3>
+
+        <!-- Blueprints -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Phase 1 -->
+            <article class="bg-terminal-panel/50 border border-terminal-dark/50 rounded p-5 hover:border-terminal transition-colors group">
+                <h2 class="text-lg font-bold mb-2 text-terminal-highlight border-b border-terminal-dark/30 pb-2">SYS_01: Flight</h2>
+                <p class="text-xs italic mb-3 opacity-80">"Cloud-Cruiser" Mode</p>
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li class="flex items-start"><span class="text-terminal mr-2">></span>Hover-Hubcaps enable instant vertical takeoff.</li>
+                    <li class="flex items-start"><span class="text-terminal mr-2">></span>Aero-Glider memory-metal chassis dodges aerial drones.</li>
+                </ul>
+            </article>
+            <!-- Phase 2 -->
+            <article class="bg-terminal-panel/50 border border-terminal-dark/50 rounded p-5 hover:border-blue-400 transition-colors group">
+                <h2 class="text-lg font-bold mb-2 text-blue-400 border-b border-terminal-dark/30 pb-2">SYS_02: Submarine</h2>
+                <p class="text-xs italic mb-3 opacity-80">"Deep-Dish" Mode</p>
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li class="flex items-start"><span class="text-blue-400 mr-2">></span>Titanium Bubble-Seal protects against extreme depths.</li>
+                    <li class="flex items-start"><span class="text-blue-400 mr-2">></span>Aqua-Tread Flippers navigate submerged aquatic mines.</li>
+                </ul>
+            </article>
+            <!-- Phase 3 -->
+            <article class="bg-terminal-panel/50 border border-terminal-dark/50 rounded p-5 hover:border-orange-400 transition-colors group">
+                <h2 class="text-lg font-bold mb-2 text-orange-400 border-b border-terminal-dark/30 pb-2">SYS_03: Pizza Core</h2>
+                <p class="text-xs italic mb-3 opacity-80">"Cheesy Override"</p>
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li class="flex items-start"><span class="text-orange-400 mr-2">></span>Quantum Crust-Generator forms high-velocity dough.</li>
+                    <li class="flex items-start"><span class="text-orange-400 mr-2">></span>Press SPACE to deploy piping hot ordinance at barricades.</li>
+                </ul>
+            </article>
+        </div>
+    </main>
+
+    <!-- Game Logic -->
+    <script>
+        // Typing Animation
+        document.addEventListener('DOMContentLoaded', () => {
+            const textToType = "PROJECT M.O.Z.Z.A.R.E.L.L.A.";
+            const targetEl = document.getElementById('typewriter-title');
+            let idx = 0;
+            function typeText() {
+                if (idx < textToType.length) {
+                    targetEl.textContent += textToType.charAt(idx);
+                    idx++;
+                    setTimeout(typeText, 60);
+                }
+            }
+            setTimeout(typeText, 300);
+        });
+
+        // ----------------------------------------------------
+        // CONFIGURATION STATE & UI BINDING
+        // ----------------------------------------------------
+        let playerConfig = {
+            color: '#00ff41',
+            topping: 'PEPPERONI',
+            frame: 'STANDARD',
+            exhaust: '#00ffff',
+            decal: 'NONE',
+            underglow: 'NONE',
+            wheels: 'STANDARD',
+            spoiler: 'NONE'
+        };
+
+        // Helper to update CSS classes for active buttons
+        function updateActiveButtonStyles(container, activeVal, configType) {
+            const btns = container.querySelectorAll('button');
+            const isColorCircle = (configType === 'color' || configType === 'exhaust');
+            const isTopping = (configType === 'topping');
+            
+            btns.forEach(b => {
+                const val = b.getAttribute('data-val');
+                const isActive = (val === activeVal);
+
+                if (isColorCircle) {
+                    if (isActive) {
+                        b.classList.add('ring-2', 'ring-white', 'shadow-neon', 'scale-110');
+                    } else {
+                        b.classList.remove('ring-2', 'ring-white', 'shadow-neon', 'scale-110');
+                    }
+                } else if (isTopping) {
+                    if (isActive) {
+                        b.classList.remove('bg-transparent', 'text-orange-500', 'border-orange-500/40');
+                        b.classList.add('bg-orange-500', 'text-black', 'border-orange-500', 'shadow-[0_0_10px_rgba(249,115,22,0.5)]', 'font-bold');
+                    } else {
+                        b.classList.add('bg-transparent', 'text-orange-500', 'border-orange-500/40');
+                        b.classList.remove('bg-orange-500', 'text-black', 'border-orange-500', 'shadow-[0_0_10px_rgba(249,115,22,0.5)]', 'font-bold');
+                    }
+                } else {
+                    // Standard text button
+                    let activeBg = 'bg-terminal';
+                    let activeText = 'text-black';
+                    let activeBorder = 'border-terminal';
+                    let activeShadow = 'shadow-neon';
+                    
+                    // Special coloring for underglow buttons
+                    if (configType === 'underglow') {
+                        if (val === '#00ffff') { activeBg = 'bg-[#00ffff]'; activeBorder = 'border-[#00ffff]'; activeShadow = 'shadow-[0_0_10px_rgba(0,255,255,0.5)]'; }
+                        if (val === '#ff00ff') { activeBg = 'bg-[#ff00ff]'; activeBorder = 'border-[#ff00ff]'; activeShadow = 'shadow-[0_0_10px_rgba(255,0,255,0.5)]'; }
+                    }
+
+                    if (isActive) {
+                        b.classList.remove('bg-transparent', 'border-terminal-dark/50', 'text-terminal-dark', 'hover:bg-terminal-dark/20', 'border-[#00ffff]/50', 'text-[#00ffff]', 'border-[#ff00ff]/50', 'text-[#ff00ff]');
+                        b.classList.add(activeBg, activeText, activeBorder, activeShadow, 'font-bold');
+                    } else {
+                        b.classList.remove(activeBg, activeText, activeBorder, activeShadow, 'font-bold');
+                        if (configType === 'underglow' && val === '#00ffff') b.classList.add('bg-transparent', 'border-[#00ffff]/50', 'text-[#00ffff]', 'hover:bg-[#00ffff]/20');
+                        else if (configType === 'underglow' && val === '#ff00ff') b.classList.add('bg-transparent', 'border-[#ff00ff]/50', 'text-[#ff00ff]', 'hover:bg-[#ff00ff]/20');
+                        else b.classList.add('bg-transparent', 'border-terminal-dark/50', 'text-terminal-dark', 'hover:bg-terminal-dark/20');
+                    }
+                }
+            });
+        }
+
+        // Attach event listeners to all config groups
+        document.querySelectorAll('.config-group').forEach(group => {
+            const type = group.getAttribute('data-type');
+            group.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const val = e.target.getAttribute('data-val');
+                    playerConfig[type] = val;
+                    updateActiveButtonStyles(group, val, type);
+                    if(type === 'frame') applyFrame();
+                });
+            });
+        });
+
+        document.getElementById('randomize-btn').addEventListener('click', () => {
+            document.querySelectorAll('.config-group').forEach(group => {
+                const btns = group.querySelectorAll('button');
+                const randomBtn = btns[Math.floor(Math.random() * btns.length)];
+                randomBtn.click();
+            });
+        });
+
+        // ----------------------------------------------------
+        // ARCADE GAME LOGIC
+        // ----------------------------------------------------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI Elements
+        const gameOverPanel = document.getElementById('game-over-panel');
+        const finalScoreEl = document.getElementById('final-score');
+        const finalPizzasEl = document.getElementById('final-pizzas');
+        const startBtn = document.getElementById('start-btn');
+        const hudScore = document.getElementById('hud-score');
+        const hudMode = document.getElementById('hud-mode');
+        const sysStatus = document.getElementById('system-status');
+        const mobileControls = document.getElementById('mobile-controls');
+
+        // Game Constants & State
+        const LANES = [80, 200, 320]; 
+        const MODE_NAMES = ['CLOUD-CRUISER', 'STANDARD ROAD', 'DEEP-DISH SUB'];
+        const MODE_COLORS = ['#00ffff', '#00ff41', '#60a5fa']; 
+        
+        let state = 'START'; // START, PLAYING, GAMEOVER
+        let score = 0;
+        let pizzasFired = 0;
+        let gameSpeed = 5;
+        let frames = 0;
+        let animationId;
+
+        let player = { lane: 1, x: 100, y: 200, targetY: 200, w: 70, h: 30 };
+        let obstacles = [];
+        let projectiles = [];
+        let particles = [];
+
+        function applyFrame() {
+            if (playerConfig.frame === 'INTERCEPTOR') { player.w = 50; player.h = 20; }
+            else if (playerConfig.frame === 'JUGGERNAUT') { player.w = 90; player.h = 40; }
+            else { player.w = 70; player.h = 30; } 
+        }
+
+        function moveUp() {
+            if (state !== 'PLAYING') return;
+            if (player.lane > 0) { player.lane--; updatePlayerMode(); }
+        }
+
+        function moveDown() {
+            if (state !== 'PLAYING') return;
+            if (player.lane < 2) { player.lane++; updatePlayerMode(); }
+        }
+
+        function firePizza() {
+            if (state !== 'PLAYING') return;
+            projectiles.push({ x: player.x + player.w, y: player.y, r: 12, speed: 10, rotation: 0 });
+            pizzasFired++;
+        }
+
+        // Inputs
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') moveUp();
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') moveDown();
+            if (e.code === 'Space') { e.preventDefault(); firePizza(); }
+        });
+
+        document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); moveUp(); });
+        document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); moveDown(); });
+        document.getElementById('btn-fire').addEventListener('touchstart', (e) => { e.preventDefault(); firePizza(); });
+
+        let lastTap = 0;
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if(state !== 'PLAYING') return;
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                firePizza(); 
+            } else {
+                const rect = canvas.getBoundingClientRect();
+                const touchY = e.touches[0].clientY - rect.top;
+                if (touchY < rect.height / 2) moveUp();
+                else moveDown();
+            }
+            lastTap = currentTime;
+        }, {passive: false});
+
+        function updatePlayerMode() {
+            player.targetY = LANES[player.lane];
+            hudMode.innerText = MODE_NAMES[player.lane];
+            hudMode.style.color = MODE_COLORS[player.lane];
+        }
+
+        function createParticles(x, y, color, count = 10) {
+            for(let i=0; i<count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 1.0, color: color
+                });
+            }
+        }
+
+        function spawnObstacle() {
+            if (frames % Math.max(40, 100 - Math.floor(score/100)) === 0) {
+                const lane = Math.floor(Math.random() * 3);
+                let w = 40, h = 40;
+                let type = lane === 0 ? '[ DRONE ]' : (lane === 1 ? '[ BARRICADE ]' : '[ MINE ]');
+                obstacles.push({ x: canvas.width, y: LANES[lane], w: w, h: h, type: type });
+            }
+        }
+
+        function resetGame() {
+            player.lane = 1;
+            player.y = LANES[1];
+            player.targetY = LANES[1];
+            applyFrame();
+            obstacles = [];
+            projectiles = [];
+            particles = [];
+            score = 0;
+            pizzasFired = 0;
+            gameSpeed = 6;
+            frames = 0;
+            updatePlayerMode();
+            hudScore.innerText = score;
+        }
+
+        function drawNeonRectRelative(x, y, w, h, color) {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = color;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawNeonRect(x, y, w, h, color) {
+            drawNeonRectRelative(x, y - h/2, w, h, color);
+        }
+
+        function update() {
+            // Background & Context Setup
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 1;
+            
+            // 1. Air Parallax
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.1)';
+            for(let i=0; i<15; i++) {
+                let speedMod = (state === 'GAMEOVER') ? 0 : 0.2;
+                let cx = (i * 80 - (frames * gameSpeed * speedMod)) % canvas.width;
+                if(cx < 0) cx += canvas.width;
+                ctx.fillRect(cx, 10 + (i * 13) % 120, 40, 2);
+            }
+
+            // 2. Perspective Road Grid
+            const horizonY = 140;
+            ctx.strokeStyle = 'rgba(0, 255, 65, 0.15)';
+            ctx.beginPath();
+            for(let i = -20; i <= 20; i++) {
+                ctx.moveTo(canvas.width/2, horizonY);
+                ctx.lineTo(canvas.width/2 + (i * 40) * 4, 260); 
+            }
+            let gridSpeed = (state === 'GAMEOVER') ? 0 : gameSpeed * 1.5;
+            let yOffset = (frames * gridSpeed) % 100;
+            for(let i = 0; i < 12; i++) {
+                let progress = (i * 10 + yOffset) / 120;
+                if (progress > 1) progress -= 1;
+                let yPos = horizonY + Math.pow(progress, 2) * 120;
+                if (yPos >= horizonY && yPos <= 260) {
+                    ctx.moveTo(0, yPos);
+                    ctx.lineTo(canvas.width, yPos);
+                }
+            }
+            ctx.stroke();
+
+            // 3. Water Refraction Waves
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.08)';
+            ctx.fillRect(0, 260, canvas.width, 140);
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+            ctx.beginPath();
+            let waveSpeed = (state === 'GAMEOVER') ? 0 : 0.05;
+            for(let i=0; i<4; i++) {
+                let y = 290 + i * 30;
+                let waveOffset = Math.sin((frames * waveSpeed) + i) * 15;
+                ctx.moveTo(0, y);
+                ctx.bezierCurveTo(canvas.width/3, y + waveOffset, canvas.width*2/3, y - waveOffset, canvas.width, y);
+            }
+            ctx.stroke();
+
+            // Vehicle Physics & Shadow
+            if (state !== 'GAMEOVER') {
+                let vy = (player.targetY - player.y) * 0.15;
+                player.y += vy;
+                let bankAngle = vy * 0.02;
+
+                let groundY = LANES[1] + 15; 
+                if (player.y < 260) { 
+                    let distY = Math.abs(player.y - groundY);
+                    let shadowScale = Math.max(0.1, 1 - (distY / 120));
+                    ctx.fillStyle = `rgba(0, 0, 0, ${0.6 * shadowScale})`;
+                    ctx.beginPath();
+                    ctx.ellipse(player.x + player.w/2, groundY, (player.w/2) * shadowScale, 6 * shadowScale, 0, 0, Math.PI*2);
+                    ctx.fill();
+                }
+
+                if (frames % 2 === 0) {
+                    particles.push({
+                        x: player.x,
+                        y: player.y + (Math.random() - 0.5) * (player.h * 0.5),
+                        vx: -Math.random() * 5 - 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        life: 1.0, 
+                        color: playerConfig.exhaust
+                    });
+                }
+
+                // Render Vehicle
+                ctx.save();
+                ctx.translate(player.x + player.w/2, player.y);
+                ctx.rotate(bankAngle);
+
+                let hw = player.w / 2;
+                let hh = player.h / 2;
+                const modeColor = MODE_COLORS[player.lane];
+                const pColor = playerConfig.color; 
+                
+                if (playerConfig.underglow !== 'NONE') {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = playerConfig.underglow;
+                    ctx.fillStyle = playerConfig.underglow;
+                    ctx.globalAlpha = 0.4;
+                    ctx.beginPath();
+                    ctx.ellipse(0, hh + 5, hw + 5, 8, 0, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(-hw, -hh, player.w, player.h); 
+                drawNeonRectRelative(-hw, -hh, player.w, player.h, pColor);
+                
+                ctx.strokeStyle = modeColor;
+                ctx.beginPath();
+                if (player.lane === 0) {
+                    ctx.moveTo(-hw + 10, 0); ctx.lineTo(-hw - 10, -15);
+                    ctx.moveTo(hw - 10, 0); ctx.lineTo(hw + 10, -15);
+                } else if (player.lane === 2) { 
+                    ctx.moveTo(-hw + 20, -hh); ctx.lineTo(-hw + 20, -hh - 15); ctx.lineTo(-hw + 30, -hh - 15);
+                } else { 
+                    if (playerConfig.wheels === 'HOVER') {
+                        ctx.moveTo(-hw + 5, hh + 4); ctx.lineTo(-hw + 25, hh + 4);
+                        ctx.moveTo(hw - 25, hh + 4); ctx.lineTo(hw - 5, hh + 4);
+                    } else if (playerConfig.wheels === 'TRACKS') {
+                        ctx.rect(-hw + 5, hh - 2, 20, 8); ctx.rect(hw - 25, hh - 2, 20, 8);
+                    } else {
+                        ctx.arc(-hw + 15, hh, 6, 0, Math.PI*2);
+                        ctx.moveTo(hw - 9, hh); ctx.arc(hw - 15, hh, 6, 0, Math.PI*2);
+                    }
+                }
+
+                if (playerConfig.spoiler === 'SPORT') {
+                    ctx.moveTo(-hw + 10, -hh); ctx.lineTo(-hw + 5, -hh - 10); ctx.lineTo(-hw - 5, -hh - 10);
+                } else if (playerConfig.spoiler === 'GT') {
+                    ctx.moveTo(-hw + 15, -hh); ctx.lineTo(-hw + 15, -hh - 15); ctx.lineTo(-hw - 10, -hh - 15);
+                    ctx.moveTo(-hw + 5, -hh); ctx.lineTo(-hw + 5, -hh - 15);
+                }
+                ctx.stroke();
+
+                if (playerConfig.decal === 'STAR') {
+                    ctx.fillStyle = 'white'; ctx.font = 'bold 16px sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', 0, 0);
+                } else if (playerConfig.decal === 'BOLT') {
+                    ctx.fillStyle = '#eab308'; ctx.font = 'bold 16px sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', 0, 0);
+                }
+
+                if (player.y > 260) {
+                    ctx.fillStyle = 'rgba(0, 100, 255, 0.2)';
+                    ctx.fillRect(-hw, -hh, player.w, player.h);
+                }
+                ctx.restore();
+            }
+
+            // Gameplay Elements
+            if (state === 'PLAYING') {
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    let p = projectiles[i];
+                    p.x += p.speed;
+                    p.rotation += 0.2;
+                    
+                    if (p.y < 260) {
+                        let groundY = LANES[1] + 15; 
+                        let pDist = Math.abs(p.y - groundY);
+                        let pScale = Math.max(0.2, 1 - (pDist / 120));
+                        ctx.fillStyle = `rgba(0, 0, 0, ${0.5 * pScale})`;
+                        ctx.beginPath(); ctx.ellipse(p.x, groundY, p.r * pScale, 3 * pScale, 0, 0, Math.PI*2); ctx.fill();
+                    }
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.fillStyle = '#e0a96d'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#ffcf54'; ctx.beginPath(); ctx.arc(0, 0, p.r-2, 0, Math.PI*2); ctx.fill();
+                    
+                    if (playerConfig.topping === 'PEPPERONI') {
+                        ctx.fillStyle = '#cc3333';
+                        ctx.beginPath(); ctx.arc(-3, -3, 2, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(4, 1, 2, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(-1, 5, 2, 0, Math.PI*2); ctx.fill();
+                    } else if (playerConfig.topping === 'MUSHROOM') {
+                        ctx.fillStyle = '#f3f4f6';
+                        ctx.fillRect(-4, -4, 4, 3); ctx.fillRect(-3, -1, 2, 2);
+                        ctx.fillRect(1, 1, 4, 3); ctx.fillRect(2, 4, 2, 2);
+                    } else if (playerConfig.topping === 'OLIVE') {
+                        ctx.strokeStyle = '#111111'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.arc(-2, -2, 2, 0, Math.PI*2); ctx.stroke();
+                        ctx.beginPath(); ctx.arc(3, 2, 2, 0, Math.PI*2); ctx.stroke();
+                    }
+                    ctx.restore();
+
+                    if (p.x > canvas.width + 20) projectiles.splice(i, 1);
+                }
+
+                spawnObstacle();
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    let obs = obstacles[i];
+                    obs.x -= gameSpeed;
+
+                    let depth = 10;
+                    ctx.fillStyle = '#880011';
+                    ctx.beginPath(); ctx.moveTo(obs.x, obs.y - obs.h/2); ctx.lineTo(obs.x + depth, obs.y - obs.h/2 - depth); ctx.lineTo(obs.x + obs.w + depth, obs.y - obs.h/2 - depth); ctx.lineTo(obs.x + obs.w, obs.y - obs.h/2); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(obs.x + obs.w, obs.y - obs.h/2); ctx.lineTo(obs.x + obs.w + depth, obs.y - obs.h/2 - depth); ctx.lineTo(obs.x + obs.w + depth, obs.y + obs.h/2 - depth); ctx.lineTo(obs.x + obs.w, obs.y + obs.h/2); ctx.fill();
+
+                    drawNeonRect(obs.x, obs.y, obs.w, obs.h, '#ff003c');
+                    ctx.fillStyle = '#ff003c'; ctx.font = "12px monospace"; ctx.textAlign = "center";
+                    ctx.fillText(obs.type, obs.x + obs.w/2, obs.y - obs.h/2 - 15);
+
+                    // Player Collision
+                    const hitX = Math.abs((player.x + player.w/2) - (obs.x + obs.w/2)) < (player.w/2 + obs.w/2 - 8);
+                    const hitY = Math.abs(player.y - obs.y) < (player.h/2 + obs.h/2 - 5);
+                    
+                    if (hitX && hitY) {
+                        gameOver();
+                        break; // IMPORTANT: Do not return! Break the loop so animation continues.
+                    }
+
+                    // Projectile Collision
+                    for (let j = projectiles.length - 1; j >= 0; j--) {
+                        let proj = projectiles[j];
+                        if (Math.abs(proj.x - (obs.x + obs.w/2)) < obs.w/2 + proj.r &&
+                            Math.abs(proj.y - obs.y) < obs.h/2 + proj.r) {
+                            
+                            createParticles(obs.x + obs.w/2, obs.y, '#ff003c');
+                            createParticles(proj.x, proj.y, '#ffcf54');
+                            
+                            obstacles.splice(i, 1);
+                            projectiles.splice(j, 1);
+                            score += 50; 
+                            break; 
+                        }
+                    }
+
+                    if (obs && obs.x < -50) obstacles.splice(i, 1);
+                }
+
+                if (frames % 10 === 0) {
+                    score += 1;
+                    hudScore.innerText = score;
+                }
+                if (frames % 600 === 0) gameSpeed += 0.5;
+            }
+            
+            if (state !== 'GAMEOVER') frames++; 
+
+            // Particles
+            for(let i = particles.length-1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.03;
+                if(p.life <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, 4, 4);
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+
+            animationId = requestAnimationFrame(update);
+        }
+
+        function gameOver() {
+            state = 'GAMEOVER';
+            sysStatus.innerText = "STATUS: CRITICAL_ERROR";
+            sysStatus.classList.replace('text-terminal', 'text-alert');
+            sysStatus.classList.replace('border-terminal', 'border-alert');
+            
+            createParticles(player.x + player.w/2, player.y, '#00ff41', 40);
+            createParticles(player.x + player.w/2, player.y, '#ff003c', 40);
+            
+            gameOverPanel.classList.remove('hidden');
+            gameOverPanel.classList.add('flex');
+            finalScoreEl.innerText = score;
+            finalPizzasEl.innerText = pizzasFired;
+            
+            startBtn.disabled = true;
+            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            startBtn.innerText = "[ SYSTEM LOCKED ]";
+
+            // AUTO RESET AFTER 3 SECONDS
+            setTimeout(() => {
+                resetToGarage();
+            }, 3000);
+        }
+
+        function resetToGarage() {
+            state = 'START';
+            gameOverPanel.classList.add('hidden');
+            gameOverPanel.classList.remove('flex');
+            
+            sysStatus.innerText = "STATUS: IDLE_PREVIEW";
+            sysStatus.classList.replace('text-alert', 'text-terminal');
+            sysStatus.classList.replace('border-alert', 'border-terminal');
+            
+            startBtn.disabled = false;
+            startBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-alert', 'text-white', 'border-alert');
+            startBtn.classList.add('bg-terminal', 'text-black');
+            startBtn.innerText = "[ INITIATE FIELD TEST ]";
+            
+            mobileControls.classList.add('hidden');
+            mobileControls.classList.remove('flex');
+
+            resetGame();
+        }
+
+        startBtn.addEventListener('click', () => {
+            if (state === 'START') {
+                state = 'PLAYING';
+                sysStatus.innerText = "STATUS: ENGAGED";
+                
+                startBtn.innerText = "[ ABORT SIMULATION ]";
+                startBtn.classList.remove('bg-terminal', 'text-black');
+                startBtn.classList.add('bg-transparent', 'border-alert', 'text-alert');
+                
+                mobileControls.classList.remove('hidden');
+                mobileControls.classList.add('flex');
+            } else if (state === 'PLAYING') {
+                resetToGarage(); // Abort manually
+            }
+        });
+
+        // Init
+        resetGame();
+        update();
+
+    </script>
+</body>
+</html>
