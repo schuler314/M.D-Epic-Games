@@ -78,7 +78,11 @@
         <p class="text-gray-400">This game requires landscape mode.</p>
     </div>
 
+    <!-- Alert Messages -->
     <div id="msg-popup" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 text-5xl font-bold text-red-500 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)] opacity-0 transition-opacity duration-300 pointer-events-none z-50 whitespace-nowrap"></div>
+    
+    <!-- Player Death Toast -->
+    <div id="toast-message" class="absolute top-16 left-1/2 transform -translate-x-1/2 bg-black/90 border-2 border-cyan-500 text-white px-8 py-4 rounded-xl text-xl lg:text-2xl font-bold z-50 transition-opacity duration-500 opacity-0 pointer-events-none text-center shadow-[0_0_20px_#0ff] hidden"></div>
 
     <div id="split-divider" class="absolute top-0 left-1/2 w-1 h-full bg-cyan-500 z-10 hidden pointer-events-none shadow-[0_0_15px_#0ff]"></div>
 
@@ -123,7 +127,7 @@
                     <span>Players:</span>
                     <select id="select-players" class="bg-black text-cyan-300 p-2 rounded outline-none border border-cyan-800">
                         <option value="1">1 Player</option>
-                        <option value="2">2 Players (Split Screen)</option>
+                        <option value="2">2 Players (Co-Op)</option>
                     </select>
                 </div>
                 <div class="flex justify-between items-center bg-gray-900/80 p-2 rounded-xl border border-gray-700">
@@ -182,7 +186,7 @@
             </div>
 
             <div class="space-y-2 mb-6 text-sm">
-                <h3 class="font-bold text-yellow-400 border-b border-gray-700 pb-1">POWERUPS & BONUSES</h3>
+                <h3 class="font-bold text-yellow-400 border-b border-gray-700 pb-1">POWERUPS (+50 POINTS)</h3>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-yellow-400"></div> <strong>BOOST:</strong> Speed multiplier</div>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-blue-400"></div> <strong>SHIELD:</strong> No crash damage</div>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-purple-400"></div> <strong>TIME:</strong> Adds 10 seconds</div>
@@ -199,11 +203,14 @@
             <h2 id="overlay-title" class="text-5xl text-fuchsia-500 mb-6 drop-shadow-[0_0_10px_rgba(255,0,255,0.8)] font-bold">PAUSED</h2>
             <p id="overlay-msg" class="text-xl text-cyan-300 mb-6 hidden"></p>
             
-            <div id="new-high-score-section" class="w-full mb-6 hidden flex flex-col items-center">
-                <p class="text-yellow-400 font-bold mb-2 animate-pulse text-xl">NEW HIGH SCORE!</p>
-                <div class="flex gap-2 w-full">
-                    <input id="input-initials" type="text" maxlength="3" placeholder="AAA" class="w-full bg-gray-900 border-2 border-cyan-500 text-white text-center text-2xl font-bold rounded-xl outline-none uppercase" style="text-transform: uppercase;">
-                    <button id="btn-submit-score" class="cyber-btn px-6 rounded-xl font-bold text-white">SAVE</button>
+            <!-- Separated the flex logic so removing 'hidden' properly reveals the block -->
+            <div id="new-high-score-section" class="w-full mb-6 hidden">
+                <div class="flex flex-col items-center">
+                    <p class="text-yellow-400 font-bold mb-2 animate-pulse text-xl">NEW HIGH SCORE!</p>
+                    <div class="flex gap-2 w-full">
+                        <input id="input-initials" type="text" maxlength="12" placeholder="PLAYER NAME" class="w-full bg-gray-900 border-2 border-cyan-500 text-white text-center text-2xl font-bold rounded-xl outline-none uppercase" style="text-transform: uppercase;">
+                        <button id="btn-submit-score" class="cyber-btn px-6 rounded-xl font-bold text-white">SAVE</button>
+                    </div>
                 </div>
             </div>
 
@@ -273,7 +280,8 @@
         const STATE = {
             mode: 'menu', numPlayers: 1, numRivals: 1, device: 'desktop',
             timeLeft: 60, level: 1, deliveries: 0, rivalScore: 0, lastTime: 0,
-            leaderboard: (loadedBoard && Array.isArray(loadedBoard)) ? loadedBoard : defaultLeaderboard,
+            teamScore: 0,
+            leaderboard: (loadedBoard && Array.isArray(loadedBoard) && loadedBoard.length > 0) ? loadedBoard : defaultLeaderboard,
             pendingHighScore: 0
         };
 
@@ -283,11 +291,11 @@
             hudContainer: document.getElementById('player-hud-container'), time: document.getElementById('time-display'),
             level: document.getElementById('level-display'), overlayTitle: document.getElementById('overlay-title'),
             overlayMsg: document.getElementById('overlay-msg'), btnResume: document.getElementById('btn-resume'),
+            btnRestart: document.getElementById('btn-restart'),
             highScore: document.getElementById('high-score-display'), rivalHud: document.getElementById('hud-rivals'),
             rivalScore: document.getElementById('rival-score-display'), msgPopup: document.getElementById('msg-popup'),
             splitDivider: document.getElementById('split-divider'),
             
-            // New Leaderboard UI
             btnLeaderboard: document.getElementById('btn-leaderboard'), menuLeaderboard: document.getElementById('menu-leaderboard'),
             btnCloseLeaderboard: document.getElementById('btn-close-leaderboard'), leaderboardList: document.getElementById('leaderboard-list'),
             newHighScoreSection: document.getElementById('new-high-score-section'), inputInitials: document.getElementById('input-initials'),
@@ -325,7 +333,6 @@
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6); scene.add(hemiLight);
         const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.0); dirLight.position.set(200, 300, 100); scene.add(dirLight);
 
-        // --- Procedural Textures ---
         function createWindowTextures() {
             const types = [];
             for (let style = 0; style < 3; style++) {
@@ -421,8 +428,8 @@
                     const wx = (x - offset) * TILE_SIZE; const wz = (z - offset) * TILE_SIZE;
 
                     if (x % 2 !== 0 && z % 2 !== 0 && (x !== offset || z !== offset)) {
-                        const isTall = Math.random() < 0.45; // 55% chance to be a low-rise building!
-                        const isCyl = isTall && Math.random() > 0.6; // Cylinders only for tall buildings
+                        const isTall = Math.random() < 0.45; 
+                        const isCyl = isTall && Math.random() > 0.6; 
                         const widthScale = 0.5 + Math.random() * 0.4; 
                         const depthScale = isCyl ? widthScale : (0.5 + Math.random() * 0.4);
                         grid[x][z] = { isBldg: true, isCyl: isCyl, wScale: widthScale, dScale: depthScale };
@@ -451,7 +458,6 @@
                         grid[x][z] = { isBldg: false }; let rMat = null;
                         if (x % 2 === 0 && z % 2 === 0) {
                             rMat = interMat; validRoads.push({ x: wx, z: wz });
-                            // Traffic Lights / Stop Signs
                             if (Math.random() < 0.25) { 
                                 const cDist = TILE_SIZE * 0.35; const corners = [[cDist, cDist, Math.PI], [-cDist, cDist, -Math.PI/2], [cDist, -cDist, Math.PI/2], [-cDist, -cDist, 0]];
                                 const isTrafficLight = Math.random() > 0.5; 
@@ -464,7 +470,6 @@
                 }
             }
 
-            // Visible Forcefield Map Boundaries!
             const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222, wireframe: true, transparent: true, opacity: 0.5 }); 
             const wallSize = MAP_SIZE * TILE_SIZE;
             const wGeo = new THREE.BoxGeometry(wallSize + TILE_SIZE*2, 150, TILE_SIZE); const wGeo2 = new THREE.BoxGeometry(TILE_SIZE, 150, wallSize + TILE_SIZE*2);
@@ -479,9 +484,11 @@
            ========================================================================= */
         
         let players = []; let trafficCars = []; let rivalCars = []; let powerups = [];
+        
+        // Weighted powerup array (Drones are 3x more frequent)
         const PU_TYPES = [
-            { id: 'BOOST', color: 0xfacc15 }, { id: 'SHIELD', color: 0x60a5fa }, 
-            { id: 'TIME', color: 0xc084fc }, { id: 'DRONE', color: 0xaaffff }
+            { id: 'BOOST', color: 0xfacc15 }, { id: 'SHIELD', color: 0x60a5fa }, { id: 'TIME', color: 0xc084fc }, 
+            { id: 'DRONE', color: 0xaaffff }, { id: 'DRONE', color: 0xaaffff }, { id: 'DRONE', color: 0xaaffff }
         ];
 
         function createTextSprite(text, colorHex) {
@@ -530,20 +537,21 @@
 
                 this.group.position.set(startX, 0, 0);
                 this.physics = { speed: 0, maxSpeed: 1.15, reverseSpeed: -0.3, accel: 0.02, brake: 0.04, friction: 0.008, angle: 0, turnSpeed: 0.05, radius: 1.2 };
-                this.keys = { w: false, a: false, s: false, d: false }; this.score = 0; this.health = 100; this.alive = true; this.effects = { boost: 0, shield: 0, drone: 0 };
+                this.keys = { w: false, a: false, s: false, d: false }; this.health = 100; this.alive = true; this.effects = { boost: 0, shield: 0, drone: 0 };
                 this.initHUD(colorHex);
             }
 
             initHUD(colorHex) {
                 const colorStr = '#' + colorHex.toString(16).padStart(6, '0');
+                const scoreLabel = STATE.numPlayers === 2 ? 'TEAM SCORE' : 'SCORE';
                 UI.hudContainer.insertAdjacentHTML('beforeend', `
                     <div class="cyber-panel p-2 rounded-lg" style="border-color: ${colorStr}">
-                        <div class="flex justify-between items-end"><div class="text-sm font-bold" style="color: ${colorStr}">P${this.id} HEALTH</div><div class="text-xs text-fuchsia-400 font-bold">SCORE: <span id="p${this.id}-score" class="text-white">0</span></div></div>
+                        <div class="flex justify-between items-end"><div class="text-sm font-bold" style="color: ${colorStr}">P${this.id} HEALTH</div><div class="text-xs text-fuchsia-400 font-bold">${scoreLabel}: <span id="p${this.id}-score" class="text-white">0</span></div></div>
                         <div class="health-bar-container mt-1"><div id="p${this.id}-health" class="health-bar" style="background-color: #0f0;"></div></div>
                     </div>`);
             }
             updateHUD() {
-                document.getElementById(`p${this.id}-score`).innerText = this.score;
+                document.getElementById(`p${this.id}-score`).innerText = STATE.teamScore;
                 const hb = document.getElementById(`p${this.id}-health`);
                 hb.style.width = Math.max(0, this.health) + '%'; hb.style.backgroundColor = this.health > 60 ? '#0f0' : (this.health > 30 ? '#ff0' : '#f00');
             }
@@ -566,7 +574,6 @@
                 
                 this.group.add(carBody); 
                 
-                // Spawn explicitly on a valid road
                 const startNode = validRoads[Math.floor(Math.random() * validRoads.length)];
                 this.group.position.set(startNode.x, 0, startNode.z);
                 this.gx = Math.round(startNode.x / TILE_SIZE) + Math.floor(MAP_SIZE/2);
@@ -669,7 +676,7 @@
         }
 
         let currentTarget = { x: 0, z: 0 };
-        const targetMesh = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 30, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+        const targetMesh = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 250, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
         scene.add(targetMesh);
 
         function pickNewTarget() {
@@ -678,14 +685,14 @@
                 newLoc = validRoads[Math.floor(Math.random() * validRoads.length)];
                 dist = Math.hypot(newLoc.x - currentTarget.x, newLoc.z - currentTarget.z);
             } while (dist < TILE_SIZE * 5); 
-            currentTarget = newLoc; targetMesh.position.set(currentTarget.x, 15, currentTarget.z);
+            currentTarget = newLoc; targetMesh.position.set(currentTarget.x, 125, currentTarget.z);
             spawnPowerups();
             rivalCars.forEach(rc => rc.pickNextTarget()); 
         }
 
         function spawnPowerups() {
             powerups.forEach(p => scene.remove(p.mesh)); powerups = [];
-            for(let i=0; i<6; i++) { 
+            for(let i=0; i<10; i++) { 
                 const loc = validRoads[Math.floor(Math.random() * validRoads.length)];
                 const type = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
                 
@@ -708,12 +715,22 @@
             setTimeout(() => { UI.msgPopup.classList.replace('opacity-100', 'opacity-0'); }, 1500);
         }
 
+        function showToast(text) {
+            const toast = document.getElementById('toast-message');
+            toast.innerText = text;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.replace('opacity-0', 'opacity-100'), 50);
+            setTimeout(() => {
+                toast.classList.replace('opacity-100', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 500);
+            }, 5000);
+        }
+
         function rivalScored() {
             AudioSys.steal(); STATE.rivalScore++; UI.rivalScore.innerText = STATE.rivalScore;
             showMessage("RIVAL STOLE IT!", "text-red-500"); pickNewTarget();
         }
 
-        // PERFECTED GRID COLLISION - Computes explicit cell index and handles boundaries
         function checkBuildingCollision(nx, nz, radius) {
             const offset = Math.floor(MAP_SIZE / 2);
             let minX = Math.round((nx - radius) / TILE_SIZE) + offset; let maxX = Math.round((nx + radius) / TILE_SIZE) + offset;
@@ -729,7 +746,6 @@
                         if (cell.isCyl) {
                             const cylRadius = (TILE_SIZE * cell.wScale) / 2;
                             const dist = Math.hypot(nx - bCenterX, nz - bCenterZ);
-                            // Cylinders are very forgiving, shrinks effective collision radius by 25%
                             if (dist < (cylRadius * 0.75) + radius) return true;
                         } else {
                             const dx = Math.abs(nx - bCenterX); const dz = Math.abs(nz - bCenterZ);
@@ -753,10 +769,16 @@
                 
                 if(p.effects.drone > 0) {
                     p.effects.drone -= dt;
+                    
+                    // LANDING FIX: Forcefully extend drone timer if expiring above a building to prevent getting stuck
+                    if (p.effects.drone <= 0 && checkBuildingCollision(p.group.position.x, p.group.position.z, p.physics.radius)) {
+                        p.effects.drone = 0.5;
+                    }
+
                     p.droneBody.visible = true; p.carBody.visible = false; p.shieldMesh.visible = true;
                     p.shieldMesh.rotation.y += 0.05;
                     p.droneProps.forEach(prop => prop.rotation.y += 20 * dt);
-                    p.group.position.y = THREE.MathUtils.lerp(p.group.position.y, 80.0, 0.1); 
+                    p.group.position.y = THREE.MathUtils.lerp(p.group.position.y, 120.0, 0.1); 
                     isDroneActiveAny = true;
                 } else {
                     p.droneBody.visible = false; p.carBody.visible = true;
@@ -790,7 +812,7 @@
                 }
 
                 const vx = Math.sin(p.physics.angle) * p.physics.speed; const vz = Math.cos(p.physics.angle) * p.physics.speed;
-                const nextX = p.group.position.x + vx; const nextZ = p.group.position.z + vz;
+                let nextX = p.group.position.x + vx; let nextZ = p.group.position.z + vz;
 
                 let isHit = false;
                 if (!isDrone) {
@@ -799,7 +821,6 @@
                         for(let o of [...trafficCars, ...rivalCars]) {
                             if(Math.hypot(o.group.position.x - nextX, o.group.position.z - nextZ) < (p.physics.radius + o.radius)) { isHit = true; break; }
                         }
-                        // Check player-to-player collision
                         for(let op of players) {
                             if (op.id !== p.id && op.alive && op.effects.drone <= 0) {
                                 if (Math.hypot(op.group.position.x - nextX, op.group.position.z - nextZ) < (p.physics.radius + op.physics.radius)) { isHit = true; break; }
@@ -807,10 +828,11 @@
                         }
                     }
                 } else {
-                    // Drones only bounce off map edges
                     const limit = (MAP_SIZE * TILE_SIZE) / 2;
                     if (nextX - p.physics.radius < -limit || nextX + p.physics.radius > limit || nextZ - p.physics.radius < -limit || nextZ + p.physics.radius > limit) {
                         isHit = true;
+                        nextX = Math.max(-limit + p.physics.radius + 0.1, Math.min(limit - p.physics.radius - 0.1, nextX));
+                        nextZ = Math.max(-limit + p.physics.radius + 0.1, Math.min(limit - p.physics.radius - 0.1, nextZ));
                     }
                     for(let op of players) {
                         if (op.id !== p.id && op.alive && op.effects.drone > 0) {
@@ -823,25 +845,37 @@
                     const impactForce = Math.abs(p.physics.speed);
                     if(impactForce > 0.2) {
                         AudioSys.crash(impactForce);
-                        // Drones get automatic indestructible shield to walls
                         if(p.effects.shield <= 0 && !isDrone) {
                             p.health -= Math.floor(impactForce * 40); p.updateHUD();
-                            if (p.health <= 0) { p.alive = false; p.group.visible = false; if(players.every(pl => !pl.alive)) endGame("ALL CARGO DESTROYED"); }
+                            if (p.health <= 0) { 
+                                p.alive = false; p.group.visible = false; 
+                                
+                                const alivePlayers = players.filter(pl => pl.alive);
+                                if(alivePlayers.length === 0) {
+                                    endGame("ALL CARGO DESTROYED");
+                                } else if (STATE.numPlayers === 2 && alivePlayers.length === 1) {
+                                    showToast("The other player is out. It's all on you now to deliver the package. Good luck!");
+                                    UI.splitDivider.classList.add('hidden');
+                                }
+                            }
                         }
                     }
                     p.physics.speed = -p.physics.speed * 0.4;
+                    if(isDrone) p.group.position.set(nextX, p.group.position.y, nextZ); 
                 } else { p.group.position.set(nextX, p.group.position.y, nextZ); }
+                
                 topSpeed = Math.max(topSpeed, Math.abs(p.physics.speed));
 
                 const dx = currentTarget.x - p.group.position.x; const dz = currentTarget.z - p.group.position.z;
                 p.arrowGroup.rotation.y = Math.atan2(dx, dz) - p.group.rotation.y;
 
-                // Drone can pick up from the air!
                 if (Math.hypot(dx, dz) < TILE_SIZE / 2) {
                     AudioSys.success(); showMessage("DELIVERY SUCCESS!", "text-green-400");
-                    p.score += 100 * STATE.level; 
+                    STATE.teamScore += 100 * STATE.level; 
+                    p.score += 100 * STATE.level;
                     p.health = Math.min(100, p.health + 50); 
-                    p.updateHUD();
+                    
+                    players.forEach(pl => pl.updateHUD()); 
                     
                     STATE.deliveries++; if(STATE.deliveries % 3 === 0) { STATE.level++; UI.level.innerText = STATE.level; }
                     STATE.timeLeft += Math.max(10, 30 - STATE.level);
@@ -852,6 +886,12 @@
                 powerups.forEach(pu => {
                     if(pu.active && Math.hypot(pu.x - p.group.position.x, pu.z - p.group.position.z) < 3.0) {
                         pu.active = false; scene.remove(pu.mesh); AudioSys.powerup();
+                        
+                        // Add points for collecting a powerup
+                        p.score += 50;
+                        STATE.teamScore += 50;
+                        players.forEach(pl => pl.updateHUD());
+
                         if(pu.type === 'BOOST') p.effects.boost = 5.0; 
                         if(pu.type === 'SHIELD') p.effects.shield = 10.0;
                         if(pu.type === 'DRONE') p.effects.drone = 15.0; 
@@ -877,6 +917,10 @@
             if(players[0]) { if(k==='w') players[0].keys.w=false; if(k==='s') players[0].keys.s=false; if(k==='a') players[0].keys.a=false; if(k==='d') players[0].keys.d=false;
                 if(STATE.numPlayers === 1) { if(e.key==='ArrowUp') players[0].keys.w=false; if(e.key==='ArrowDown') players[0].keys.s=false; if(e.key==='ArrowLeft') players[0].keys.a=false; if(e.key==='ArrowRight') players[0].keys.d=false; } }
             if(players[1]) { if(e.key==='ArrowUp') players[1].keys.w=false; if(e.key==='ArrowDown') players[1].keys.s=false; if(e.key==='ArrowLeft') players[1].keys.a=false; if(e.key==='ArrowRight') players[1].keys.d=false; }
+        });
+
+        UI.inputInitials.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); UI.btnSubmitScore.click(); }
         });
 
         const bindT = (id, act, pI) => { const el = document.getElementById(id); if(!el) return; el.addEventListener('touchstart', (e)=>{e.preventDefault(); if(players[pI]) players[pI].keys[act]=true;}); el.addEventListener('touchend', (e)=>{e.preventDefault(); if(players[pI]) players[pI].keys[act]=false;}); };
@@ -928,7 +972,7 @@
 
             if(STATE.numRivals > 0) UI.rivalHud.classList.remove('hidden'); else UI.rivalHud.classList.add('hidden');
 
-            STATE.level = 1; STATE.deliveries = 0; STATE.timeLeft = 60; STATE.rivalScore = 0; STATE.mode = 'playing'; STATE.lastTime = performance.now();
+            STATE.level = 1; STATE.deliveries = 0; STATE.timeLeft = 60; STATE.rivalScore = 0; STATE.teamScore = 0; STATE.mode = 'playing'; STATE.lastTime = performance.now();
             UI.level.innerText = STATE.level; UI.rivalScore.innerText = STATE.rivalScore; pickNewTarget();
 
             UI.start.classList.add('hidden'); UI.overlay.classList.add('hidden'); UI.hud.classList.remove('hidden'); UI.msgPopup.classList.add('opacity-0');
@@ -941,20 +985,24 @@
 
         function endGame(reason) {
             STATE.mode = 'gameover'; AudioSys.muteEngine(); AudioSys.fail();
-            const maxScore = Math.max(...players.map(p => p.score));
             
             UI.overlayTitle.innerText = "GAME OVER"; UI.overlayTitle.className = "text-5xl text-red-500 mb-2 font-bold";
-            let html = `${reason}<br><br>`; players.forEach(p => html += `P${p.id} Score: <strong class="text-white">${p.score}</strong><br>`);
+            let html = `${reason}<br><br>`; 
+            
+            const scoreLabel = STATE.numPlayers === 2 ? 'Team Score' : 'Player 1 Score';
+            html += `${scoreLabel}: <strong class="text-white">${STATE.teamScore}</strong><br>`;
+            
             if(STATE.numRivals > 0) html += `<br>Rivals Stole: <strong class="text-orange-400">${STATE.rivalScore}</strong>`;
             UI.overlayMsg.innerHTML = html; UI.overlayMsg.classList.remove('hidden');
             UI.btnResume.classList.add('hidden'); UI.overlay.classList.remove('hidden'); UI.hud.classList.add('hidden'); UI.splitDivider.classList.add('hidden');
 
-            if (maxScore > STATE.leaderboard[STATE.leaderboard.length - 1].score && maxScore > 0) {
-                STATE.pendingHighScore = maxScore;
+            const lowestScore = (STATE.leaderboard && STATE.leaderboard[4]) ? STATE.leaderboard[4].score : 0;
+            if (STATE.teamScore >= lowestScore && STATE.teamScore > 0) {
+                STATE.pendingHighScore = STATE.teamScore;
                 UI.newHighScoreSection.classList.remove('hidden');
                 UI.btnRestart.classList.add('hidden');
                 UI.inputInitials.value = '';
-                setTimeout(() => UI.inputInitials.focus(), 100); // Focus after modal transition
+                setTimeout(() => UI.inputInitials.focus(), 100); 
             } else {
                 UI.newHighScoreSection.classList.add('hidden');
                 UI.btnRestart.classList.remove('hidden');
@@ -970,7 +1018,7 @@
         }, 1000);
 
         document.getElementById('btn-start').addEventListener('click', startGame);
-        document.getElementById('btn-restart').addEventListener('click', () => { UI.overlay.classList.add('hidden'); UI.start.classList.remove('hidden'); STATE.mode = 'menu'; });
+        UI.btnRestart.addEventListener('click', () => { UI.overlay.classList.add('hidden'); UI.start.classList.remove('hidden'); STATE.mode = 'menu'; });
         UI.btnResume.addEventListener('click', togglePause); document.getElementById('btn-pause').addEventListener('click', togglePause);
         document.getElementById('btn-instructions').addEventListener('click', () => { updateInstructions(); document.getElementById('menu-instructions').classList.remove('hidden'); });
         document.getElementById('btn-close-instructions').addEventListener('click', () => { document.getElementById('menu-instructions').classList.add('hidden'); });
@@ -979,10 +1027,10 @@
         UI.btnCloseLeaderboard.addEventListener('click', () => { UI.menuLeaderboard.classList.add('hidden'); });
         
         UI.btnSubmitScore.addEventListener('click', () => {
-            const initials = UI.inputInitials.value.toUpperCase().trim() || 'AAA';
-            STATE.leaderboard.push({ name: initials.substring(0,3), score: STATE.pendingHighScore });
+            const initials = UI.inputInitials.value.toUpperCase().trim() || 'PLAYER';
+            STATE.leaderboard.push({ name: initials.substring(0,12), score: STATE.pendingHighScore });
             STATE.leaderboard.sort((a, b) => b.score - a.score);
-            STATE.leaderboard = STATE.leaderboard.slice(0, 5); // Keep top 5
+            STATE.leaderboard = STATE.leaderboard.slice(0, 5); 
             localStorage.setItem('midnightDeliveryLeaderboard', JSON.stringify(STATE.leaderboard));
             UI.highScore.innerText = STATE.leaderboard[0].score;
             
@@ -1037,14 +1085,16 @@
                 trafficCars.forEach(tc => tc.update(dt));
                 rivalCars.forEach(rc => rc.update(dt));
 
-                targetMesh.rotation.y += 0.02; targetMesh.position.y = 10 + Math.sin(timestamp * 0.005) * 2;
+                targetMesh.position.y = 125 + Math.sin(timestamp * 0.005) * 2;
                 powerups.forEach(pu => { 
                     if(pu.active) { 
                         pu.mesh.children[0].rotation.y += 0.03; pu.mesh.children[0].rotation.x += 0.02; 
                     } 
                 });
 
-                if (STATE.numPlayers === 2) {
+                const alivePlayers = players.filter(p => p.alive);
+
+                if (STATE.numPlayers === 2 && alivePlayers.length === 2) {
                     if(players[0]) updatePlayerCamera(cameraP1, players[0]);
                     if(players[1]) updatePlayerCamera(cameraP2, players[1]);
 
@@ -1053,7 +1103,7 @@
                     renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight); renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight); renderer.render(scene, cameraP2);
                     renderer.setScissorTest(false);
                 } else {
-                    if(players[0]) updatePlayerCamera(camera, players[0]);
+                    if(alivePlayers[0]) updatePlayerCamera(camera, alivePlayers[0]);
                     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
                     renderer.render(scene, camera);
                 }
