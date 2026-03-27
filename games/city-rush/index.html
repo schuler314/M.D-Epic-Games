@@ -78,6 +78,9 @@
         <p class="text-gray-400">This game requires landscape mode.</p>
     </div>
 
+    <!-- Start Race Countdown -->
+    <div id="countdown-display" class="absolute inset-0 flex items-center justify-center text-[10rem] md:text-[15rem] font-bold text-yellow-400 drop-shadow-[0_0_30px_rgba(255,255,0,0.8)] z-40 pointer-events-none hidden"></div>
+
     <div id="msg-popup" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 text-5xl font-bold text-red-500 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)] opacity-0 transition-opacity duration-300 pointer-events-none z-50 whitespace-nowrap"></div>
     
     <div id="toast-message" class="absolute top-16 left-1/2 transform -translate-x-1/2 bg-black/90 border-2 border-cyan-500 text-white px-8 py-4 rounded-xl text-xl lg:text-2xl font-bold z-50 transition-opacity duration-500 opacity-0 pointer-events-none text-center shadow-[0_0_20px_#0ff] hidden"></div>
@@ -85,7 +88,7 @@
     <div id="split-divider" class="absolute top-0 left-1/2 w-1 h-full bg-cyan-500 z-10 hidden pointer-events-none shadow-[0_0_15px_#0ff]"></div>
 
     <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between pointer-events-none z-20 hidden">
-        <div class="flex flex-col gap-2 w-1/3 max-w-xs pointer-events-auto" id="player-hud-container"></div>
+        <div class="flex flex-col gap-2 w-1/3 max-w-sm pointer-events-auto" id="player-hud-container"></div>
         
         <div class="flex items-start gap-2 pointer-events-auto">
             <div id="hud-rivals" class="cyber-panel p-2 rounded-lg text-xl text-orange-500 font-bold text-center min-w-[100px] hidden">
@@ -273,7 +276,7 @@
         const STATE = {
             mode: 'menu', numPlayers: 1, numRivals: 1, device: 'desktop',
             timeLeft: 60, level: 1, deliveries: 0, rivalScore: 0, lastTime: 0,
-            teamScore: 0,
+            teamScore: 0, countdownValue: 5, countdownTimer: null,
             leaderboard: (loadedBoard && Array.isArray(loadedBoard) && loadedBoard.length > 0) ? loadedBoard : defaultLeaderboard,
             pendingHighScore: 0
         };
@@ -287,7 +290,7 @@
             btnRestart: document.getElementById('btn-restart'),
             highScore: document.getElementById('high-score-display'), rivalHud: document.getElementById('hud-rivals'),
             rivalScore: document.getElementById('rival-score-display'), msgPopup: document.getElementById('msg-popup'),
-            splitDivider: document.getElementById('split-divider'),
+            splitDivider: document.getElementById('split-divider'), countdownDisplay: document.getElementById('countdown-display'),
             
             btnLeaderboard: document.getElementById('btn-leaderboard'), menuLeaderboard: document.getElementById('menu-leaderboard'),
             btnCloseLeaderboard: document.getElementById('btn-close-leaderboard'), leaderboardList: document.getElementById('leaderboard-list'),
@@ -491,8 +494,9 @@
             ctx.font = 'bold 60px Orbitron, sans-serif'; ctx.fillStyle = '#' + colorHex.toString(16).padStart(6,'0');
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.strokeStyle = '#000'; ctx.lineWidth = 8; ctx.strokeText(text, 256, 64); ctx.fillText(text, 256, 64);
-            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map: new THREE.CanvasTexture(canvas)}));
-            sprite.scale.set(8, 2, 1); return sprite;
+            // Billboarding is handled automatically by THREE.Sprite, so no lookAt is ever needed!
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({map: new THREE.CanvasTexture(canvas), transparent: true}));
+            sprite.scale.set(12, 3, 1); return sprite;
         }
 
         class Player {
@@ -541,14 +545,25 @@
                 const scoreLabel = STATE.numPlayers === 2 ? 'TEAM SCORE' : 'SCORE';
                 UI.hudContainer.insertAdjacentHTML('beforeend', `
                     <div class="cyber-panel p-2 rounded-lg" style="border-color: ${colorStr}">
-                        <div class="flex justify-between items-end"><div class="text-sm font-bold" style="color: ${colorStr}">P${this.id} HEALTH</div><div class="text-xs text-fuchsia-400 font-bold">${scoreLabel}: <span id="p${this.id}-score" class="text-white">0</span></div></div>
-                        <div class="health-bar-container mt-1"><div id="p${this.id}-health" class="health-bar" style="background-color: #0f0;"></div></div>
+                        <div class="flex justify-between items-end mb-1">
+                            <div class="text-sm font-bold" style="color: ${colorStr}">P${this.id} HEALTH</div>
+                            <div class="text-xs text-cyan-300 font-bold mx-2"><span id="p${this.id}-speed" class="text-white text-base">0</span> MPH</div>
+                            <div class="text-xs text-fuchsia-400 font-bold">${scoreLabel}: <span id="p${this.id}-score" class="text-white">0</span></div>
+                        </div>
+                        <div class="health-bar-container"><div id="p${this.id}-health" class="health-bar" style="background-color: #0f0;"></div></div>
                     </div>`);
             }
             updateHUD() {
                 document.getElementById(`p${this.id}-score`).innerText = STATE.numPlayers === 2 ? STATE.teamScore : this.score;
                 const hb = document.getElementById(`p${this.id}-health`);
                 hb.style.width = Math.max(0, this.health) + '%'; hb.style.backgroundColor = this.health > 60 ? '#0f0' : (this.health > 30 ? '#ff0' : '#f00');
+            }
+            updateSpeedDisplay() {
+                const speedElem = document.getElementById(`p${this.id}-speed`);
+                if(speedElem) {
+                    // Convert internal physics speed to a realistic MPH equivalent
+                    speedElem.innerText = Math.floor(Math.abs(this.physics.speed) * 120);
+                }
             }
         }
 
@@ -590,7 +605,7 @@
                 this.gx = Math.round(startNode.x / TILE_SIZE) + Math.floor(MAP_SIZE/2);
                 this.gz = Math.round(startNode.z / TILE_SIZE) + Math.floor(MAP_SIZE/2);
 
-                this.baseSpeed = 0.70; 
+                this.baseSpeed = 0.56; 
                 this.radius = 1.2; this.targetNode = null; this.lastDx = 0; this.lastDz = 0;
                 this.effects = { boost: 0, shield: 0, drone: 0 };
                 this.pickNextTarget();
@@ -651,7 +666,7 @@
                 
                 // Rival collects powerups
                 powerups.forEach(pu => {
-                    if(pu.active && Math.hypot(pu.x - this.group.position.x, pu.z - this.group.position.z) < 3.0) {
+                    if(pu.active && Math.hypot(pu.x - this.group.position.x, pu.z - this.group.position.z) < 3.0 && Math.abs(pu.y - this.group.position.y) < 20) {
                         pu.active = false; scene.remove(pu.mesh);
                         if(pu.type === 'BOOST') { this.effects.boost = 5.0; this.effects.shield = 10.0; }
                         if(pu.type === 'SHIELD') this.effects.shield = 10.0;
@@ -718,7 +733,7 @@
         }
 
         let currentTarget = { x: 0, z: 0 };
-        const targetMesh = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 250, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+        const targetMesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 300, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
         scene.add(targetMesh);
 
         function pickNewTarget() {
@@ -727,23 +742,30 @@
                 newLoc = validRoads[Math.floor(Math.random() * validRoads.length)];
                 dist = Math.hypot(newLoc.x - currentTarget.x, newLoc.z - currentTarget.z);
             } while (dist < TILE_SIZE * 5); 
-            currentTarget = newLoc; targetMesh.position.set(currentTarget.x, 125, currentTarget.z);
+            currentTarget = newLoc; targetMesh.position.set(currentTarget.x, 150, currentTarget.z);
             spawnPowerups();
             rivalCars.forEach(rc => rc.pickNextTarget()); 
         }
 
         function spawnPowerups() {
             powerups.forEach(p => scene.remove(p.mesh)); powerups = [];
-            for(let i=0; i<100; i++) { 
+            for(let i=0; i<80; i++) { 
                 const loc = validRoads[Math.floor(Math.random() * validRoads.length)];
                 const type = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
                 
-                const mesh = new THREE.Group();
-                const box = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshBasicMaterial({color: type.color})); box.position.y = 1; mesh.add(box);
-                const textSprite = createTextSprite(type.id, type.color); textSprite.position.y = 4.0; mesh.add(textSprite);
-                mesh.position.set(loc.x, 0, loc.z); scene.add(mesh);
-                
-                powerups.push({ mesh, type: type.id, active: true, x: loc.x, z: loc.z });
+                // Ground Powerup
+                const meshG = new THREE.Group();
+                const boxG = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshBasicMaterial({color: type.color})); boxG.position.y = 1.5; meshG.add(boxG);
+                const textSpriteG = createTextSprite(type.id, type.color); textSpriteG.position.y = 5.0; meshG.add(textSpriteG);
+                meshG.position.set(loc.x, 0, loc.z); scene.add(meshG);
+                powerups.push({ mesh: meshG, type: type.id, active: true, x: loc.x, y: 0, z: loc.z });
+
+                // Drone Altitude Powerup
+                const meshA = new THREE.Group();
+                const boxA = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshBasicMaterial({color: type.color})); boxA.position.y = 1.5; meshA.add(boxA);
+                const textSpriteA = createTextSprite(type.id, type.color); textSpriteA.position.y = 5.0; meshA.add(textSpriteA);
+                meshA.position.set(loc.x, 120, loc.z); scene.add(meshA);
+                powerups.push({ mesh: meshA, type: type.id, active: true, x: loc.x, y: 120, z: loc.z });
             }
         }
 
@@ -879,8 +901,6 @@
                     const limit = (MAP_SIZE * TILE_SIZE) / 2;
                     if (nextX - p.physics.radius < -limit || nextX + p.physics.radius > limit || nextZ - p.physics.radius < -limit || nextZ + p.physics.radius > limit) {
                         isHit = true;
-                        nextX = Math.max(-limit + p.physics.radius + 0.1, Math.min(limit - p.physics.radius - 0.1, nextX));
-                        nextZ = Math.max(-limit + p.physics.radius + 0.1, Math.min(limit - p.physics.radius - 0.1, nextZ));
                     }
                     for(let rc of rivalCars) {
                         if (rc.effects.drone > 0 && Math.hypot(rc.group.position.x - nextX, rc.group.position.z - nextZ) < (p.physics.radius + rc.radius)) { isHit = true; break; }
@@ -914,7 +934,6 @@
                         }
                     }
                     p.physics.speed = -p.physics.speed * 0.4;
-                    if(isDrone) p.group.position.set(nextX, p.group.position.y, nextZ); 
                 } else { p.group.position.set(nextX, p.group.position.y, nextZ); }
                 
                 topSpeed = Math.max(topSpeed, Math.abs(p.physics.speed));
@@ -937,7 +956,7 @@
                 }
 
                 powerups.forEach(pu => {
-                    if(pu.active && Math.hypot(pu.x - p.group.position.x, pu.z - p.group.position.z) < 3.0) {
+                    if(pu.active && Math.hypot(pu.x - p.group.position.x, pu.z - p.group.position.z) < 4.0 && Math.abs(pu.y - p.group.position.y) < 20) {
                         pu.active = false; scene.remove(pu.mesh); AudioSys.powerup();
                         
                         p.score += 50;
@@ -950,6 +969,9 @@
                         if(pu.type === 'TIME') { STATE.timeLeft += 10; UI.time.innerText = Math.floor(STATE.timeLeft); }
                     }
                 });
+
+                // Continuously update the speedometer UI for this player
+                p.updateSpeedDisplay();
             });
             AudioSys.updateEngine(topSpeed, 1.0, isDroneActiveAny);
         }
@@ -958,7 +980,11 @@
            6. INPUT & CONTROLS
            ========================================================================= */
         window.addEventListener('keydown', e => {
-            const k = e.key.toLowerCase(); if(STATE.mode !== 'playing') { if(e.key === 'Escape') togglePause(); return; }
+            const k = e.key.toLowerCase(); 
+            if(STATE.mode !== 'playing') { 
+                if(e.key === 'Escape' && STATE.mode === 'paused') togglePause(); 
+                return; 
+            }
             if(players[0] && players[0].alive) { if(k==='w') players[0].keys.w=true; if(k==='s') players[0].keys.s=true; if(k==='a') players[0].keys.a=true; if(k==='d') players[0].keys.d=true; }
             if(STATE.numPlayers === 1 && players[0] && players[0].alive) { if(e.key==='ArrowUp') players[0].keys.w=true; if(e.key==='ArrowDown') players[0].keys.s=true; if(e.key==='ArrowLeft') players[0].keys.a=true; if(e.key==='ArrowRight') players[0].keys.d=true; }
             else if(STATE.numPlayers === 2 && players[1] && players[1].alive) { if(e.key==='ArrowUp') players[1].keys.w=true; if(e.key==='ArrowDown') players[1].keys.s=true; if(e.key==='ArrowLeft') players[1].keys.a=true; if(e.key==='ArrowRight') players[1].keys.d=true; }
@@ -1024,10 +1050,36 @@
 
             if(STATE.numRivals > 0) UI.rivalHud.classList.remove('hidden'); else UI.rivalHud.classList.add('hidden');
 
-            STATE.level = 1; STATE.deliveries = 0; STATE.timeLeft = 60; STATE.rivalScore = 0; STATE.teamScore = 0; STATE.mode = 'playing'; STATE.lastTime = performance.now();
+            STATE.level = 1; STATE.deliveries = 0; STATE.timeLeft = 60; STATE.rivalScore = 0; STATE.teamScore = 0; 
             UI.level.innerText = STATE.level; UI.rivalScore.innerText = STATE.rivalScore; pickNewTarget();
 
             UI.start.classList.add('hidden'); UI.overlay.classList.add('hidden'); UI.hud.classList.remove('hidden'); UI.msgPopup.classList.add('opacity-0');
+            
+            STATE.mode = 'countdown';
+            STATE.countdownValue = 5;
+            UI.countdownDisplay.innerText = "5";
+            UI.countdownDisplay.classList.remove('hidden');
+            UI.countdownDisplay.classList.replace('text-green-400', 'text-yellow-400');
+            
+            if (STATE.countdownTimer) clearInterval(STATE.countdownTimer);
+            AudioSys.playTone(400, 'square', 0.1, 0.1);
+
+            STATE.countdownTimer = setInterval(() => {
+                STATE.countdownValue--;
+                if (STATE.countdownValue > 0) {
+                    UI.countdownDisplay.innerText = STATE.countdownValue;
+                    AudioSys.playTone(400, 'square', 0.1, 0.1);
+                } else if (STATE.countdownValue === 0) {
+                    UI.countdownDisplay.innerText = "GO!";
+                    UI.countdownDisplay.classList.replace('text-yellow-400', 'text-green-400');
+                    AudioSys.playTone(800, 'square', 0.4, 0.2);
+                    STATE.mode = 'playing';
+                    STATE.lastTime = performance.now();
+                } else {
+                    UI.countdownDisplay.classList.add('hidden');
+                    clearInterval(STATE.countdownTimer);
+                }
+            }, 1000);
         }
 
         function togglePause() {
@@ -1107,12 +1159,12 @@
         
         function getCameraTargets(p) {
             const isDrone = p.effects.drone > 0;
-            const camHeight = isDrone ? 35 : 10;
-            const camDist = isDrone ? 10 : 20;
+            const camHeight = isDrone ? 15 : 10;
+            const camDist = isDrone ? 25 : 20; 
             
             return {
                 camPos: { x: p.group.position.x - Math.sin(p.group.rotation.y) * camDist, y: p.group.position.y + camHeight, z: p.group.position.z - Math.cos(p.group.rotation.y) * camDist },
-                lookPos: { x: p.group.position.x + Math.sin(p.group.rotation.y) * 15, y: p.group.position.y - (isDrone ? 20 : 0), z: p.group.position.z + Math.cos(p.group.rotation.y) * 15 }
+                lookPos: { x: p.group.position.x + Math.sin(p.group.rotation.y) * 30, y: p.group.position.y, z: p.group.position.z + Math.cos(p.group.rotation.y) * 30 }
             };
         }
 
@@ -1133,20 +1185,18 @@
             requestAnimationFrame(animate);
             let dt = (timestamp - STATE.lastTime) / 1000; if(dt > 0.1) dt = 0.1; STATE.lastTime = timestamp;
 
-            if (STATE.mode === 'playing') {
-                pollGamepads(); updatePhysics(dt);
-                trafficCars.forEach(tc => tc.update(dt));
-                rivalCars.forEach(rc => rc.update(dt));
+            if (STATE.mode === 'playing' || STATE.mode === 'countdown') {
+                
+                if (STATE.mode === 'playing') {
+                    pollGamepads(); updatePhysics(dt);
+                    trafficCars.forEach(tc => tc.update(dt));
+                    rivalCars.forEach(rc => rc.update(dt));
+                }
 
-                targetMesh.position.y = 125 + Math.sin(timestamp * 0.005) * 2;
+                targetMesh.position.y = 150 + Math.sin(timestamp * 0.005) * 5;
                 powerups.forEach(pu => { 
                     if(pu.active) { 
                         pu.mesh.children[0].rotation.y += 0.03; pu.mesh.children[0].rotation.x += 0.02; 
-                        const alivePlayers = players.filter(p => p.alive);
-                        if (alivePlayers.length > 0) {
-                            const lookAtPoint = new THREE.Vector3(); camera.getWorldDirection(lookAtPoint);
-                            pu.mesh.children[1].lookAt(pu.mesh.children[1].position.clone().sub(lookAtPoint));
-                        }
                     } 
                 });
 
