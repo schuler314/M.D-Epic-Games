@@ -78,10 +78,8 @@
         <p class="text-gray-400">This game requires landscape mode.</p>
     </div>
 
-    <!-- Alert Messages -->
     <div id="msg-popup" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 text-5xl font-bold text-red-500 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)] opacity-0 transition-opacity duration-300 pointer-events-none z-50 whitespace-nowrap"></div>
     
-    <!-- Player Death Toast -->
     <div id="toast-message" class="absolute top-16 left-1/2 transform -translate-x-1/2 bg-black/90 border-2 border-cyan-500 text-white px-8 py-4 rounded-xl text-xl lg:text-2xl font-bold z-50 transition-opacity duration-500 opacity-0 pointer-events-none text-center shadow-[0_0_20px_#0ff] hidden"></div>
 
     <div id="split-divider" class="absolute top-0 left-1/2 w-1 h-full bg-cyan-500 z-10 hidden pointer-events-none shadow-[0_0_15px_#0ff]"></div>
@@ -164,13 +162,11 @@
         </div>
     </div>
 
-    <!-- Leaderboard Modal -->
     <div id="menu-leaderboard" class="absolute inset-0 flex items-center justify-center z-40 hidden bg-black/80 backdrop-blur-md">
         <div class="cyber-panel p-6 rounded-2xl max-w-sm w-full mx-4">
             <h2 class="text-3xl text-yellow-400 font-bold mb-4 text-center drop-shadow-[0_0_10px_rgba(255,255,0,0.8)]">TOP DRIVERS</h2>
             <div id="leaderboard-list" class="space-y-2 mb-6 text-lg font-bold">
-                <!-- Injected via JS -->
-            </div>
+                </div>
             <button id="btn-close-leaderboard" class="cyber-btn w-full text-white font-bold py-2 rounded-xl">CLOSE</button>
         </div>
     </div>
@@ -187,7 +183,7 @@
 
             <div class="space-y-2 mb-6 text-sm">
                 <h3 class="font-bold text-yellow-400 border-b border-gray-700 pb-1">POWERUPS (+50 POINTS)</h3>
-                <div class="flex items-center gap-2"><div class="w-4 h-4 bg-yellow-400"></div> <strong>BOOST:</strong> Speed multiplier</div>
+                <div class="flex items-center gap-2"><div class="w-4 h-4 bg-yellow-400"></div> <strong>BOOST:</strong> Speed multiplier + Shield</div>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-blue-400"></div> <strong>SHIELD:</strong> No crash damage</div>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-purple-400"></div> <strong>TIME:</strong> Adds 10 seconds</div>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-cyan-200"></div> <strong>DRONE:</strong> Fly high over traffic at 1.5x speed!</div>
@@ -203,14 +199,11 @@
             <h2 id="overlay-title" class="text-5xl text-fuchsia-500 mb-6 drop-shadow-[0_0_10px_rgba(255,0,255,0.8)] font-bold">PAUSED</h2>
             <p id="overlay-msg" class="text-xl text-cyan-300 mb-6 hidden"></p>
             
-            <!-- Separated the flex logic so removing 'hidden' properly reveals the block -->
-            <div id="new-high-score-section" class="w-full mb-6 hidden">
-                <div class="flex flex-col items-center">
-                    <p class="text-yellow-400 font-bold mb-2 animate-pulse text-xl">NEW HIGH SCORE!</p>
-                    <div class="flex gap-2 w-full">
-                        <input id="input-initials" type="text" maxlength="12" placeholder="PLAYER NAME" class="w-full bg-gray-900 border-2 border-cyan-500 text-white text-center text-2xl font-bold rounded-xl outline-none uppercase" style="text-transform: uppercase;">
-                        <button id="btn-submit-score" class="cyber-btn px-6 rounded-xl font-bold text-white">SAVE</button>
-                    </div>
+            <div id="new-high-score-section" class="w-full mb-6 hidden flex flex-col items-center">
+                <p class="text-yellow-400 font-bold mb-2 animate-pulse text-xl">NEW HIGH SCORE!</p>
+                <div class="flex gap-2 w-full">
+                    <input id="input-initials" type="text" maxlength="12" placeholder="PLAYER NAME" class="w-full bg-gray-900 border-2 border-cyan-500 text-white text-center text-2xl font-bold rounded-xl outline-none uppercase" style="text-transform: uppercase;">
+                    <button id="btn-submit-score" class="cyber-btn px-6 rounded-xl font-bold text-white">SAVE</button>
                 </div>
             </div>
 
@@ -485,9 +478,10 @@
         
         let players = []; let trafficCars = []; let rivalCars = []; let powerups = [];
         
-        // Weighted powerup array (Drones are 3x more frequent)
         const PU_TYPES = [
-            { id: 'BOOST', color: 0xfacc15 }, { id: 'SHIELD', color: 0x60a5fa }, { id: 'TIME', color: 0xc084fc }, 
+            { id: 'BOOST', color: 0xfacc15 }, { id: 'BOOST', color: 0xfacc15 },
+            { id: 'SHIELD', color: 0x60a5fa }, { id: 'SHIELD', color: 0x60a5fa },
+            { id: 'TIME', color: 0xc084fc }, 
             { id: 'DRONE', color: 0xaaffff }, { id: 'DRONE', color: 0xaaffff }, { id: 'DRONE', color: 0xaaffff }
         ];
 
@@ -537,7 +531,7 @@
 
                 this.group.position.set(startX, 0, 0);
                 this.physics = { speed: 0, maxSpeed: 1.15, reverseSpeed: -0.3, accel: 0.02, brake: 0.04, friction: 0.008, angle: 0, turnSpeed: 0.05, radius: 1.2 };
-                this.keys = { w: false, a: false, s: false, d: false }; this.health = 100; this.alive = true; this.effects = { boost: 0, shield: 0, drone: 0 };
+                this.keys = { w: false, a: false, s: false, d: false }; this.health = 100; this.alive = true; this.score = 0; this.effects = { boost: 0, shield: 0, drone: 0 };
                 this.initHUD(colorHex);
             }
 
@@ -551,7 +545,7 @@
                     </div>`);
             }
             updateHUD() {
-                document.getElementById(`p${this.id}-score`).innerText = STATE.teamScore;
+                document.getElementById(`p${this.id}-score`).innerText = STATE.numPlayers === 2 ? STATE.teamScore : this.score;
                 const hb = document.getElementById(`p${this.id}-health`);
                 hb.style.width = Math.max(0, this.health) + '%'; hb.style.backgroundColor = this.health > 60 ? '#0f0' : (this.health > 30 ? '#ff0' : '#f00');
             }
@@ -579,7 +573,7 @@
                 this.gx = Math.round(startNode.x / TILE_SIZE) + Math.floor(MAP_SIZE/2);
                 this.gz = Math.round(startNode.z / TILE_SIZE) + Math.floor(MAP_SIZE/2);
 
-                this.speed = 0.70; this.radius = 1.2; this.targetNode = null; this.lastDx = 0; this.lastDz = 0;
+                this.speed = 0.56; this.radius = 1.2; this.targetNode = null; this.lastDx = 0; this.lastDz = 0;
                 this.pickNextTarget();
             }
 
@@ -692,7 +686,7 @@
 
         function spawnPowerups() {
             powerups.forEach(p => scene.remove(p.mesh)); powerups = [];
-            for(let i=0; i<10; i++) { 
+            for(let i=0; i<100; i++) { 
                 const loc = validRoads[Math.floor(Math.random() * validRoads.length)];
                 const type = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
                 
@@ -770,7 +764,6 @@
                 if(p.effects.drone > 0) {
                     p.effects.drone -= dt;
                     
-                    // LANDING FIX: Forcefully extend drone timer if expiring above a building to prevent getting stuck
                     if (p.effects.drone <= 0 && checkBuildingCollision(p.group.position.x, p.group.position.z, p.physics.radius)) {
                         p.effects.drone = 0.5;
                     }
@@ -872,7 +865,7 @@
                 if (Math.hypot(dx, dz) < TILE_SIZE / 2) {
                     AudioSys.success(); showMessage("DELIVERY SUCCESS!", "text-green-400");
                     STATE.teamScore += 100 * STATE.level; 
-                    p.score += 100 * STATE.level;
+                    p.score += 100 * STATE.level; 
                     p.health = Math.min(100, p.health + 50); 
                     
                     players.forEach(pl => pl.updateHUD()); 
@@ -887,12 +880,11 @@
                     if(pu.active && Math.hypot(pu.x - p.group.position.x, pu.z - p.group.position.z) < 3.0) {
                         pu.active = false; scene.remove(pu.mesh); AudioSys.powerup();
                         
-                        // Add points for collecting a powerup
                         p.score += 50;
                         STATE.teamScore += 50;
                         players.forEach(pl => pl.updateHUD());
 
-                        if(pu.type === 'BOOST') p.effects.boost = 5.0; 
+                        if(pu.type === 'BOOST') { p.effects.boost = 5.0; p.effects.shield = 10.0; }
                         if(pu.type === 'SHIELD') p.effects.shield = 10.0;
                         if(pu.type === 'DRONE') p.effects.drone = 15.0; 
                         if(pu.type === 'TIME') { STATE.timeLeft += 10; UI.time.innerText = Math.floor(STATE.timeLeft); }
@@ -990,15 +982,16 @@
             let html = `${reason}<br><br>`; 
             
             const scoreLabel = STATE.numPlayers === 2 ? 'Team Score' : 'Player 1 Score';
-            html += `${scoreLabel}: <strong class="text-white">${STATE.teamScore}</strong><br>`;
+            const finalScore = STATE.numPlayers === 2 ? STATE.teamScore : Math.max(...players.map(p => p.score));
+            html += `${scoreLabel}: <strong class="text-white">${finalScore}</strong><br>`;
             
             if(STATE.numRivals > 0) html += `<br>Rivals Stole: <strong class="text-orange-400">${STATE.rivalScore}</strong>`;
             UI.overlayMsg.innerHTML = html; UI.overlayMsg.classList.remove('hidden');
             UI.btnResume.classList.add('hidden'); UI.overlay.classList.remove('hidden'); UI.hud.classList.add('hidden'); UI.splitDivider.classList.add('hidden');
 
             const lowestScore = (STATE.leaderboard && STATE.leaderboard[4]) ? STATE.leaderboard[4].score : 0;
-            if (STATE.teamScore >= lowestScore && STATE.teamScore > 0) {
-                STATE.pendingHighScore = STATE.teamScore;
+            if (finalScore >= lowestScore && finalScore > 0) {
+                STATE.pendingHighScore = finalScore;
                 UI.newHighScoreSection.classList.remove('hidden');
                 UI.btnRestart.classList.add('hidden');
                 UI.inputInitials.value = '';
@@ -1089,6 +1082,11 @@
                 powerups.forEach(pu => { 
                     if(pu.active) { 
                         pu.mesh.children[0].rotation.y += 0.03; pu.mesh.children[0].rotation.x += 0.02; 
+                        const alivePlayers = players.filter(p => p.alive);
+                        if (alivePlayers.length > 0) {
+                            const lookAtPoint = new THREE.Vector3(); camera.getWorldDirection(lookAtPoint);
+                            pu.mesh.children[1].lookAt(pu.mesh.children[1].position.clone().sub(lookAtPoint));
+                        }
                     } 
                 });
 
