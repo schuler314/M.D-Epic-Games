@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Swing Master</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #082f49; /* Sky 900 - Deep Sea Blue */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Prevent scroll on touch */
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(8, 47, 73, 0.9);
+            padding: 2rem 4rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid #0ea5e9;
+            text-align: center;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        h1 {
+            color: #e0f2fe;
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            color: #0ea5e9;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        p {
+            color: #bae6fd;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+
+        button {
+            background: #0ea5e9;
+            color: #ffffff;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+        }
+
+        button:hover {
+            background: #38bdf8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        #hud {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            color: #e0f2fe;
+            font-size: 1.5rem;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        .instructions {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">Level: <span id="levelText">1</span></div>
+
+    <div id="ui-layer">
+        <!-- Main Menu -->
+        <div id="menuScreen" class="screen active">
+            <h1>Swing Master</h1>
+            <p>Tap/Click & Hold to grapple.<br>Release to fly.</p>
+            <button onclick="startGame()">Play Game</button>
+        </div>
+
+        <!-- Level Complete -->
+        <div id="winScreen" class="screen">
+            <h1>Awesome!</h1>
+            <h2>Level Complete</h2>
+            <button onclick="nextLevel()">Next Level</button>
+        </div>
+
+        <!-- Game Over -->
+        <div id="loseScreen" class="screen">
+            <h1>Ouch!</h1>
+            <h2>You fell</h2>
+            <button onclick="restartLevel()">Try Again</button>
+        </div>
+        
+        <!-- Game Completed -->
+        <div id="endScreen" class="screen">
+            <h1>Victory!</h1>
+            <h2>You beat all levels!</h2>
+            <button onclick="resetGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const screens = {
+            menu: document.getElementById('menuScreen'),
+            win: document.getElementById('winScreen'),
+            lose: document.getElementById('loseScreen'),
+            end: document.getElementById('endScreen')
+        };
+        const levelText = document.getElementById('levelText');
+
+        // Game Configuration
+        let width, height;
+        let gameState = 'MENU'; // MENU, PLAYING, WIN, LOSE
+        let currentLevel = 0;
+
+        // Physics Constants
+        const GRAVITY = 0.5; // Slightly lower for an underwater feel
+        const FRICTION = 0.996; // Reduced air resistance so momentum carries further
+
+        // Game Objects
+        let player = {
+            x: 0, y: 0, vx: 0, vy: 0, radius: 15,
+            trail: []
+        };
+        
+        let camera = { x: 0, y: 0 };
+        let anchors = [];
+        let bouncers = [];
+        let finishLine = null;
+        let particles = [];
+        let levelBottom = 0;
+
+        // Interaction State
+        let isPointerDown = false;
+        let pointerPos = { x: 0, y: 0 };
+        let activeAnchor = null;
+        let targetAnchor = null; // Highlighted nearest anchor
+        let ropeLength = 0;
+
+        // Procedural Level Generator
+        function generateLevel(index) {
+            let startX = 100;
+            let startY = 300;
+            
+            let anchors = [];
+            let bouncers = [];
+            
+            // Difficulty scales with the level index
+            let numAnchors = 3 + index * 2; // Level gets longer
+            let currentX = 400;
+            let currentY = 100;
+            
+            // Initial safety bouncer
+            bouncers.push({ x: 50, y: 550, w: 250, h: 40 });
+
+            for (let i = 0; i < numAnchors; i++) {
+                // Anchors get further apart as difficulty increases (but stay within 800px max)
+                let maxGap = Math.min(300 + index * 30, 800);
+                let xStep = 300 + Math.random() * (maxGap - 300);
+                currentX += xStep;
+                
+                // Vertical variance increases with difficulty
+                let yVariance = 100 + Math.min(index * 40, 500);
+                currentY += (Math.random() - 0.5) * yVariance;
+                
+                anchors.push({ x: currentX, y: currentY });
+                
+                // Bouncers become less frequent and smaller as difficulty increases
+                let bouncerChance = Math.max(0.2, 0.7 - (index * 0.05));
+                if (Math.random() < bouncerChance) {
+                    let bouncerWidth = Math.max(80, 200 - index * 10);
+                    bouncers.push({ 
+                        x: currentX - xStep / 2 - bouncerWidth / 2, 
+                        y: currentY + 300 + Math.random() * 300, 
+                        w: bouncerWidth, 
+                        h: 40 
+                    });
+                }
+            }
+            
+            let finishX = currentX + 600;
+
+            return {
+                start: { x: startX, y: startY },
+                anchors: anchors,
+                bouncers: bouncers,
+                finish: { x: finishX, y: 0, w: 100, h: 1000 }
+            };
+        }
+
+        // --- Core Setup & Events ---
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Input Listeners
+        const handleDown = (e) => {
+            if (gameState !== 'PLAYING') return;
+            isPointerDown = true;
+            if (targetAnchor) {
+                activeAnchor = targetAnchor;
+                // Calculate distance to set sturdy rope length
+                let dx = activeAnchor.x - player.x;
+                let dy = activeAnchor.y - player.y;
+                let dist = Math.hypot(dx, dy);
+                // Start with the exact distance so it acts rigidly and doesn't snap
+                ropeLength = dist; 
+                spawnParticles(player.x, player.y, '#e0f2fe', 10);
+            }
+        };
+
+        const handleUp = (e) => {
+            if (gameState !== 'PLAYING') return;
+            isPointerDown = false;
+            if (activeAnchor) {
+                spawnParticles(player.x, player.y, '#e0f2fe', 5);
+                activeAnchor = null;
+            }
+        };
+
+        window.addEventListener('mousedown', handleDown);
+        window.addEventListener('touchstart', (e) => {
+            // Prevent default behavior to stop scrolling, but allow button clicks
+            if(e.target.tagName !== 'BUTTON') e.preventDefault(); 
+            handleDown(e);
+        }, { passive: false });
+        
+        window.addEventListener('mouseup', handleUp);
+        window.addEventListener('touchend', handleUp);
+
+        // --- Game Management ---
+
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            if (screens[screenName]) screens[screenName].classList.add('active');
+        }
+
+        function startGame() {
+            currentLevel = 0;
+            loadLevel(currentLevel);
+            gameState = 'PLAYING';
+            switchScreen(null);
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            // Infinite levels, so no end screen check anymore!
+            loadLevel(currentLevel);
+            gameState = 'PLAYING';
+            switchScreen(null);
+        }
+
+        function restartLevel() {
+            loadLevel(currentLevel);
+            gameState = 'PLAYING';
+            switchScreen(null);
+        }
+
+        function resetGame() {
+            currentLevel = 0;
+            loadLevel(currentLevel);
+            gameState = 'PLAYING';
+            switchScreen(null);
+        }
+
+        function loadLevel(index) {
+            const data = generateLevel(index);
+            player.x = data.start.x;
+            player.y = data.start.y;
+            player.vx = 0;
+            player.vy = 0;
+            player.trail = [];
+            
+            anchors = data.anchors.map(a => ({ ...a, radius: 10 }));
+            bouncers = data.bouncers.map(b => ({ ...b }));
+            finishLine = { ...data.finish };
+            
+            // Calculate the absolute lowest point in the level for the death boundary
+            levelBottom = data.start.y; 
+            for (let a of anchors) if (a.y > levelBottom) levelBottom = a.y;
+            for (let b of bouncers) if (b.y + b.h > levelBottom) levelBottom = b.y + b.h;
+            levelBottom += 800; // Add a generous margin for falling off-screen
+
+            activeAnchor = null;
+            isPointerDown = false;
+            particles = [];
+            
+            camera.x = player.x - width / 3;
+            camera.y = player.y - height / 2;
+            
+            levelText.innerText = index + 1;
+        }
+
+        function spawnParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1,
+                    color: color
+                });
+            }
+        }
+
+        // --- Main Loop ---
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // 1. Find Target Anchor (Nearest in front of player)
+            let nearest = null;
+            let minDist = Infinity;
+            for (let a of anchors) {
+                let dx = a.x - player.x;
+                let dy = a.y - player.y;
+                let dist = Math.hypot(dx, dy);
+                
+                // MADE MORE FORGIVING: Increased max distance (1200) and allowed reaching far backwards (-600)
+                if (dist < 1200 && dx > -600) { 
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = a;
+                    }
+                }
+            }
+            targetAnchor = nearest;
+
+            // 2. Physics & Movement
+            player.vy += GRAVITY;
+            
+            // Apply sturdy hook constraint
+            if (activeAnchor && isPointerDown) {
+                let dx = player.x - activeAnchor.x;
+                let dy = player.y - activeAnchor.y;
+                let dist = Math.hypot(dx, dy);
+                
+                if (dist > ropeLength) {
+                    let nx = dx / dist;
+                    let ny = dy / dist;
+
+                    // Positional correction: rigidly pull player to the rope radius
+                    player.x = activeAnchor.x + nx * ropeLength;
+                    player.y = activeAnchor.y + ny * ropeLength;
+
+                    // Velocity correction: remove outward radial velocity (pendulum movement)
+                    let vDotN = player.vx * nx + player.vy * ny;
+                    if (vDotN > 0) {
+                        player.vx -= vDotN * nx;
+                        player.vy -= vDotN * ny;
+                        
+                        // Stronger momentum boost to keep the swing fast and exciting
+                        player.vx *= 1.025;
+                        player.vy *= 1.025;
+                    }
+                }
+            }
+
+            // Apply friction/air resistance
+            player.vx *= FRICTION;
+            player.vy *= FRICTION;
+
+            // Update Position
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Trail update
+            player.trail.push({ x: player.x, y: player.y });
+            if (player.trail.length > 20) {
+                player.trail.shift();
+            }
+
+            // 3. Collisions
+            // Bouncers
+            for (let b of bouncers) {
+                // Expanded AABB for smooth fast collisions
+                let pNextX = player.x + player.vx;
+                let pNextY = player.y + player.vy;
+                
+                if (pNextX + player.radius > b.x &&
+                    pNextX - player.radius < b.x + b.w &&
+                    pNextY + player.radius > b.y &&
+                    pNextY - player.radius < b.y + b.h) {
+                    
+                    // Bounce mechanics
+                    player.vy = -20; // Strong upward force
+                    player.vx = Math.max(player.vx * 1.2, 12); // Boost forward momentum slightly
+                    spawnParticles(player.x, player.y + player.radius, '#f97316', 20);
+                    
+                    // Prevent sticking inside pad
+                    player.y = b.y - player.radius;
+                    
+                    // Auto-release hook on bounce
+                    if (activeAnchor) {
+                        activeAnchor = null;
+                        isPointerDown = false;
+                    }
+                }
+            }
+
+            // Finish Line (Infinite Height)
+            if (player.x + player.radius > finishLine.x &&
+                player.x - player.radius < finishLine.x + finishLine.w) {
+                gameState = 'WIN';
+                switchScreen('win');
+                spawnParticles(player.x, player.y, '#0ea5e9', 50);
+            }
+
+            // Death / Fall off screen
+            if (player.y > levelBottom || player.x < camera.x - 500) {
+                gameState = 'LOSE';
+                switchScreen('lose');
+            }
+
+            // 4. Update Camera (Smooth Follow)
+            let targetCamX = player.x - width * 0.3;
+            let targetCamY = player.y - height * 0.6;
+            
+            camera.x += (targetCamX - camera.x) * 0.1;
+            camera.y += (targetCamY - camera.y) * 0.1;
+
+            // 5. Update Particles (Bubbles behavior)
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                // Bubbles float upwards!
+                p.vy -= GRAVITY * 0.8; 
+                
+                p.life -= 0.02;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function draw() {
+            // Background Clear
+            ctx.fillStyle = '#082f49'; // Deep sea blue
+            ctx.fillRect(0, 0, width, height);
+
+            // Instead of checking !levels.length, check if anchors are generated
+            if (gameState === 'MENU' && !anchors.length) return;
+
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            // Draw Background Distant Bubbles
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            let startGridX = Math.floor(camera.x / 150) * 150;
+            let startGridY = Math.floor(camera.y / 150) * 150;
+            for (let x = startGridX; x < camera.x + width + 150; x += 150) {
+                for (let y = startGridY; y < camera.y + height + 150; y += 150) {
+                    // Pseudo-random offset for background bubbles
+                    let ox = Math.sin(x * 12.3 + y * 4.5) * 50;
+                    let oy = Math.cos(x * 4.5 + y * 12.3) * 50;
+                    ctx.beginPath(); 
+                    ctx.arc(x + ox, y + oy, 4 + Math.abs(ox%6), 0, Math.PI * 2); 
+                    ctx.fill();
+                }
+            }
+
+            // Draw Finish Line (Glowing Column of Light)
+            if (finishLine) {
+                let startY = Math.floor(camera.y / 20) * 20 - 20;
+                let endY = camera.y + height + 20;
+                
+                let gradient = ctx.createLinearGradient(finishLine.x, 0, finishLine.x + finishLine.w, 0);
+                gradient.addColorStop(0, 'rgba(14, 165, 233, 0)');
+                gradient.addColorStop(0.5, 'rgba(14, 165, 233, 0.4)');
+                gradient.addColorStop(1, 'rgba(14, 165, 233, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(finishLine.x, startY, finishLine.w, endY - startY);
+            }
+
+            // Draw Bouncers (Sea Anemones)
+            for (let b of bouncers) {
+                ctx.fillStyle = '#ea580c'; // Darker orange base
+                ctx.beginPath();
+                ctx.roundRect(b.x, b.y, b.w, b.h, b.h / 2);
+                ctx.fill();
+                
+                // Squiggly anemone tentacles on top
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#f97316'; // Bright orange tentacles
+                for(let tx = b.x + 10; tx < b.x + b.w - 10; tx += 15) {
+                    ctx.beginPath();
+                    let wave = Math.sin(Date.now() / 200 + tx) * 5;
+                    ctx.moveTo(tx, b.y + 5);
+                    ctx.quadraticCurveTo(tx + wave, b.y - 10, tx + 5 + wave, b.y - 15);
+                    ctx.stroke();
+                }
+            }
+
+            // Draw Anchors (Glowing Pearls)
+            for (let a of anchors) {
+                // Outer shell
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#e0f2fe';
+                ctx.fill();
+                
+                // Pearl shine
+                ctx.beginPath();
+                ctx.arc(a.x - 3, a.y - 3, a.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                
+                if (a === activeAnchor) {
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, a.radius * 1.5, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#0ea5e9'; // Cyan grab ring
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                } else if (a === targetAnchor && gameState === 'PLAYING') {
+                    // Pulsing target ring
+                    let time = Date.now() / 150;
+                    let pulseRadius = a.radius * 1.5 + Math.sin(time) * 5;
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, pulseRadius, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(14, 165, 233, 0.7)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            }
+
+            // Draw Rope (Tentacle)
+            if (activeAnchor) {
+                ctx.beginPath();
+                ctx.moveTo(player.x, player.y);
+                ctx.lineTo(activeAnchor.x, activeAnchor.y);
+                ctx.strokeStyle = '#a855f7'; // Purple tentacle
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+
+            // Draw Player Trail (Ink/Bubbles)
+            if (player.trail.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(player.trail[0].x, player.trail[0].y);
+                for (let i = 1; i < player.trail.length; i++) {
+                    ctx.lineTo(player.trail[i].x, player.trail[i].y);
+                }
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.lineWidth = player.radius * 0.8;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.stroke();
+            }
+
+            // Draw Player (Octopus)
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            
+            // Calculate squash and stretch based on velocity
+            let velMag = Math.hypot(player.vx, player.vy);
+            let angle = Math.atan2(player.vy, player.vx);
+            let stretch = 1 + velMag * 0.02;
+            let squash = 1 / stretch;
+            
+            if (velMag > 0.5) {
+                ctx.rotate(angle);
+                ctx.scale(stretch, squash);
+            } else {
+                ctx.rotate(Math.PI / 2); // Default face right
+            }
+
+            // Octopus Tentacles (Trailing behind)
+            ctx.strokeStyle = '#9333ea'; // Deep Purple
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            for(let i = 0; i < 6; i++) { // 6 thick visible tentacles
+                let ty = -player.radius * 0.8 + (i * (player.radius * 1.6) / 5);
+                ctx.beginPath();
+                ctx.moveTo(-player.radius * 0.2, ty);
+                let waveX = Math.sin(Date.now()/150 + i) * 8;
+                let waveY = Math.cos(Date.now()/200 + i) * 4;
+                ctx.quadraticCurveTo(-player.radius * 1.5, ty + waveY, -player.radius * 2.5 + waveX, ty + waveY * 2);
+                ctx.stroke();
+            }
+
+            // Octopus Body (Bulbous Head)
+            ctx.beginPath();
+            ctx.arc(player.radius * 0.2, 0, player.radius * 1.2, 0, Math.PI * 2);
+            ctx.fillStyle = '#9333ea'; // Deep Purple
+            ctx.fill();
+            
+            // Octopus Eyes (Larger, cuter)
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(player.radius * 0.6, -player.radius * 0.5, player.radius * 0.35, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(player.radius * 0.6, player.radius * 0.5, player.radius * 0.35, 0, Math.PI * 2); ctx.fill();
+            
+            // Pupils (Looking forward)
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath(); ctx.arc(player.radius * 0.75, -player.radius * 0.5, player.radius * 0.15, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(player.radius * 0.75, player.radius * 0.5, player.radius * 0.15, 0, Math.PI * 2); ctx.fill();
+
+            ctx.restore();
+
+            // Draw Particles (Bubbles)
+            for (let p of particles) {
+                ctx.globalAlpha = p.life;
+                
+                // Outer bubble ring
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2 + p.life * 4, 0, Math.PI * 2);
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Little bubble shine
+                ctx.beginPath();
+                ctx.arc(p.x - (p.life * 2), p.y - (p.life * 2), p.life * 1.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1.0;
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Initialize background drawing behind menu initially
+        loadLevel(0);
+        loop();
+
+    </script>
+</body>
+</html>
