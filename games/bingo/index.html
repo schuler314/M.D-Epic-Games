@@ -151,11 +151,13 @@
             </div>
         </div>
 
-        <!-- Lobby Screen -->
+        <!-- [FIX 1] Lobby Screen — Added role banner, hidden start button, guest waiting message -->
         <div id="screen-lobby" class="hidden w-full flex-col items-center space-y-6">
             <div class="glass-panel p-8 rounded-[3rem] w-full text-center relative overflow-hidden">
                 <div class="absolute -top-10 -right-10 w-32 h-32 bg-amber-200 rounded-full opacity-50 z-0"></div>
                 <h2 class="text-3xl font-black mb-2 text-amber-600 relative z-10">Waiting Area 🛋️</h2>
+                <!-- Role banner: dynamically shows Host or Guest -->
+                <div id="lobby-role-banner" class="relative z-10 mb-4 inline-block px-5 py-2 rounded-full text-sm font-black tracking-wide"></div>
                 <p class="text-lg font-bold text-slate-500 mb-6 relative z-10">Get your friends to join!</p>
                 <div class="flex justify-center mb-6 relative z-10">
                     <div id="qrcode-container" class="p-4 bg-white border-8 border-amber-100 rounded-3xl shadow-lg rotate-2 hover:rotate-0 transition-transform">
@@ -170,7 +172,12 @@
                     <h3 class="font-black text-amber-800 text-xl mb-3 flex items-center gap-2"><span>🏕️</span> Campers here:</h3>
                     <ul id="lobby-player-list" class="space-y-3 text-lg font-bold text-amber-900"></ul>
                 </div>
-                <button id="btn-start-multiplayer" class="btn-chunky w-full mt-8 bg-emerald-400 border-emerald-600 text-white text-2xl font-black py-5 rounded-[2rem] shadow-xl">Everyone's Here! Play 🎲</button>
+                <!-- Start button: hidden by default, only shown to host via renderLobbyUI -->
+                <button id="btn-start-multiplayer" class="btn-chunky w-full mt-8 bg-emerald-400 border-emerald-600 text-white text-2xl font-black py-5 rounded-[2rem] shadow-xl hidden">Everyone's Here! Play 🎲</button>
+                <!-- Waiting message: hidden by default, only shown to guests via renderLobbyUI -->
+                <div id="lobby-guest-waiting" class="w-full mt-8 bg-purple-50 p-5 rounded-2xl border-4 border-purple-200 hidden">
+                    <p class="text-xl font-black text-purple-600 animate-pulse flex items-center justify-center gap-2">⏳ Waiting for host to start...</p>
+                </div>
             </div>
         </div>
 
@@ -227,7 +234,6 @@
     <!-- Supabase SDK & Game Logic                                  -->
     <!-- ========================================================== -->
     <script type="module">
-        // [CHANGED] Swapped Firebase imports for Supabase JS v2
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
         // =====================================================
@@ -236,7 +242,6 @@
         const SUPABASE_URL  = 'https://apgfskdxexlyyavmhdlg.supabase.co';
         const SUPABASE_ANON = 'sb_publishable_rvwuan8wg1tyegGFSt2jMA_E1CJaM5L';
 
-        // [CHANGED] createClient targets the mini_games schema
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
             db: { schema: 'mini_games' },
             realtime: {
@@ -520,10 +525,10 @@
             marks: [],
             gameId: null,
             playerName: '',
-            isHost: false       // [NEW] track host status
+            isHost: false
         };
 
-        let realtimeChannel = null;  // [CHANGED] Supabase Realtime channel reference
+        let realtimeChannel = null;
         let remoteGameState = null;
 
         // --- DOM Elements ---
@@ -577,13 +582,10 @@
             return array;
         }
 
-        // [CHANGED] Picks 24 random items from the larger bank, shuffles, injects free space
         function generateBoardItems(themeKey) {
             const items = [...THEMES[themeKey].items];
             const shuffled = shuffleArray(items).slice(0, 24);
-            // Shuffle the 24 again for placement randomness
             shuffleArray(shuffled);
-            // Insert Free Space at index 12 (center of 5x5)
             shuffled.splice(12, 0, "FREE⭐SPACE");
             return shuffled;
         }
@@ -616,7 +618,6 @@
             }
         }
 
-        // [NEW] Navigate back to home cleanly
         function goHome() {
             if (realtimeChannel) {
                 supabase.removeChannel(realtimeChannel);
@@ -636,15 +637,13 @@
         }
 
         // =====================================================
-        // Supabase Initialization (replaces Firebase init)
+        // Supabase Initialization
         // =====================================================
         async function initApp() {
             try {
-                // [CHANGED] Anonymous sign-in via Supabase
                 const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
 
                 if (authError) {
-                    // If already has a session, getSession instead
                     const { data: sessionData } = await supabase.auth.getSession();
                     if (sessionData?.session?.user) {
                         currentUser = sessionData.session.user;
@@ -655,7 +654,6 @@
                     currentUser = authData.user;
                 }
 
-                // Also listen for future auth changes (e.g. token refresh)
                 supabase.auth.onAuthStateChange((event, session) => {
                     if (session?.user) {
                         currentUser = session.user;
@@ -666,7 +664,6 @@
 
             } catch (err) {
                 console.error("Supabase init failed:", err);
-                // Fallback: allow singleplayer without auth
                 currentUser = { id: 'local-user-' + Date.now() };
                 handleInitialRouting();
             }
@@ -740,7 +737,7 @@
                 grid.appendChild(cell);
             });
 
-            // [NEW] Show/hide host & guest controls
+            // Show/hide host & guest controls
             if (gameState.mode === 'multi') {
                 if (gameState.isHost) {
                     document.getElementById('btn-stop-game').classList.remove('hidden');
@@ -755,6 +752,7 @@
             }
         }
 
+        // [FIX 3] renderMultiplayerStatus — now shows 👑 HOST badge and icon in-game
         function renderMultiplayerStatus() {
             if (gameState.mode !== 'multi' || !remoteGameState) {
                 document.getElementById('multiplayer-status').classList.add('hidden');
@@ -767,12 +765,16 @@
             Object.keys(players).forEach(uid => {
                 const p = players[uid];
                 const markCount = p.marks ? p.marks.filter(m => m).length : 0;
+                const isPlayerHost = uid === remoteGameState.host_uid;
+                const isMe = uid === currentUser.id;
                 const badge = document.createElement('div');
                 badge.className = `px-3 py-2 rounded-2xl text-sm font-black border-b-4 flex items-center gap-2 ${p.hasBingo ? 'bg-amber-300 border-amber-500 text-amber-900 animate-pulse' : 'bg-white border-slate-300 text-slate-700'}`;
                 let icon = '🧑‍🚀';
                 if (p.hasBingo) icon = '🏆';
-                else if (uid === currentUser.id) icon = '👈';
-                badge.innerHTML = `<span class="text-lg">${icon}</span> <span>${p.name} <span class="bg-black/10 px-2 rounded-full text-xs">${markCount}/25</span></span>`;
+                else if (isPlayerHost) icon = '👑';
+                else if (isMe) icon = '👈';
+                const hostTag = isPlayerHost ? '<span class="bg-fuchsia-100 text-fuchsia-600 px-1.5 rounded-full text-[10px]">HOST</span>' : '';
+                badge.innerHTML = `<span class="text-lg">${icon}</span> <span>${p.name} ${hostTag} <span class="bg-black/10 px-2 rounded-full text-xs">${markCount}/25</span></span>`;
                 container.appendChild(badge);
             });
         }
@@ -808,7 +810,6 @@
             }, 2000);
         };
 
-        // [CHANGED] Host starts the game via Supabase
         document.getElementById('btn-start-multiplayer').onclick = async () => {
             if (!currentUser || !gameState.gameId) return;
             await supabase
@@ -817,7 +818,6 @@
                 .eq('id', gameState.gameId);
         };
 
-        // [NEW] Host "Stop Game" button
         document.getElementById('btn-stop-game').onclick = () => {
             showDialog("Stop Game?", "This will end the game for everyone. Are you sure?", true, async () => {
                 if (!currentUser || !gameState.gameId) return;
@@ -828,14 +828,12 @@
             });
         };
 
-        // [NEW] Guest "Leave Game" button — does NOT remove player from JSONB
         document.getElementById('btn-leave-game').onclick = () => {
             showDialog("Leave Game?", "You can rejoin later with the same link!", true, () => {
                 goHome();
             });
         };
 
-        // QUIT button (hard quit for anyone)
         document.getElementById('btn-quit').onclick = () => {
             showDialog("Go Home?", "Are you sure you want to pack up and leave this game?", true, () => {
                 goHome();
@@ -868,10 +866,8 @@
             renderBingoBoard();
             const won = checkBingo(gameState.marks);
 
-            // [CHANGED] Sync via Supabase
             if (gameState.mode === 'multi' && currentUser && gameState.gameId) {
                 try {
-                    // Fetch the current players JSONB, update our entry, write back
                     const { data: gameRow } = await supabase
                         .from('bingo_games')
                         .select('players')
@@ -911,7 +907,6 @@
             showScreen('game');
         }
 
-        // [CHANGED] Create multiplayer game via Supabase insert
         async function createMultiplayerGame() {
             if (!currentUser) return;
             showScreen('loading');
@@ -954,7 +949,6 @@
             showScreen('lobby');
         }
 
-        // [CHANGED] Join existing game via Supabase
         async function joinExistingGame() {
             if (!currentUser || !gameState.gameId) return;
 
@@ -971,7 +965,6 @@
                     return;
                 }
 
-                // [NEW] If game is ended, don't allow joining
                 if (gameRow.status === 'ended') {
                     showDialog("Game Over", "This game has already ended.");
                     goHome();
@@ -983,13 +976,11 @@
 
                 const players = gameRow.players || {};
 
-                // [PERSISTENCE] If player already exists in JSONB, restore their state
                 if (players[currentUser.id]) {
                     gameState.board = players[currentUser.id].board;
                     gameState.marks = players[currentUser.id].marks || new Array(25).fill(false);
                     gameState.playerName = players[currentUser.id].name || gameState.playerName;
                 } else {
-                    // New player joining
                     gameState.board = generateBoardItems(gameState.theme);
                     gameState.marks = new Array(25).fill(false);
                     gameState.marks[12] = true;
@@ -1031,7 +1022,55 @@
             qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareUrl)}&color=0284c7&bgcolor=ffffff`;
         }
 
-        // [CHANGED] Supabase Realtime subscription on mini_games schema
+        // [FIX 2] Single renderLobbyUI function — handles role banner, player list with host indicator,
+        // and reliably shows/hides the start button using classList (not style.display)
+        function renderLobbyUI(gameData) {
+            if (!gameData || gameData.status !== 'lobby') return;
+
+            const isHost = gameData.host_uid === currentUser.id;
+            gameState.isHost = isHost;
+
+            // ── Role Banner ──
+            const banner = document.getElementById('lobby-role-banner');
+            if (isHost) {
+                banner.className = 'relative z-10 mb-4 inline-block px-5 py-2 rounded-full text-sm font-black tracking-wide bg-fuchsia-500 text-white';
+                banner.innerHTML = '👑 You are the HOST';
+            } else {
+                banner.className = 'relative z-10 mb-4 inline-block px-5 py-2 rounded-full text-sm font-black tracking-wide bg-sky-100 text-sky-700 border-2 border-sky-300';
+                banner.innerHTML = '🎮 You are a GUEST';
+            }
+
+            // ── Player List with host indicator ──
+            const list = document.getElementById('lobby-player-list');
+            list.innerHTML = '';
+            const players = gameData.players || {};
+            Object.keys(players).forEach(uid => {
+                const p = players[uid];
+                const isPlayerHost = uid === gameData.host_uid;
+                const isMe = uid === currentUser.id;
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm';
+                li.innerHTML = `
+                    <span class="text-2xl">${isPlayerHost ? '👑' : '🎒'}</span>
+                    <span class="font-black text-amber-900 flex-grow">${p.name}${isMe ? ' <span class="text-xs text-sky-500">(you)</span>' : ''}</span>
+                    ${isPlayerHost ? '<span class="text-xs font-bold bg-fuchsia-100 text-fuchsia-600 px-2 py-1 rounded-full">HOST</span>' : ''}
+                `;
+                list.appendChild(li);
+            });
+
+            // ── Start button (host only) vs waiting message (guest only) ──
+            const btnStart = document.getElementById('btn-start-multiplayer');
+            const guestWait = document.getElementById('lobby-guest-waiting');
+            if (isHost) {
+                btnStart.classList.remove('hidden');
+                guestWait.classList.add('hidden');
+            } else {
+                btnStart.classList.add('hidden');
+                guestWait.classList.remove('hidden');
+            }
+        }
+
+        // [FIX 2] Supabase Realtime subscription — uses renderLobbyUI instead of duplicated inline logic
         function subscribeToGame(gameId) {
             if (realtimeChannel) {
                 supabase.removeChannel(realtimeChannel);
@@ -1043,8 +1082,8 @@
                 .on(
                     'postgres_changes',
                     {
-                        event: '*',                     // listen for INSERT, UPDATE, DELETE
-                        schema: 'mini_games',           // [KEY] target our custom schema
+                        event: '*',
+                        schema: 'mini_games',
                         table: 'bingo_games',
                         filter: `id=eq.${gameId}`
                     },
@@ -1053,6 +1092,7 @@
                         if (!data) return;
 
                         remoteGameState = data;
+                        gameState.isHost = (data.host_uid === currentUser.id);
 
                         // ── Handle "ended" status ──
                         if (data.status === 'ended') {
@@ -1064,20 +1104,7 @@
 
                         // ── Lobby UI update ──
                         if (data.status === 'lobby') {
-                            const list = document.getElementById('lobby-player-list');
-                            list.innerHTML = '';
-                            Object.values(data.players || {}).forEach(p => {
-                                const li = document.createElement('li');
-                                li.className = "flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm";
-                                li.innerHTML = `<span class="text-2xl">🎒</span> <span class="font-black text-amber-900">${p.name}</span>`;
-                                list.appendChild(li);
-                            });
-                            // Only host can start
-                            if (data.host_uid !== currentUser.id) {
-                                document.getElementById('btn-start-multiplayer').style.display = 'none';
-                            } else {
-                                document.getElementById('btn-start-multiplayer').style.display = '';
-                            }
+                            renderLobbyUI(data);
                         }
 
                         // ── Transition Lobby → Game ──
@@ -1107,7 +1134,7 @@
                 )
                 .subscribe();
 
-            // Also do an initial fetch so we have data before first realtime event
+            // Initial fetch so we have data before first realtime event
             (async () => {
                 const { data } = await supabase
                     .from('bingo_games')
@@ -1117,19 +1144,7 @@
                 if (data) {
                     remoteGameState = data;
                     gameState.isHost = (data.host_uid === currentUser.id);
-                    if (data.status === 'lobby') {
-                        const list = document.getElementById('lobby-player-list');
-                        list.innerHTML = '';
-                        Object.values(data.players || {}).forEach(p => {
-                            const li = document.createElement('li');
-                            li.className = "flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm";
-                            li.innerHTML = `<span class="text-2xl">🎒</span> <span class="font-black text-amber-900">${p.name}</span>`;
-                            list.appendChild(li);
-                        });
-                        if (data.host_uid !== currentUser.id) {
-                            document.getElementById('btn-start-multiplayer').style.display = 'none';
-                        }
-                    }
+                    renderLobbyUI(data);
                 }
             })();
         }
