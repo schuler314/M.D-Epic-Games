@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spelling Searcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chewy&family=Comic+Neue:wght@400;700;900&family=Fredoka:wght@500;700&family=Mali:wght@600;700&family=Nunito:wght@600;700;800;900&display=swap');
+
+        /* Theme Variables - Smooth Gradients for Ghosted Images */
+        :root, body.theme-magic {
+            --bg-color: linear-gradient(135deg, #f3e8ff 0%, #dbeafe 100%);
+            --text-main: #4c1d95; --text-muted: #7c3aed;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --cell-bg: #ffffff; --cell-border: #c4b5fd;
+            --highlight: #a855f7; --highlight-text: #ffffff;
+            --found: #10b981; --found-text: #ffffff;
+            --shadow-color: #6d28d9;
+            --font-main: 'Comic Neue', cursive;
+        }
+        body.theme-jungle {
+            --bg-color: linear-gradient(135deg, #dcfce3 0%, #bbf7d0 100%);
+            --text-main: #14532d; --text-muted: #166534;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --cell-bg: #ffffff; --cell-border: #86efac;
+            --highlight: #22c55e; --highlight-text: #ffffff;
+            --found: #f59e0b; --found-text: #ffffff;
+            --shadow-color: #166534;
+            --font-main: 'Mali', cursive;
+        }
+        body.theme-ocean {
+            --bg-color: linear-gradient(to top, #bae6fd 0%, #e0f2fe 100%);
+            --text-main: #0c4a6e; --text-muted: #0369a1;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --cell-bg: #ffffff; --cell-border: #7dd3fc;
+            --highlight: #0ea5e9; --highlight-text: #ffffff;
+            --found: #f43f5e; --found-text: #ffffff;
+            --shadow-color: #0369a1;
+            --font-main: 'Fredoka', sans-serif;
+        }
+        body.theme-space {
+            --bg-color: radial-gradient(circle at center, #1e1b4b, #0f172a);
+            --text-main: #f8fafc; --text-muted: #94a3b8;
+            --card-bg: rgba(30, 41, 59, 0.85);
+            --cell-bg: #334155; --cell-border: #475569;
+            --highlight: #a855f7; --highlight-text: #ffffff;
+            --found: #fbbf24; --found-text: #000000;
+            --shadow-color: #000000;
+            --font-main: 'Nunito', sans-serif;
+        }
+        body.theme-dino {
+            --bg-color: linear-gradient(135deg, #ecfccb 0%, #d9f99d 100%);
+            --text-main: #3f6212; --text-muted: #4d7c0f;
+            --card-bg: rgba(254, 252, 232, 0.85);
+            --cell-bg: #ffffff; --cell-border: #bef264;
+            --highlight: #84cc16; --highlight-text: #ffffff;
+            --found: #eab308; --found-text: #ffffff;
+            --shadow-color: #3f6212;
+            --font-main: 'Chewy', cursive;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background: var(--bg-color);
+            background-attachment: fixed;
+            color: var(--text-main);
+            -webkit-tap-highlight-color: transparent;
+            min-height: 100vh;
+        }
+
+        /* --- Device Layout Engine --- */
+        #app {
+            transition: max-width 0.3s ease;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        body.device-phone #app { max-width: 28rem; }
+        body.device-tablet #app { max-width: 100%; padding-left: 2rem; padding-right: 2rem; }
+        body.device-desktop #app { max-width: 72rem; }
+
+        /* Flexible split layout that gracefully wraps on narrow devices */
+        .split-layout { display: flex; flex-direction: column; gap: 1.5rem; }
+        
+        body.device-tablet .split-layout, body.device-desktop .split-layout {
+            flex-direction: row;
+            flex-wrap: wrap; 
+            align-items: flex-start;
+            gap: 2rem;
+        }
+        body.device-tablet .split-sidebar {
+            flex: 1 1 300px;
+            max-width: 360px;
+            position: sticky;
+            top: 1rem;
+        }
+        body.device-desktop .split-sidebar { 
+            flex: 1 1 350px;
+            max-width: 380px; 
+            position: sticky;
+            top: 1rem;
+        }
+        body.device-tablet .split-main, body.device-desktop .split-main {
+            flex: 2 1 400px;
+            min-width: 0;
+        }
+
+        /* Disable sticky when flex-wrapped onto smaller screens */
+        @media (max-width: 800px) {
+            body.device-tablet .split-sidebar, body.device-desktop .split-sidebar {
+                position: relative;
+                max-width: 100%;
+            }
+        }
+        /* --- End Layout Engine --- */
+
+        .themed-card {
+            background-color: var(--card-bg);
+            border: 4px solid var(--cell-border);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-chunky {
+            box-shadow: 0 6px 0px var(--shadow-color);
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-chunky:active {
+            box-shadow: 0 0px 0px var(--shadow-color);
+            transform: translateY(6px);
+        }
+
+        /* Active state for Theme buttons */
+        .theme-btn.active {
+            box-shadow: 0 0 0 4px white, 0 0 0 8px var(--highlight);
+            transform: scale(1.15) rotate(-3deg);
+            z-index: 10;
+        }
+
+        .themed-text { color: var(--text-main); }
+        .themed-text-muted { color: var(--text-muted); }
+
+        /* Game Grid Styles - Upgraded 3D Tactile UX */
+        #game-board { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+        .grid-cell {
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; text-transform: uppercase; cursor: pointer;
+            border-radius: 0.75rem; color: var(--text-main);
+            background-color: var(--cell-bg); border: 3px solid var(--cell-border);
+            box-shadow: 0 6px 0 var(--shadow-color);
+            font-size: 1.25rem; line-height: 1;
+            transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        @media (min-width: 640px) { .grid-cell { font-size: 1.75rem; border-radius: 1rem; } }
+
+        .cell-found {
+            background-color: var(--found); border-color: var(--found); color: var(--found-text);
+            animation: tilePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .cell-bonus {
+            background-color: #fbbf24; border-color: #f59e0b; color: #fff;
+            animation: pulseGlow 1.5s infinite, tilePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .grid-cell.cell-hover {
+            background-color: var(--highlight) !important; border-color: var(--highlight) !important; color: var(--highlight-text) !important;
+            transform: scale(1.15) translateY(-5px) !important;
+            box-shadow: 0 11px 0 var(--shadow-color), 0 15px 20px rgba(0,0,0,0.25) !important;
+            z-index: 20 !important; animation: none !important;
+        }
+
+        @keyframes tilePop {
+            0% { transform: translateY(0px) scale(1); box-shadow: 0 6px 0 var(--shadow-color); z-index: 10; }
+            40% { transform: translateY(-12px) scale(1.1); box-shadow: 0 18px 0 var(--shadow-color), 0 20px 20px rgba(0,0,0,0.2); z-index: 10; }
+            100% { transform: translateY(6px) scale(1); box-shadow: 0 0px 0 var(--shadow-color), inset 0 4px 8px rgba(0,0,0,0.3); z-index: 1;}
+        }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0px 0 #b45309, inset 0 4px 8px rgba(0,0,0,0.2); }
+            50% { box-shadow: 0 0px 0 #b45309, inset 0 4px 8px rgba(0,0,0,0.2), 0 0 15px #f59e0b; }
+            100% { box-shadow: 0 0px 0 #b45309, inset 0 4px 8px rgba(0,0,0,0.2); }
+        }
+
+        @keyframes slideUp { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        @keyframes modalPop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+        .animate-modal-pop { animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* Word Bank */
+        .word-pending { 
+            background-color: var(--cell-bg); border: 3px solid var(--cell-border); 
+            color: var(--text-main); box-shadow: 0 4px 0 var(--shadow-color);
+            border-radius: 1rem; padding: 0.5rem 1.25rem; transition: all 0.2s;
+        }
+        
+        .word-found { 
+            background-color: transparent; border: 3px dashed var(--cell-border); 
+            color: var(--text-muted); opacity: 0.4; transform: scale(0.95);
+            box-shadow: none; border-radius: 1rem; padding: 0.5rem 1.25rem; filter: grayscale(0.8); transition: all 0.2s;
+        }
+
+        .loader {
+            border: 5px solid var(--cell-border); border-top: 5px solid var(--highlight);
+            border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Popups */
+        #combo-popup {
+            position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            font-size: 4rem; font-weight: 900; color: #f59e0b; text-shadow: 3px 3px 0 #fff;
+            z-index: 100; pointer-events: none; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0;
+        }
+        #combo-popup.show { transform: translate(-50%, -50%) scale(1) rotate(-5deg); opacity: 1; }
+    </style>
+</head>
+<body class="antialiased min-h-screen pb-10 device-desktop">
+
+    <!-- Ghosted Background Image (Dynamic Emoji) -->
+    <div id="bg-ghost" class="fixed inset-0 flex items-center justify-center pointer-events-none z-[-1] overflow-hidden select-none opacity-[0.06] text-[60vw] sm:text-[40vw]">
+        🔮
+    </div>
+
+    <div id="combo-popup">COMBO! 🔥</div>
+
+    <div id="app" class="p-4 sm:p-6 space-y-6 transition-all duration-500 ease-in-out">
+        
+        <!-- Top Nav (Always visible except in game) -->
+        <nav id="top-nav" class="flex justify-between items-center bg-white/50 p-4 rounded-3xl border-4 border-white/60 shadow-lg themed-card">
+            <h1 id="app-title" class="text-3xl font-black themed-text flex items-center gap-2">
+                ✨ Spelling Searcher
+            </h1>
+            <div class="flex gap-3">
+                <button onclick="uiManager.showDashboard()" class="px-5 py-3 rounded-2xl font-black bg-white/50 hover:bg-white/80 transition themed-text btn-chunky flex items-center gap-2">
+                    🏠 <span class="hidden sm:inline">Home</span>
+                </button>
+                <button onclick="uiManager.showProfile()" class="px-5 py-3 rounded-2xl font-black bg-yellow-400 hover:bg-yellow-500 text-yellow-900 transition flex items-center gap-2 btn-chunky">
+                    🏆 <span class="hidden sm:inline">Trophy Room</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- ================= DASHBOARD VIEW ================= -->
+        <div id="view-dashboard" class="animate-slide-up block">
+            <div class="split-layout">
+                
+                <!-- Left Sidebar (Controls) -->
+                <div class="split-sidebar space-y-6">
+                    <!-- Upload Area -->
+                    <div class="themed-card p-8 rounded-3xl flex flex-col items-center text-center space-y-4">
+                        <div id="upload-icon" class="text-7xl mb-2 animate-bounce drop-shadow-md">🔮</div>
+                        <h2 class="text-3xl font-black themed-text">New Puzzle</h2>
+                        <p class="themed-text-muted font-bold text-lg leading-snug">Take a photo of your spelling list to create a new game!</p>
+                        <label class="cursor-pointer bg-[var(--highlight)] text-[var(--highlight-text)] font-black text-xl py-4 px-6 rounded-2xl btn-chunky inline-flex items-center justify-center gap-2 mt-4 text-center leading-tight w-full">
+                            📸 Camera or Gallery
+                            <input type="file" id="image-input" accept="image/*" class="hidden">
+                        </label>
+                    </div>
+
+                    <!-- Device Selector -->
+                    <div class="themed-card p-6 rounded-3xl flex flex-col items-center justify-center text-center gap-3">
+                        <span class="font-black themed-text text-xl">Screen Layout:</span>
+                        <div class="flex flex-wrap justify-center gap-2 bg-black/10 p-2 rounded-2xl w-full">
+                            <button onclick="deviceManager.setDevice('phone')" id="dev-phone" class="flex-1 flex items-center justify-center gap-2 min-w-[80px] px-2 py-2 rounded-xl font-black transition-all text-sm whitespace-nowrap">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                                Phone
+                            </button>
+                            <button onclick="deviceManager.setDevice('tablet')" id="dev-tablet" class="flex-1 flex items-center justify-center gap-2 min-w-[80px] px-2 py-2 rounded-xl font-black transition-all text-sm whitespace-nowrap">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                                Tablet
+                            </button>
+                            <button onclick="deviceManager.setDevice('desktop')" id="dev-desktop" class="flex-1 flex items-center justify-center gap-2 min-w-[80px] px-2 py-2 rounded-xl font-black transition-all text-sm whitespace-nowrap">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                Desktop
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Main Area (Saved & Themes) -->
+                <div class="split-main space-y-6">
+                    <!-- Theme Selector -->
+                    <div class="themed-card p-6 rounded-3xl flex flex-wrap items-center gap-3 justify-center sm:justify-start text-center">
+                        <span class="font-black themed-text text-xl w-full sm:w-auto sm:mr-2">Pick a World:</span>
+                        <button onclick="themeManager.setTheme('magic')" data-theme="magic" class="theme-btn w-12 h-12 rounded-full bg-purple-100 border-4 border-purple-500 hover:scale-110 transition text-2xl flex items-center justify-center btn-chunky">✨</button>
+                        <button onclick="themeManager.setTheme('jungle')" data-theme="jungle" class="theme-btn w-12 h-12 rounded-full bg-green-100 border-4 border-green-500 hover:scale-110 transition text-2xl flex items-center justify-center btn-chunky">🌴</button>
+                        <button onclick="themeManager.setTheme('ocean')" data-theme="ocean" class="theme-btn w-12 h-12 rounded-full bg-cyan-100 border-4 border-cyan-500 hover:scale-110 transition text-2xl flex items-center justify-center btn-chunky">🌊</button>
+                        <button onclick="themeManager.setTheme('space')" data-theme="space" class="theme-btn w-12 h-12 rounded-full bg-slate-800 border-4 border-slate-500 hover:scale-110 transition text-2xl flex items-center justify-center btn-chunky">🚀</button>
+                        <button onclick="themeManager.setTheme('dino')" data-theme="dino" class="theme-btn w-12 h-12 rounded-full bg-lime-100 border-4 border-lime-500 hover:scale-110 transition text-2xl flex items-center justify-center btn-chunky">🦖</button>
+                    </div>
+
+                    <!-- Saved Games -->
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-black themed-text pl-4 border-l-8 border-[var(--highlight)] rounded">My Saved Puzzles</h3>
+                        <div id="saved-games-container" class="grid gap-5 sm:grid-cols-2"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ================= WORD SELECTION VIEW ================= -->
+        <div id="view-word-selection" class="hidden animate-slide-up">
+            <div class="split-layout">
+                <!-- Sidebar Controls -->
+                <div class="split-sidebar flex flex-col gap-4">
+                    <div class="themed-card p-6 text-center space-y-4">
+                        <div class="text-6xl mb-2">📝</div>
+                        <h2 class="text-3xl font-black themed-text">Pick Words</h2>
+                        <p class="themed-text-muted font-bold text-lg leading-snug">Tap up to 15 words for your puzzle!</p>
+
+                        <div class="bg-white/60 rounded-2xl px-4 py-3 border-4 border-white shadow-sm inline-block">
+                            <span class="font-black text-gray-600 text-xl">Selected: </span>
+                            <span id="word-count" class="font-black text-3xl text-[var(--highlight)]">0</span>
+                            <span class="font-black text-gray-400 text-lg"> / 15 Max</span>
+                        </div>
+
+                        <!-- Difficulty Selection UI (Upgraded Descriptions) -->
+                        <div class="mt-4 p-5 rounded-3xl bg-white/60 border-4 border-white shadow-sm text-left">
+                            <h3 class="font-black themed-text text-xl mb-1 text-center">Select Difficulty:</h3>
+                            <p class="text-sm font-bold text-gray-500 mb-3 text-center">Changes grid size and directions.</p>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <button onclick="appFlow.setDifficulty('easy')" id="diff-easy" class="flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-green-800 bg-green-200 border-4 border-green-500 scale-105 shadow-md transition-all z-10 text-sm flex flex-col items-center leading-tight">
+                                    <span>🟢 Easy</span>
+                                    <span class="text-[10px] opacity-80 mt-1 font-bold">Small Grid<br>No Diagonals</span>
+                                </button>
+                                <button onclick="appFlow.setDifficulty('medium')" id="diff-medium" class="flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-yellow-700 bg-yellow-50 border-4 border-yellow-200 opacity-60 transition-all text-sm flex flex-col items-center leading-tight">
+                                    <span>🟡 Medium</span>
+                                    <span class="text-[10px] opacity-80 mt-1 font-bold">Medium Grid<br>Some Diagonals</span>
+                                </button>
+                                <button onclick="appFlow.setDifficulty('hard')" id="diff-hard" class="flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-red-700 bg-red-50 border-4 border-red-200 opacity-60 transition-all text-sm flex flex-col items-center leading-tight">
+                                    <span>🔴 Hard</span>
+                                    <span class="text-[10px] opacity-80 mt-1 font-bold">Large Grid<br>Some Diagonals</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-3 mt-4">
+                            <button onclick="appFlow.selectAll(true)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-black py-3 px-5 rounded-2xl btn-chunky text-base">Select All</button>
+                            <button onclick="appFlow.selectAll(false)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-black py-3 px-5 rounded-2xl btn-chunky text-base">Clear All</button>
+                            <button onclick="appFlow.openWordModal(-1)" class="bg-purple-100 hover:bg-purple-200 text-purple-700 font-black py-3 px-5 rounded-2xl btn-chunky text-base">+ Add Word</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3">
+                        <button onclick="uiManager.showDashboard()" class="flex-1 bg-red-100 hover:bg-red-200 text-red-600 font-black py-4 px-2 rounded-2xl btn-chunky">Cancel</button>
+                        <button onclick="appFlow.createPuzzleFromSelection()" class="flex-[2] bg-[var(--highlight)] text-[var(--highlight-text)] font-black py-4 px-2 rounded-2xl btn-chunky text-lg">Make Puzzle!</button>
+                    </div>
+                </div>
+
+                <!-- Main Word List -->
+                <div class="split-main themed-card p-4 sm:p-6 rounded-3xl">
+                    <div id="word-selection-list" class="flex flex-wrap gap-4 justify-center items-start content-start overflow-y-auto p-4 bg-black/5 rounded-2xl shadow-inner border-4 border-black/5 h-[60vh] sm:h-auto sm:min-h-[500px]">
+                        <!-- Word cards injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TROPHY ROOM (PROFILE) VIEW ================= -->
+        <div id="view-profile" class="hidden animate-slide-up space-y-6">
+            <div class="themed-card p-8 rounded-3xl text-center space-y-2">
+                <h2 class="text-4xl font-black themed-text">Trophy Room 🏆</h2>
+                <p class="themed-text-muted font-bold text-lg">Check out your amazing progress!</p>
+            </div>
+
+            <div class="split-layout">
+                <!-- Sidebar Stats -->
+                <div class="split-sidebar space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="themed-card p-4 rounded-3xl text-center flex flex-col items-center justify-center">
+                            <span class="text-4xl mb-2">🧩</span>
+                            <span id="stat-puzzles" class="text-3xl font-black themed-text">0</span>
+                            <span class="text-sm font-black uppercase themed-text-muted">Puzzles</span>
+                        </div>
+                        <div class="themed-card p-4 rounded-3xl text-center flex flex-col items-center justify-center">
+                            <span class="text-4xl mb-2">🔍</span>
+                            <span id="stat-words" class="text-3xl font-black themed-text">0</span>
+                            <span class="text-sm font-black uppercase themed-text-muted">Words</span>
+                        </div>
+                        <div class="themed-card p-4 rounded-3xl text-center flex flex-col items-center justify-center">
+                            <span class="text-4xl mb-2">🔥</span>
+                            <span id="stat-streak" class="text-3xl font-black themed-text">0</span>
+                            <span class="text-sm font-black uppercase themed-text-muted">Day Streak</span>
+                        </div>
+                    </div>
+
+                    <div class="themed-card p-6 rounded-3xl">
+                        <h3 class="text-2xl font-black themed-text mb-4 border-b-4 border-[var(--cell-border)] pb-2">Sticker Book</h3>
+                        <div id="stickers-container" class="flex flex-wrap gap-4 min-h-[100px] items-center justify-center p-6 bg-black/5 rounded-2xl shadow-inner border-4 border-black/5">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Badges -->
+                <div class="split-main themed-card p-6 rounded-3xl">
+                    <h3 class="text-2xl font-black themed-text mb-4 border-b-4 border-[var(--cell-border)] pb-2">Badges</h3>
+                    <div id="badges-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= LOADING VIEW ================= -->
+        <div id="view-loading" class="hidden flex-col items-center justify-center min-h-[60vh] space-y-6 text-center">
+            <div class="loader"></div>
+            <h2 class="text-4xl font-black themed-text animate-pulse">Reading list...</h2>
+            <p class="themed-text-muted text-xl font-bold bg-white/60 px-6 py-2 rounded-full shadow-sm" id="loading-subtext">Sprinkling magic dust...</p>
+        </div>
+
+        <!-- ================= GAME VIEW ================= -->
+        <div id="view-game" class="hidden animate-slide-up space-y-4">
+            
+            <header class="flex flex-wrap items-center justify-between gap-4 themed-card p-4 rounded-3xl">
+                <button onclick="uiManager.showDashboard()" class="themed-text font-black py-3 px-6 rounded-2xl bg-[var(--cell-bg)] btn-chunky flex items-center gap-2 hover:brightness-95">
+                    🏠 <span class="hidden sm:inline">Back</span>
+                </button>
+                <div class="flex items-center gap-3 bg-[var(--bg-color)] px-6 py-3 rounded-2xl shadow-inner border-4 border-[var(--cell-border)]">
+                    <span class="text-2xl animate-pulse" id="timer-icon">⏱️</span>
+                    <span id="game-timer" class="text-2xl font-black themed-text font-mono">00:00</span>
+                </div>
+                <!-- Dynamic Retry / Play Again Button -->
+                <button id="btn-retry" onclick="gameEngine.retryGrid()" class="bg-blue-100 text-blue-700 hover:bg-blue-200 font-black py-3 px-6 rounded-2xl btn-chunky flex items-center gap-2">
+                    <span id="btn-retry-icon">🔄</span> <span id="btn-retry-text" class="hidden sm:inline">Retry Layout</span>
+                </button>
+            </header>
+
+            <div class="split-layout mt-4">
+                <!-- Sidebar Word Bank -->
+                <div class="split-sidebar themed-card p-4 sm:p-6 rounded-3xl text-center">
+                    <h3 class="text-xl uppercase font-black themed-text-muted mb-4 tracking-widest">Words to Find:</h3>
+                    <div id="word-bank" class="flex flex-wrap gap-3 justify-center text-lg">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Main Puzzle Grid Area (The "Tray") -->
+                <div class="split-main themed-card p-4 sm:p-8 rounded-3xl flex justify-center items-center overflow-hidden min-h-[50vh]">
+                    <div id="game-board" class="inline-grid gap-1.5 p-4 bg-black/10 rounded-2xl shadow-[inset_0_6px_12px_rgba(0,0,0,0.25)] border-b-2 border-white/40 touch-none">
+                        <!-- Grid cells populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals (Outside main view flow) -->
+
+    <!-- Win Modal (Immersive Full Screen Overlay) -->
+    <div id="win-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center hidden z-50 p-4 backdrop-blur-md transition-all">
+        <div class="bg-[var(--found)] text-[var(--found-text)] rounded-3xl p-8 sm:p-12 text-center shadow-2xl border-8 border-white/30 transform scale-100 max-w-2xl w-full animate-modal-pop">
+            <h2 class="text-5xl font-black mb-4">You Did It! 🎉</h2>
+            <p class="text-2xl font-bold opacity-90 whitespace-pre-line" id="win-stats-text"></p>
+            <div id="sticker-reward" class="text-8xl mt-6 bg-white/20 inline-block p-6 rounded-full shadow-inner transform hover:scale-110 transition"></div>
+            
+            <div class="mt-10 flex flex-wrap justify-center gap-4">
+                <button onclick="uiManager.showDashboard()" class="bg-white text-[var(--found)] font-black py-4 px-6 rounded-2xl btn-chunky hover:bg-gray-50 transition-colors flex-1 min-w-[120px]">
+                    🏠 Home
+                </button>
+                <button onclick="gameEngine.retryGrid()" class="bg-yellow-400 text-yellow-900 font-black py-4 px-6 rounded-2xl btn-chunky hover:bg-yellow-500 transition-colors flex-[2] min-w-[200px]">
+                    ✨ Play Again (New Grid)
+                </button>
+                <button onclick="uiManager.showProfile()" class="bg-purple-100 text-purple-700 font-black py-4 px-6 rounded-2xl btn-chunky hover:bg-purple-200 transition-colors flex-1 min-w-[120px]">
+                    🏆 Trophies
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border-4 border-red-300 transform scale-100 transition-all">
+            <div class="text-6xl animate-bounce">⚠️</div>
+            <h3 class="text-3xl font-black text-gray-800" id="error-title">Oops!</h3>
+            <p class="text-gray-600 font-bold text-lg" id="error-message">Something went wrong.</p>
+            <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-6 rounded-2xl w-full mt-4 btn-chunky">Okay</button>
+        </div>
+    </div>
+
+    <!-- Word Edit/Add Modal -->
+    <div id="word-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border-4 border-[var(--highlight)] transform scale-100 transition-all">
+            <div class="text-6xl animate-bounce" id="word-modal-icon">✏️</div>
+            <h3 class="text-3xl font-black text-gray-800" id="word-modal-title">Edit Word</h3>
+            <input type="text" id="word-modal-input" class="w-full p-4 border-4 border-gray-200 rounded-2xl focus:outline-none focus:border-[var(--highlight)] font-black text-3xl text-center uppercase tracking-widest text-gray-700 placeholder-gray-300" placeholder="WORD">
+            <div class="flex gap-3 mt-6">
+                <button onclick="appFlow.closeWordModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-4 px-6 rounded-2xl w-full btn-chunky">Cancel</button>
+                <button onclick="appFlow.saveWordModal()" class="bg-[var(--highlight)] text-[var(--highlight-text)] hover:brightness-110 font-black py-4 px-6 rounded-2xl w-full btn-chunky">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Storage & Config ---
+        const STORAGE_GAMES = 'spellingSearcher_games';
+        const STORAGE_PROFILE = 'spellingSearcher_profile';
+
+        const STICKER_POOL = ['🚀','🦖','🌟','🦄','🍕','🎨','🎈','👑','🦋','💎','🐙','🍩','🎸','👾','🌞'];
+        const BONUS_WORDS = ["SUPER", "STAR", "MAGIC", "AWESOME", "EPIC", "WOW"];
+
+        // --- Audio & Haptics Engine ---
+        const audioEngine = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            playTone(freq, type, duration, vol=0.1) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, this.ctx.currentTime + duration);
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            pop() { this.playTone(400, 'sine', 0.1, 0.05); this.vibrate(20); },
+            ding() { 
+                this.playTone(600, 'sine', 0.2, 0.1); 
+                setTimeout(() => this.playTone(800, 'sine', 0.4, 0.1), 100); 
+                this.vibrate([30, 50, 30]);
+            },
+            bonusDing() {
+                this.playTone(400, 'triangle', 0.1, 0.1);
+                setTimeout(() => this.playTone(600, 'triangle', 0.1, 0.1), 100);
+                setTimeout(() => this.playTone(1000, 'triangle', 0.4, 0.15), 200);
+                this.vibrate([50, 50, 50, 50, 100]);
+            },
+            win() {
+                this.playTone(523.25, 'triangle', 0.2); // C5
+                setTimeout(() => this.playTone(659.25, 'triangle', 0.2), 200); // E5
+                setTimeout(() => this.playTone(783.99, 'triangle', 0.2), 400); // G5
+                setTimeout(() => this.playTone(1046.50, 'triangle', 0.6), 600); // C6
+                this.vibrate([100, 50, 100, 50, 100, 50, 200]);
+            },
+            vibrate(pattern) {
+                if (navigator.vibrate) navigator.vibrate(pattern);
+            }
+        };
+
+        // --- Theme Manager ---
+        const themeManager = {
+            currentTheme: 'magic',
+            themesData: {
+                magic: { title: "Magic Search", icon: "✨", upload: "🔮" },
+                jungle: { title: "Jungle Search", icon: "🌴", upload: "🐒" },
+                ocean: { title: "Ocean Search", icon: "🌊", upload: "🐠" },
+                space: { title: "Space Search", icon: "🚀", upload: "👽" },
+                dino: { title: "Dino Search", icon: "🦖", upload: "🦕" }
+            },
+            setTheme(theme) {
+                document.body.className = `theme-${theme} antialiased min-h-screen pb-10 device-${deviceManager.currentDevice}`;
+                this.currentTheme = theme;
+                localStorage.setItem('spellingSearcher_theme', theme);
+
+                // Update Active Button State
+                document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+                const activeBtn = document.querySelector(`[data-theme="${theme}"]`);
+                if(activeBtn) activeBtn.classList.add('active');
+
+                // Update Dynamic Text and Graphics
+                const data = this.themesData[theme] || this.themesData['magic'];
+                
+                const titleEl = document.getElementById('app-title');
+                if (titleEl) titleEl.innerHTML = `${data.icon} Spelling Searcher`;
+                
+                const uploadEl = document.getElementById('upload-icon');
+                if (uploadEl) uploadEl.innerText = data.upload;
+
+                const bgGhost = document.getElementById('bg-ghost');
+                if (bgGhost) bgGhost.innerText = data.upload;
+            },
+            load() {
+                const saved = localStorage.getItem('spellingSearcher_theme');
+                if (saved) this.setTheme(saved);
+                else this.setTheme('magic');
+            }
+        };
+
+        // --- Device Manager ---
+        const deviceManager = {
+            currentDevice: 'desktop', 
+            setDevice(type) {
+                this.currentDevice = type;
+                
+                // Update body classes
+                document.body.classList.remove('device-phone', 'device-tablet', 'device-desktop');
+                document.body.classList.add(`device-${type}`);
+                
+                // Update active state on buttons
+                document.querySelectorAll('#dev-phone, #dev-tablet, #dev-desktop').forEach(el => {
+                    el.classList.remove('bg-white', 'shadow-md', 'text-[var(--text-main)]');
+                    el.classList.add('text-gray-500', 'hover:bg-black/5');
+                });
+                const activeBtn = document.getElementById(`dev-${type}`);
+                if(activeBtn) {
+                    activeBtn.classList.remove('text-gray-500', 'hover:bg-black/5');
+                    activeBtn.classList.add('bg-white', 'shadow-md', 'text-[var(--text-main)]');
+                }
+
+                // Re-render grid if game is active to adjust cell sizing instantly
+                if (!document.getElementById('view-game').classList.contains('hidden') && gameEngine.currentGame) {
+                    gameEngine.render();
+                }
+            },
+            autoDetect() {
+                if (window.innerWidth < 640) this.setDevice('phone');
+                else if (window.innerWidth < 1200) this.setDevice('tablet');
+                else this.setDevice('desktop');
+            }
+        };
+
+        // --- Storage & Gamification Profile ---
+        const profileManager = {
+            data: {
+                stats: { puzzlesCompleted: 0, totalWordsFound: 0, currentStreak: 0, lastPlayDate: null },
+                stickers: [],
+                badges: []
+            },
+            
+            badgesDef: [
+                // Word Series
+                { id: 'novice', name: 'Word Novice', icon: '🥉', desc: 'Find 10 words', type: 'series', check: (d) => d.stats.totalWordsFound >= 10 },
+                { id: 'expert', name: 'Word Expert', icon: '🥈', desc: 'Find 50 words', type: 'series', check: (d) => d.stats.totalWordsFound >= 50 },
+                { id: 'master', name: 'Word Master', icon: '🥇', desc: 'Find 100 words', type: 'series', check: (d) => d.stats.totalWordsFound >= 100 },
+                { id: 'legend', name: 'Word Legend', icon: '👑', desc: 'Find 250 words', type: 'series', check: (d) => d.stats.totalWordsFound >= 250 },
+                { id: 'wizard', name: 'Word Wizard', icon: '🧙‍♂️', desc: 'Find 500 words', type: 'series', check: (d) => d.stats.totalWordsFound >= 500 },
+                
+                // Puzzle Series
+                { id: 'starter', name: 'Puzzle Starter', icon: '🌱', desc: 'Finish 1 puzzle', type: 'series', check: (d) => d.stats.puzzlesCompleted >= 1 },
+                { id: 'pro', name: 'Puzzle Pro', icon: '🌿', desc: 'Finish 10 puzzles', type: 'series', check: (d) => d.stats.puzzlesCompleted >= 10 },
+                { id: 'champ', name: 'Puzzle Champ', icon: '🌳', desc: 'Finish 25 puzzles', type: 'series', check: (d) => d.stats.puzzlesCompleted >= 25 },
+                { id: 'puzzle_legend', name: 'Puzzle Legend', icon: '🌟', desc: 'Finish 50 puzzles', type: 'series', check: (d) => d.stats.puzzlesCompleted >= 50 },
+
+                // Streak Series
+                { id: 'streak3', name: 'Streak Starter', icon: '🗓️', desc: '3 Day Streak', type: 'series', check: (d) => d.stats.currentStreak >= 3 },
+                { id: 'streak7', name: 'Streak Pro', icon: '🔥', desc: '7 Day Streak', type: 'series', check: (d) => d.stats.currentStreak >= 7 },
+                { id: 'streak14', name: 'Streak Master', icon: '🌠', desc: '14 Day Streak', type: 'series', check: (d) => d.stats.currentStreak >= 14 },
+
+                // Sticker Collector Series
+                { id: 'collector5', name: 'Sticker Fan', icon: '🎒', desc: 'Earn 5 stickers', type: 'series', check: (d) => d.stickers.length >= 5 },
+                { id: 'collector25', name: 'Collector', icon: '🎨', desc: 'Earn 25 stickers', type: 'series', check: (d) => d.stickers.length >= 25 },
+                { id: 'collector50', name: 'Sticker Maniac', icon: '🛍️', desc: 'Earn 50 stickers', type: 'series', check: (d) => d.stickers.length >= 50 },
+
+                // Stand-alone Achievements
+                { id: 'speed', name: 'Speed Demon', icon: '⚡', desc: 'Sub 2-min finish', type: 'standalone', check: () => false },
+                { id: 'eagle', name: 'Eagle Eye', icon: '🦅', desc: 'Sub 1-min finish', type: 'standalone', check: () => false },
+                { id: 'combo', name: 'Combo King', icon: '🔥', desc: 'Find 3 words fast', type: 'standalone', check: () => false },
+                { id: 'combo_master', name: 'Combo Master', icon: '🎆', desc: 'Find 5 words fast', type: 'standalone', check: () => false },
+                { id: 'bonus', name: 'Bonus Hunter', icon: '🕵️', desc: 'Find a hidden word', type: 'standalone', check: () => false },
+                { id: 'early', name: 'Early Bird', icon: '🌅', desc: 'Play before 9 AM', type: 'standalone', check: () => false },
+                { id: 'night', name: 'Night Owl', icon: '🦉', desc: 'Play after 6 PM', type: 'standalone', check: () => false }
+            ],
+
+            load() {
+                const saved = localStorage.getItem(STORAGE_PROFILE);
+                if (saved) this.data = JSON.parse(saved);
+                this.updateStreak();
+            },
+
+            save() {
+                localStorage.setItem(STORAGE_PROFILE, JSON.stringify(this.data));
+            },
+
+            updateStreak() {
+                const today = new Date().toDateString();
+                if (this.data.stats.lastPlayDate !== today) {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    if (this.data.stats.lastPlayDate === yesterday.toDateString()) {
+                        // Keep streak
+                    } else if (this.data.stats.lastPlayDate) {
+                        this.data.stats.currentStreak = 0; // Broke streak
+                    }
+                }
+                this.save();
+            },
+
+            recordGameFinish(secondsElapsed) {
+                const today = new Date().toDateString();
+                if (this.data.stats.lastPlayDate !== today) {
+                    this.data.stats.currentStreak++;
+                    this.data.stats.lastPlayDate = today;
+                }
+                this.data.stats.puzzlesCompleted++;
+                
+                // Award Random Sticker
+                const sticker = STICKER_POOL[Math.floor(Math.random() * STICKER_POOL.length)];
+                this.data.stickers.push(sticker);
+
+                // Standalone Time/Date Badges
+                if (secondsElapsed < 60) this.awardBadge('eagle');
+                else if (secondsElapsed < 120) this.awardBadge('speed');
+
+                const currentHour = new Date().getHours();
+                if (currentHour < 9) this.awardBadge('early');
+                if (currentHour >= 18) this.awardBadge('night');
+
+                this.checkBadges();
+                this.save();
+                return sticker;
+            },
+
+            addWordFound(isBonus) {
+                this.data.stats.totalWordsFound++;
+                if (isBonus) {
+                    this.awardBadge('bonus');
+                    this.data.stickers.push(STICKER_POOL[Math.floor(Math.random() * STICKER_POOL.length)]); // Extra sticker for bonus!
+                }
+                this.checkBadges();
+                this.save();
+            },
+
+            awardBadge(badgeId) {
+                if (!this.data.badges.includes(badgeId)) {
+                    this.data.badges.push(badgeId);
+                }
+            },
+
+            checkBadges() {
+                this.badgesDef.forEach(b => {
+                    if (!this.data.badges.includes(b.id) && b.check(this.data)) {
+                        this.awardBadge(b.id);
+                    }
+                });
+            }
+        };
+
+        const storage = {
+            getGames: () => JSON.parse(localStorage.getItem(STORAGE_GAMES) || '[]'),
+            saveGame: (game) => {
+                const games = storage.getGames();
+                const index = games.findIndex(g => g.id === game.id);
+                if (index >= 0) games[index] = game;
+                else games.push(game);
+                localStorage.setItem(STORAGE_GAMES, JSON.stringify(games));
+            },
+            deleteGame: (id) => {
+                let games = storage.getGames();
+                games = games.filter(g => g.id !== id);
+                localStorage.setItem(STORAGE_GAMES, JSON.stringify(games));
+                uiManager.renderDashboard();
+            }
+        };
+
+        // --- Tesseract.js OCR Service (Free, Client-Side) ---
+        const ocrService = {
+            async extractWords(imageFile) {
+                try {
+                    const worker = await Tesseract.createWorker('eng');
+                    const ret = await worker.recognize(imageFile);
+                    await worker.terminate();
+                    
+                    const text = ret.data.text;
+                    const words = text.split(/[\s\n,]+/) 
+                        .map(w => w.replace(/[^a-zA-Z]/g, '').toUpperCase()) 
+                        .filter(w => w.length > 2); 
+                    
+                    const uniqueWords = [...new Set(words)];
+
+                    if (uniqueWords.length === 0) {
+                        throw new Error("No words found in image");
+                    }
+                    
+                    return uniqueWords;
+                    
+                } catch (error) {
+                    console.error("OCR Error:", error);
+                    throw error;
+                }
+            }
+        };
+
+        // --- Grid Generator ---
+        const gridGenerator = {
+            generate(mainWords, difficulty = 'medium') {
+                let wordsToPlace = [...mainWords];
+                let secretWords = [];
+                const numBonus = Math.random() > 0.5 ? 2 : 1;
+                const shuffledBonus = [...BONUS_WORDS].sort(() => 0.5 - Math.random());
+                for(let i=0; i<numBonus; i++) secretWords.push(shuffledBonus[i]);
+                
+                wordsToPlace = [...wordsToPlace, ...secretWords];
+
+                let maxLen = Math.max(...wordsToPlace.map(w => w.length), 0);
+                
+                // Dynamic sizing based on difficulty
+                let size = maxLen;
+                if (difficulty === 'easy') size += 1;
+                else if (difficulty === 'medium') size += 3;
+                else size += 6; 
+                
+                if (wordsToPlace.length > 10) size += Math.floor(wordsToPlace.length / 3);
+
+                // FORWARDS ONLY RULES: Left-to-right (0,1), Top-to-bottom (1,0)
+                let dirs = [ {dr: 0, dc: 1}, {dr: 1, dc: 0} ];
+                if (difficulty !== 'easy') {
+                    // Add strictly Top-Left to Bottom-Right ONLY for medium/hard. No backwards diagonals allowed!
+                    dirs.push({dr: 1, dc: 1}); 
+                }
+
+                let grid, placedInfo;
+                let gridCreated = false;
+
+                while (!gridCreated && size < 25) {
+                    grid = Array(size).fill(null).map(() => Array(size).fill(''));
+                    placedInfo = [];
+                    let allWordsPlaced = true;
+
+                    const sortedWords = [...wordsToPlace].sort((a, b) => b.length - a.length);
+
+                    for (const word of sortedWords) {
+                        let placed = false, tries = 0;
+                        while (!placed && tries < 200) {
+                            tries++;
+                            const d = dirs[Math.floor(Math.random() * dirs.length)];
+                            const r = Math.floor(Math.random() * size), c = Math.floor(Math.random() * size);
+
+                            let canPlace = true;
+                            for (let i = 0; i < word.length; i++) {
+                                let nr = r + i * d.dr, nc = c + i * d.dc;
+                                if (nr < 0 || nr >= size || nc < 0 || nc >= size || (grid[nr][nc] !== '' && grid[nr][nc] !== word[i])) { canPlace = false; break; }
+                            }
+
+                            if (canPlace) {
+                                for (let i = 0; i < word.length; i++) grid[r + i * d.dr][c + i * d.dc] = word[i];
+                                placedInfo.push({ word, r, c, dr: d.dr, dc: d.dc, isBonus: secretWords.includes(word) });
+                                placed = true;
+                            }
+                        }
+                        if (!placed) { allWordsPlaced = false; break; }
+                    }
+                    if (allWordsPlaced) gridCreated = true; else size++;
+                }
+
+                const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                for (let r = 0; r < size; r++)
+                    for (let c = 0; c < size; c++)
+                        if (grid[r][c] === '') grid[r][c] = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+
+                return { grid, placedInfo, size, secretWords };
+            }
+        };
+
+        // --- Game Engine ---
+        const gameEngine = {
+            currentGame: null,
+            isSelecting: false,
+            startCell: null,
+            currentPath: [],
+            timerInterval: null,
+            secondsElapsed: 0,
+            comboCount: 0,
+            lastWordTime: 0,
+            
+            init(gameData) {
+                this.currentGame = gameData;
+                if (!this.currentGame.secretWords) this.currentGame.secretWords = []; 
+                if (!this.currentGame.timeElapsed) this.currentGame.timeElapsed = 0;
+                if (!this.currentGame.difficulty) this.currentGame.difficulty = 'medium'; // Legacy fallback
+                this.secondsElapsed = this.currentGame.timeElapsed;
+                this.comboCount = 0;
+                
+                audioEngine.init();
+                this.render();
+                uiManager.showGame();
+                this.startTimer();
+            },
+
+            startTimer() {
+                clearInterval(this.timerInterval);
+                const mainWordsFound = this.currentGame.words.every(w => this.currentGame.foundWords.includes(w));
+                if (mainWordsFound && this.currentGame.words.length > 0) {
+                    this.updateTimerDisplay(); return; // Already won
+                }
+                this.timerInterval = setInterval(() => {
+                    this.secondsElapsed++;
+                    this.updateTimerDisplay();
+                    if (this.secondsElapsed % 5 === 0) {
+                        this.currentGame.timeElapsed = this.secondsElapsed;
+                        storage.saveGame(this.currentGame);
+                    }
+                }, 1000);
+            },
+
+            updateTimerDisplay() {
+                const m = String(Math.floor(this.secondsElapsed / 60)).padStart(2, '0');
+                const s = String(this.secondsElapsed % 60).padStart(2, '0');
+                
+                const mainWordsFound = this.currentGame.words.every(w => this.currentGame.foundWords.includes(w));
+                if (mainWordsFound && this.currentGame.words.length > 0) {
+                    document.getElementById('game-timer').innerText = `${m}:${s}`;
+                    document.getElementById('timer-icon').innerText = `🏆`;
+                } else {
+                    document.getElementById('game-timer').innerText = `${m}:${s}`;
+                    document.getElementById('timer-icon').innerText = `⏱️`;
+                }
+            },
+
+            retryGrid() {
+                clearInterval(this.timerInterval);
+                uiManager.showLoading("Reshuffling puzzle...");
+                
+                // Always hide modal in case triggered from the win screen
+                document.getElementById('win-modal').classList.add('hidden');
+                
+                setTimeout(() => {
+                    try {
+                        const newGridData = gridGenerator.generate(this.currentGame.words, this.currentGame.difficulty);
+                        this.currentGame.grid = newGridData.grid;
+                        this.currentGame.placedInfo = newGridData.placedInfo;
+                        this.currentGame.size = newGridData.size;
+                        this.currentGame.secretWords = newGridData.secretWords;
+                        this.currentGame.foundWords = [];
+                        this.currentGame.timeElapsed = 0;
+                        storage.saveGame(this.currentGame);
+                        this.init(this.currentGame);
+                    } catch(e) {
+                        uiManager.showError("Uh oh!", "Could not reshuffle grid.");
+                        uiManager.showGame();
+                    }
+                }, 500);
+            },
+
+            render() {
+                document.getElementById('top-nav').classList.add('hidden');
+                this.updateTimerDisplay();
+
+                // Update Action Button Based on Game State (Play Again vs Retry)
+                const mainWordsFound = this.currentGame.words.every(w => this.currentGame.foundWords.includes(w));
+                const btnRetry = document.getElementById('btn-retry');
+                const btnRetryText = document.getElementById('btn-retry-text');
+                const btnRetryIcon = document.getElementById('btn-retry-icon');
+                
+                if (mainWordsFound && this.currentGame.words.length > 0) {
+                    btnRetry.className = "bg-green-100 text-green-700 hover:bg-green-200 font-black py-3 px-6 rounded-2xl btn-chunky flex items-center gap-2 animate-pulse";
+                    btnRetryText.innerText = "Play Again (New Grid)";
+                    btnRetryIcon.innerText = "✨";
+                } else {
+                    btnRetry.className = "bg-blue-100 text-blue-700 hover:bg-blue-200 font-black py-3 px-6 rounded-2xl btn-chunky flex items-center gap-2";
+                    btnRetryText.innerText = "Retry Layout";
+                    btnRetryIcon.innerText = "🔄";
+                }
+
+                // Render Word Bank
+                const bankContainer = document.getElementById('word-bank');
+                bankContainer.innerHTML = '';
+                this.currentGame.words.forEach(word => {
+                    const isFound = this.currentGame.foundWords.includes(word);
+                    const el = document.createElement('div');
+                    el.className = `font-black transition-all ${isFound ? 'word-found' : 'word-pending'}`;
+                    el.innerText = word;
+                    bankContainer.appendChild(el);
+                });
+
+                // Render Grid based on intelligent scaling
+                const gridContainer = document.getElementById('game-board');
+                gridContainer.innerHTML = '';
+                const size = this.currentGame.size;
+                gridContainer.style.gridTemplateColumns = `repeat(${size}, minmax(0, 1fr))`;
+                
+                let maxW, maxH;
+                const approxNavAndBankHeights = 200; // rough estimation for header/padding
+                
+                if (deviceManager.currentDevice === 'phone') {
+                    maxW = window.innerWidth - 32;
+                    maxH = window.innerHeight - approxNavAndBankHeights;
+                } else if (deviceManager.currentDevice === 'tablet') {
+                    // Landscape split layout logic
+                    maxW = window.innerWidth - 380; // 340px sidebar + padding
+                    maxH = window.innerHeight - 150; // top padding / gaps
+                } else {
+                    maxW = window.innerWidth - 420;
+                    maxH = window.innerHeight - 150;
+                }
+
+                const gapSpace = (size - 1) * 6; // gap-1.5 = 6px
+                
+                // Height and width constraints to prevent scrolling
+                const maxCellW = Math.floor((maxW - gapSpace) / size);
+                const maxCellH = Math.floor((maxH - gapSpace) / size);
+                
+                // Use whichever constraint is smaller so the grid never overflows its container
+                let cellW = Math.min(maxCellW, maxCellH); 
+                
+                const absoluteMax = deviceManager.currentDevice === 'phone' ? 45 : 65;
+                if (cellW > absoluteMax) cellW = absoluteMax; 
+                if (cellW < 24) cellW = 24;
+
+                for (let r = 0; r < size; r++) {
+                    for (let c = 0; c < size; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        cell.style.width = `${cellW}px`;
+                        cell.style.height = `${cellW}px`;
+                        cell.dataset.r = r; cell.dataset.c = c;
+                        cell.id = `cell-${r}-${c}`;
+                        cell.innerText = this.currentGame.grid[r][c];
+                        gridContainer.appendChild(cell);
+                    }
+                }
+
+                this.recolorFoundCells();
+                this.attachEvents();
+                
+                if(mainWordsFound && this.currentGame.words.length > 0) this.triggerWin(false);
+            },
+
+            attachEvents() {
+                const board = document.getElementById('game-board');
+                
+                const handleStart = (e, clientX, clientY) => {
+                    e.preventDefault();
+                    audioEngine.init(); 
+                    this.startSelection(document.elementFromPoint(clientX, clientY));
+                };
+                const handleMove = (e, clientX, clientY) => {
+                    if(!this.isSelecting) return;
+                    e.preventDefault();
+                    this.moveSelection(document.elementFromPoint(clientX, clientY));
+                };
+
+                board.onmousedown = (e) => handleStart(e, e.clientX, e.clientY);
+                window.onmousemove = (e) => handleMove(e, e.clientX, e.clientY);
+                window.onmouseup = () => this.endSelection();
+
+                board.ontouchstart = (e) => handleStart(e, e.touches[0].clientX, e.touches[0].clientY);
+                board.ontouchmove = (e) => handleMove(e, e.touches[0].clientX, e.touches[0].clientY);
+                window.ontouchend = () => this.endSelection();
+                window.ontouchcancel = () => this.endSelection();
+            },
+
+            getCellCoords(el) {
+                if (!el || !el.classList.contains('grid-cell')) return null;
+                return { r: parseInt(el.dataset.r), c: parseInt(el.dataset.c) };
+            },
+
+            startSelection(el) {
+                const coords = this.getCellCoords(el);
+                if (!coords) return;
+                this.isSelecting = true;
+                this.startCell = coords;
+                this.updateHighlights(coords);
+                audioEngine.pop();
+            },
+
+            moveSelection(el) {
+                const coords = this.getCellCoords(el);
+                if (!coords) return;
+                
+                const lastCell = this.currentPath.length > 0 ? this.currentPath[this.currentPath.length-1] : this.startCell;
+                if (lastCell.r !== coords.r || lastCell.c !== coords.c) {
+                    audioEngine.pop();
+                    this.updateHighlights(coords);
+                }
+            },
+
+            endSelection() {
+                if (!this.isSelecting) return;
+                this.isSelecting = false;
+                
+                const matchedInfo = this.validateSelection();
+                let justWon = false;
+
+                if (matchedInfo) {
+                    const word = matchedInfo.word;
+                    this.currentGame.foundWords.push(word);
+                    profileManager.addWordFound(matchedInfo.isBonus);
+                    
+                    if (matchedInfo.isBonus) {
+                        audioEngine.bonusDing();
+                    } else {
+                        audioEngine.ding();
+                        this.checkCombo();
+                    }
+                    
+                    this.currentGame.timeElapsed = this.secondsElapsed;
+                    storage.saveGame(this.currentGame);
+
+                    // Safely check for a win immediately upon validating the word
+                    const mainWordsFound = this.currentGame.words.every(w => this.currentGame.foundWords.includes(w));
+                    if (mainWordsFound && this.currentGame.words.length > 0) {
+                        justWon = true;
+                    }
+                }
+                
+                this.currentPath = [];
+                this.render(); 
+
+                // Trigger the win modal strictly ONCE when the final word is found
+                if (justWon) {
+                    this.triggerWin(true);
+                }
+            },
+
+            updateHighlights(currentCoords) {
+                document.querySelectorAll('.cell-hover').forEach(c => c.classList.remove('cell-hover'));
+                
+                const sr = this.startCell.r, sc = this.startCell.c;
+                const cr = currentCoords.r, cc = currentCoords.c;
+                const dr = cr - sr, dc = cc - sc;
+                const absDr = Math.abs(dr), absDc = Math.abs(dc);
+
+                if (absDr === 0 || absDc === 0 || absDr === absDc) {
+                    const steps = Math.max(absDr, absDc);
+                    const stepR = dr === 0 ? 0 : dr / absDr;
+                    const stepC = dc === 0 ? 0 : dc / absDc;
+
+                    this.currentPath = [];
+                    for (let i = 0; i <= steps; i++) this.currentPath.push({ r: sr + i * stepR, c: sc + i * stepC });
+                    
+                    this.currentPath.forEach(pos => {
+                        const cell = document.getElementById(`cell-${pos.r}-${pos.c}`);
+                        if (cell) cell.classList.add('cell-hover');
+                    });
+                }
+            },
+
+            recolorFoundCells() {
+                this.currentGame.placedInfo.forEach(info => {
+                    if (this.currentGame.foundWords.includes(info.word)) {
+                        for (let i = 0; i < info.word.length; i++) {
+                            const cell = document.getElementById(`cell-${info.r + i * info.dr}-${info.c + i * info.dc}`);
+                            if (cell) {
+                                cell.classList.add(info.isBonus ? 'cell-bonus' : 'cell-found');
+                            }
+                        }
+                    }
+                });
+            },
+
+            validateSelection() {
+                if (this.currentPath.length < 2) return null;
+                const pathStrFwd = this.currentPath.map(p => `${p.r},${p.c}`).join('|');
+                const pathStrRev = [...this.currentPath].reverse().map(p => `${p.r},${p.c}`).join('|');
+
+                for (let info of this.currentGame.placedInfo) {
+                    if (this.currentGame.foundWords.includes(info.word)) continue; 
+                    let wPath = [];
+                    for (let i = 0; i < info.word.length; i++) wPath.push(`${info.r + i * info.dr},${info.c + i * info.dc}`);
+                    const wStr = wPath.join('|');
+                    if (wStr === pathStrFwd || wStr === pathStrRev) return info;
+                }
+                return null;
+            },
+
+            checkCombo() {
+                const now = Date.now();
+                if (this.lastWordTime > 0 && (now - this.lastWordTime) < 30000) {
+                    this.comboCount++;
+                    if(this.comboCount >= 2) profileManager.awardBadge('combo'); 
+                    if(this.comboCount >= 4) profileManager.awardBadge('combo_master');
+                    
+                    const popup = document.getElementById('combo-popup');
+                    popup.classList.add('show');
+                    setTimeout(() => popup.classList.remove('show'), 1500);
+                } else {
+                    this.comboCount = 0;
+                }
+                this.lastWordTime = now;
+            },
+
+            triggerWin(isNewWin) {
+                clearInterval(this.timerInterval);
+                const m = String(Math.floor(this.secondsElapsed / 60)).padStart(2, '0');
+                const s = String(this.secondsElapsed % 60).padStart(2, '0');
+                
+                if (isNewWin) {
+                    const winModal = document.getElementById('win-modal');
+                    winModal.classList.remove('hidden'); 
+                    
+                    audioEngine.win();
+                    confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 }, colors: ['#8b5cf6', '#10b981', '#f59e0b', '#ec4899'] });
+                    const isSpeedDemon = this.secondsElapsed < 120;
+                    const awardedSticker = profileManager.recordGameFinish(this.secondsElapsed, isSpeedDemon);
+                    
+                    document.getElementById('win-stats-text').innerText = `Time: ${m}:${s} \nNew Sticker Unlocked!`;
+                    document.getElementById('sticker-reward').innerText = awardedSticker;
+                    
+                    document.getElementById('game-timer').innerText = `${m}:${s}`;
+                    document.getElementById('timer-icon').innerText = `🏆`;
+                } else {
+                    document.getElementById('game-timer').innerText = `${m}:${s}`;
+                    document.getElementById('timer-icon').innerText = `🏆`;
+                }
+            }
+        };
+
+        // --- UI Flow Manager ---
+        const uiManager = {
+            switchView(viewId) {
+                ['view-dashboard', 'view-profile', 'view-word-selection', 'view-loading', 'view-game'].forEach(v => {
+                    const el = document.getElementById(v);
+                    if (el) {
+                        el.classList.add('hidden');
+                        el.classList.remove('block', 'flex');
+                    }
+                });
+                
+                document.getElementById('win-modal').classList.add('hidden');
+
+                const target = document.getElementById(viewId);
+                target.classList.remove('hidden');
+                if (viewId === 'view-loading') target.classList.add('flex');
+                else target.classList.add('block');
+
+                const nav = document.getElementById('top-nav');
+                if (viewId === 'view-game' || viewId === 'view-loading') nav.classList.add('hidden');
+                else nav.classList.remove('hidden');
+            },
+
+            showDashboard() {
+                this.switchView('view-dashboard');
+                clearInterval(gameEngine.timerInterval);
+                this.renderDashboard();
+            },
+
+            showWordSelection() {
+                this.switchView('view-word-selection');
+                appFlow.setDifficulty('medium'); // Set default difficulty for new games
+                this.renderWordSelection();
+            },
+
+            renderWordSelection() {
+                const list = document.getElementById('word-selection-list');
+                const selectedCount = appFlow.pendingWords.filter(w => w.selected).length;
+                const atLimit = selectedCount >= appFlow.MAX_WORDS;
+                
+                const counterEl = document.getElementById('word-count');
+                if(counterEl) {
+                    counterEl.innerText = selectedCount;
+                    if (atLimit) {
+                        counterEl.classList.remove('text-[var(--highlight)]');
+                        counterEl.classList.add('text-red-500');
+                    } else {
+                        counterEl.classList.add('text-[var(--highlight)]');
+                        counterEl.classList.remove('text-red-500');
+                    }
+                }
+
+                if (appFlow.pendingWords.length === 0) {
+                    list.innerHTML = `<p class="text-gray-500 font-bold">No words found. Try adding them manually!</p>`;
+                    return;
+                }
+                
+                list.innerHTML = appFlow.pendingWords.map((item, idx) => `
+                    <div class="flex flex-col rounded-2xl border-4 transition-all btn-chunky overflow-hidden ${item.selected ? 'border-[var(--found)] shadow-[0_0_15px_var(--found)] scale-105' : 'border-gray-300 opacity-80'} ${!item.selected && atLimit ? 'opacity-40 grayscale' : ''}">
+                        <button onclick="appFlow.toggleWord(${idx})" class="px-6 py-4 font-black text-2xl transition-colors ${item.selected ? 'bg-[var(--found)] text-[var(--found-text)]' : 'bg-white text-gray-500 hover:bg-gray-50'}">
+                            ${item.word}
+                        </button>
+                        <button onclick="appFlow.openWordModal(${idx})" class="py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black tracking-widest text-sm border-t-4 border-gray-200 transition-colors uppercase">
+                            Edit
+                        </button>
+                    </div>
+                `).join('');
+            },
+
+            showProfile() {
+                this.switchView('view-profile');
+                this.renderProfile();
+            },
+
+            showLoading(msg) {
+                document.getElementById('loading-subtext').innerText = msg;
+                this.switchView('view-loading');
+            },
+
+            showGame() { this.switchView('view-game'); },
+
+            showError(title, msg) {
+                document.getElementById('error-title').innerText = title;
+                document.getElementById('error-message').innerText = msg;
+                document.getElementById('error-modal').classList.remove('hidden');
+            },
+
+            renderDashboard() {
+                const container = document.getElementById('saved-games-container');
+                const games = storage.getGames().sort((a,b) => b.createdAt - a.createdAt);
+                
+                if (games.length === 0) {
+                    container.innerHTML = `<div class="col-span-2 text-center py-10 font-bold text-lg text-[var(--text-muted)] bg-[var(--card-bg)] rounded-3xl border-4 border-dashed border-[var(--cell-border)] shadow-inner">No puzzles yet. Upload a list to start! ✨</div>`;
+                    return;
+                }
+
+                container.innerHTML = games.map(game => {
+                    const mainFound = game.foundWords.filter(w => game.words.includes(w)).length;
+                    const totalMain = game.words.length;
+                    const isComplete = mainFound >= totalMain;
+                    
+                    return `
+                        <div class="themed-card p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
+                            ${isComplete ? '<div class="absolute -right-6 -top-6 text-7xl opacity-20 transform rotate-12">🏆</div>' : ''}
+                            <div class="flex justify-between items-start z-10">
+                                <div>
+                                    <h4 class="font-black text-xl themed-text">Spelling List</h4>
+                                    <p class="font-bold themed-text-muted">${new Date(game.createdAt).toLocaleDateString()}</p>
+                                </div>
+                                <div class="text-sm font-black px-4 py-2 rounded-2xl ${isComplete ? 'bg-[var(--found)] text-[var(--found-text)]' : 'bg-[var(--highlight)] text-[var(--highlight-text)]'} border-2 border-white/20 shadow-sm">
+                                    ${mainFound} / ${totalMain}
+                                </div>
+                            </div>
+                            <div class="flex gap-3 mt-auto z-10">
+                                <button onclick="gameEngine.init(storage.getGames().find(g => g.id === '${game.id}'))" 
+                                    class="flex-1 ${isComplete ? 'bg-green-500 hover:bg-green-600' : 'bg-[var(--highlight)] hover:brightness-110'} text-white font-black py-3 px-4 rounded-2xl btn-chunky">
+                                    ${isComplete ? 'Review' : 'Play'}
+                                </button>
+                                <button onclick="storage.deleteGame('${game.id}')" class="bg-red-100 hover:bg-red-200 text-red-600 font-black py-3 px-4 rounded-2xl btn-chunky">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            renderProfile() {
+                profileManager.load();
+                const p = profileManager.data;
+                
+                document.getElementById('stat-puzzles').innerText = p.stats.puzzlesCompleted;
+                document.getElementById('stat-words').innerText = p.stats.totalWordsFound;
+                document.getElementById('stat-streak').innerText = p.stats.currentStreak;
+
+                const badgeHtml = profileManager.badgesDef.map(b => {
+                    const unlocked = p.badges.includes(b.id);
+                    return `
+                        <div class="flex flex-col items-center text-center p-3 rounded-xl ${unlocked ? 'bg-[var(--highlight)] text-white shadow-md' : 'bg-black/5 opacity-50 grayscale'} transition-all">
+                            <span class="text-3xl mb-1">${b.icon}</span>
+                            <span class="text-xs font-bold leading-tight mb-1">${b.name}</span>
+                            <span class="text-[10px] ${unlocked ? 'text-white/80' : 'text-gray-500'}">${b.desc}</span>
+                        </div>
+                    `;
+                }).join('');
+                document.getElementById('badges-container').innerHTML = badgeHtml;
+
+                const stickerCont = document.getElementById('stickers-container');
+                if (p.stickers.length === 0) {
+                    stickerCont.innerHTML = `<span class="text-[var(--text-muted)] text-sm">Finish puzzles to earn stickers!</span>`;
+                } else {
+                    stickerCont.innerHTML = p.stickers.map(s => `<span class="text-4xl animate-slide-up transform hover:scale-125 transition cursor-pointer">${s}</span>`).join('');
+                }
+            }
+        };
+
+        // --- App Flow (Word Selection Intermediary) ---
+        const appFlow = {
+            pendingWords: [],
+            editingIdx: -1,
+            MAX_WORDS: 15,
+            difficulty: 'medium',
+            
+            toggleWord(idx) {
+                const currentlySelected = this.pendingWords.filter(w => w.selected).length;
+                if (!this.pendingWords[idx].selected && currentlySelected >= this.MAX_WORDS) {
+                    uiManager.showError("Limit Reached", "You can only select up to 15 words to ensure they fit in the puzzle beautifully!");
+                    return;
+                }
+                this.pendingWords[idx].selected = !this.pendingWords[idx].selected;
+                uiManager.renderWordSelection();
+            },
+            
+            selectAll(state) {
+                if (state) {
+                    let selectedCount = this.pendingWords.filter(w => w.selected).length;
+                    this.pendingWords.forEach(w => {
+                        if (!w.selected && selectedCount < this.MAX_WORDS) {
+                            w.selected = true;
+                            selectedCount++;
+                        }
+                    });
+                    if (this.pendingWords.length > this.MAX_WORDS) {
+                        uiManager.showError("Limit Reached", "We selected the first 15 words for you. Deselect some if you want to swap them!");
+                    }
+                } else {
+                    this.pendingWords.forEach(w => w.selected = false);
+                }
+                uiManager.renderWordSelection();
+            },
+
+            setDifficulty(level) {
+                this.difficulty = level;
+                
+                const btnEasy = document.getElementById('diff-easy');
+                const btnMed = document.getElementById('diff-medium');
+                const btnHard = document.getElementById('diff-hard');
+                
+                // Reset styling classes to inactive state
+                const inactiveEasy = "flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-green-700 bg-green-50 border-4 border-green-200 opacity-60 transition-all text-sm flex flex-col items-center leading-tight";
+                const inactiveMed = "flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-yellow-700 bg-yellow-50 border-4 border-yellow-200 opacity-60 transition-all text-sm flex flex-col items-center leading-tight";
+                const inactiveHard = "flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-red-700 bg-red-50 border-4 border-red-200 opacity-60 transition-all text-sm flex flex-col items-center leading-tight";
+                
+                btnEasy.className = inactiveEasy;
+                btnMed.className = inactiveMed;
+                btnHard.className = inactiveHard;
+                
+                // Highlight active state
+                if (level === 'easy') btnEasy.className = "flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-green-900 bg-green-200 border-4 border-green-500 scale-105 shadow-md transition-all z-10 text-sm flex flex-col items-center leading-tight";
+                if (level === 'medium') btnMed.className = "flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-yellow-900 bg-yellow-200 border-4 border-yellow-500 scale-105 shadow-md transition-all z-10 text-sm flex flex-col items-center leading-tight";
+                if (level === 'hard') btnHard.className = "flex-1 py-3 px-2 rounded-2xl font-black btn-chunky text-red-900 bg-red-200 border-4 border-red-500 scale-105 shadow-md transition-all z-10 text-sm flex flex-col items-center leading-tight";
+            },
+
+            openWordModal(idx) {
+                this.editingIdx = idx;
+                const input = document.getElementById('word-modal-input');
+                if (idx >= 0) {
+                    document.getElementById('word-modal-title').innerText = "Edit Word";
+                    document.getElementById('word-modal-icon').innerText = "✏️";
+                    input.value = this.pendingWords[idx].word;
+                } else {
+                    document.getElementById('word-modal-title').innerText = "Add Word";
+                    document.getElementById('word-modal-icon').innerText = "➕";
+                    input.value = "";
+                }
+                document.getElementById('word-modal').classList.remove('hidden');
+                setTimeout(() => input.focus(), 100); 
+            },
+
+            closeWordModal() {
+                document.getElementById('word-modal').classList.add('hidden');
+            },
+
+            saveWordModal() {
+                const inputVal = document.getElementById('word-modal-input').value;
+                const cleanedWord = inputVal.replace(/[^a-zA-Z]/g, '').toUpperCase();
+                
+                if (cleanedWord.length > 1) {
+                    const currentlySelected = this.pendingWords.filter(w => w.selected).length;
+
+                    if (this.editingIdx >= 0) {
+                        const wasSelected = this.pendingWords[this.editingIdx].selected;
+                        if (!wasSelected && currentlySelected >= this.MAX_WORDS) {
+                            uiManager.showError("Limit Reached", "You have 15 words selected. Deselect one first to use this edited word.");
+                            this.pendingWords[this.editingIdx].word = cleanedWord;
+                        } else {
+                            this.pendingWords[this.editingIdx].word = cleanedWord;
+                            this.pendingWords[this.editingIdx].selected = true;
+                        }
+                    } else {
+                        if (currentlySelected >= this.MAX_WORDS) {
+                            uiManager.showError("Limit Reached", "You have 15 words selected. Word added, but you must deselect another word to use it.");
+                            this.pendingWords.push({ word: cleanedWord, selected: false });
+                        } else {
+                            this.pendingWords.push({ word: cleanedWord, selected: true }); 
+                        }
+                    }
+                    this.closeWordModal();
+                    uiManager.renderWordSelection();
+                } else {
+                    uiManager.showError("Invalid Word", "Words must be at least 2 letters long.");
+                }
+            },
+            
+            async createPuzzleFromSelection() {
+                const selectedWords = this.pendingWords.filter(w => w.selected).map(w => w.word);
+                if (selectedWords.length === 0) {
+                    uiManager.showError("Wait a minute!", "You need to select at least one word to make a puzzle!");
+                    return;
+                }
+                
+                uiManager.showLoading("Creating magic grid...");
+                
+                setTimeout(() => {
+                    try {
+                        // Pass difficulty for generation
+                        const gridData = gridGenerator.generate(selectedWords, this.difficulty);
+                        
+                        const newGame = {
+                            id: 'ws_' + Date.now(),
+                            createdAt: Date.now(),
+                            words: selectedWords,
+                            secretWords: gridData.secretWords,
+                            grid: gridData.grid,
+                            placedInfo: gridData.placedInfo,
+                            size: gridData.size,
+                            foundWords: [],
+                            timeElapsed: 0,
+                            difficulty: this.difficulty // Save preference
+                        };
+
+                        storage.saveGame(newGame);
+                        gameEngine.init(newGame);
+                    } catch (error) {
+                        console.error(error);
+                        uiManager.showError("Grid Error", "We couldn't fit all those words. Try deselecting a few of the longer ones!");
+                        uiManager.showWordSelection();
+                    }
+                }, 50);
+            }
+        };
+
+        // --- File Upload ---
+        document.getElementById('image-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            uiManager.showLoading("Extracting spelling words...");
+            try {
+                const words = await ocrService.extractWords(file);
+                
+                appFlow.pendingWords = words.map(w => ({ word: w, selected: false }));
+                uiManager.showWordSelection();
+
+            } catch (error) {
+                console.error(error);
+                uiManager.showError("Magic fizzled out!", "We had trouble reading the words from that image. Try making sure it is well-lit and typed or printed clearly.");
+                uiManager.showDashboard();
+            }
+            e.target.value = ''; 
+        });
+
+        // --- Init ---
+        window.onload = () => {
+            themeManager.load();
+            profileManager.load();
+            deviceManager.autoDetect();
+            uiManager.showDashboard();
+        };
+
+    </script>
+</body>
+</html>
