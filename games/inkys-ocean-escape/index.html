@@ -12,7 +12,7 @@
         }
 
         body, html {
-            width: 100%;
+            width: 100%;a
             height: 100%;
             overflow: hidden;
             background-color: #082f49; /* Sky 900 - Deep Sea Blue */
@@ -71,6 +71,14 @@
             margin-bottom: 1.5rem;
         }
 
+        .high-score {
+            color: #f97316;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
+
         p {
             color: #bae6fd;
             margin-bottom: 2rem;
@@ -109,6 +117,12 @@
             font-size: 1.5rem;
             font-weight: bold;
             pointer-events: none;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .lives-container {
+            color: #f43f5e;
         }
 
         .instructions {
@@ -122,12 +136,16 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <div id="hud">Level: <span id="levelText">1</span></div>
+    <div id="hud">
+        <div>Level: <span id="levelText">1</span></div>
+        <div class="lives-container">Lives: <span id="livesText">3</span></div>
+    </div>
 
     <div id="ui-layer">
         <!-- Main Menu -->
         <div id="menuScreen" class="screen active">
             <h1>Swing Master</h1>
+            <div class="high-score">High Score: Level <span id="highScoreText">0</span></div>
             <p>Tap/Click & Hold to grapple.<br>Release to fly.</p>
             <button onclick="startGame()">Play Game</button>
         </div>
@@ -139,18 +157,25 @@
             <button onclick="nextLevel()">Next Level</button>
         </div>
 
-        <!-- Game Over -->
+        <!-- Lost a Life -->
         <div id="loseScreen" class="screen">
             <h1>Ouch!</h1>
             <h2>You fell</h2>
             <button onclick="restartLevel()">Try Again</button>
+        </div>
+
+        <!-- Game Over (Out of Lives) -->
+        <div id="gameOverScreen" class="screen">
+            <h1>Game Over</h1>
+            <h2 style="color: #f43f5e;">Out of Lives!</h2>
+            <button onclick="returnToMenu()">Main Menu</button>
         </div>
         
         <!-- Game Completed -->
         <div id="endScreen" class="screen">
             <h1>Victory!</h1>
             <h2>You beat all levels!</h2>
-            <button onclick="resetGame()">Play Again</button>
+            <button onclick="returnToMenu()">Main Menu</button>
         </div>
     </div>
 
@@ -163,14 +188,20 @@
             menu: document.getElementById('menuScreen'),
             win: document.getElementById('winScreen'),
             lose: document.getElementById('loseScreen'),
+            gameOver: document.getElementById('gameOverScreen'),
             end: document.getElementById('endScreen')
         };
         const levelText = document.getElementById('levelText');
+        const livesText = document.getElementById('livesText');
+        const highScoreText = document.getElementById('highScoreText');
 
         // Game Configuration
         let width, height;
-        let gameState = 'MENU'; // MENU, PLAYING, WIN, LOSE
+        let zoom = 1.0;
+        let gameState = 'MENU'; // MENU, PLAYING, WIN, LOSE, GAMEOVER
         let currentLevel = 0;
+        let lives = 3;
+        let highScore = 0;
 
         // Physics Constants
         const GRAVITY = 0.5; // Slightly lower for an underwater feel
@@ -254,6 +285,15 @@
             height = window.innerHeight;
             canvas.width = width;
             canvas.height = height;
+            
+            // Zoom out on mobile devices to see more of the level
+            if (width < 600) {
+                zoom = 0.55; // Phones
+            } else if (width < 1024) {
+                zoom = 0.75; // Tablets
+            } else {
+                zoom = 1.0; // Desktop
+            }
         }
         window.addEventListener('resize', resize);
         resize();
@@ -302,6 +342,8 @@
 
         function startGame() {
             currentLevel = 0;
+            lives = 3;
+            livesText.innerText = lives;
             loadLevel(currentLevel);
             gameState = 'PLAYING';
             switchScreen(null);
@@ -309,7 +351,6 @@
 
         function nextLevel() {
             currentLevel++;
-            // Infinite levels, so no end screen check anymore!
             loadLevel(currentLevel);
             gameState = 'PLAYING';
             switchScreen(null);
@@ -321,11 +362,9 @@
             switchScreen(null);
         }
 
-        function resetGame() {
-            currentLevel = 0;
-            loadLevel(currentLevel);
-            gameState = 'PLAYING';
-            switchScreen(null);
+        function returnToMenu() {
+            gameState = 'MENU';
+            switchScreen('menu');
         }
 
         function loadLevel(index) {
@@ -350,8 +389,8 @@
             isPointerDown = false;
             particles = [];
             
-            camera.x = player.x - width / 3;
-            camera.y = player.y - height / 2;
+            camera.x = player.x - (width / zoom) / 3;
+            camera.y = player.y - (height / zoom) / 2;
             
             levelText.innerText = index + 1;
         }
@@ -467,20 +506,36 @@
             // Finish Line (Infinite Height)
             if (player.x + player.radius > finishLine.x &&
                 player.x - player.radius < finishLine.x + finishLine.w) {
+                
+                // Update High Score if this level is the highest completed
+                let completedLevel = currentLevel + 1;
+                if (completedLevel > highScore) {
+                    highScore = completedLevel;
+                    highScoreText.innerText = highScore;
+                }
+                
                 gameState = 'WIN';
                 switchScreen('win');
                 spawnParticles(player.x, player.y, '#0ea5e9', 50);
             }
 
             // Death / Fall off screen
-            if (player.y > levelBottom || player.x < camera.x - 500) {
-                gameState = 'LOSE';
-                switchScreen('lose');
+            if (player.y > levelBottom || player.x < camera.x - (500 / zoom)) {
+                lives--;
+                livesText.innerText = lives;
+                
+                if (lives > 0) {
+                    gameState = 'LOSE';
+                    switchScreen('lose');
+                } else {
+                    gameState = 'GAMEOVER';
+                    switchScreen('gameOver');
+                }
             }
 
             // 4. Update Camera (Smooth Follow)
-            let targetCamX = player.x - width * 0.3;
-            let targetCamY = player.y - height * 0.6;
+            let targetCamX = player.x - (width / zoom) * 0.3;
+            let targetCamY = player.y - (height / zoom) * 0.6;
             
             camera.x += (targetCamX - camera.x) * 0.1;
             camera.y += (targetCamY - camera.y) * 0.1;
@@ -508,14 +563,18 @@
             if (gameState === 'MENU' && !anchors.length) return;
 
             ctx.save();
+            ctx.scale(zoom, zoom);
             ctx.translate(-camera.x, -camera.y);
+            
+            let worldWidth = width / zoom;
+            let worldHeight = height / zoom;
 
             // Draw Background Distant Bubbles
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             let startGridX = Math.floor(camera.x / 150) * 150;
             let startGridY = Math.floor(camera.y / 150) * 150;
-            for (let x = startGridX; x < camera.x + width + 150; x += 150) {
-                for (let y = startGridY; y < camera.y + height + 150; y += 150) {
+            for (let x = startGridX; x < camera.x + worldWidth + 150; x += 150) {
+                for (let y = startGridY; y < camera.y + worldHeight + 150; y += 150) {
                     // Pseudo-random offset for background bubbles
                     let ox = Math.sin(x * 12.3 + y * 4.5) * 50;
                     let oy = Math.cos(x * 4.5 + y * 12.3) * 50;
@@ -528,7 +587,7 @@
             // Draw Finish Line (Glowing Column of Light)
             if (finishLine) {
                 let startY = Math.floor(camera.y / 20) * 20 - 20;
-                let endY = camera.y + height + 20;
+                let endY = camera.y + worldHeight + 20;
                 
                 let gradient = ctx.createLinearGradient(finishLine.x, 0, finishLine.x + finishLine.w, 0);
                 gradient.addColorStop(0, 'rgba(14, 165, 233, 0)');
