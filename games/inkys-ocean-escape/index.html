@@ -12,7 +12,7 @@
         }
 
         body, html {
-            width: 100%;a
+            width: 100%;
             height: 100%;
             overflow: hidden;
             background-color: #082f49; /* Sky 900 - Deep Sea Blue */
@@ -125,6 +125,47 @@
             color: #f43f5e;
         }
 
+        #musicToggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(8, 47, 73, 0.6);
+            color: #bae6fd;
+            border: 1px solid #0ea5e9;
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: bold;
+            pointer-events: auto;
+            transition: all 0.2s ease;
+            z-index: 100;
+        }
+
+        #musicToggle:hover {
+            background: rgba(14, 165, 233, 0.4);
+        }
+
+        #pauseBtn {
+            position: absolute;
+            top: 3.5rem;
+            right: 1rem;
+            background: rgba(8, 47, 73, 0.6);
+            color: #bae6fd;
+            border: 1px solid #0ea5e9;
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: bold;
+            pointer-events: auto;
+            transition: all 0.2s ease;
+            z-index: 100;
+            display: none;
+        }
+
+        #pauseBtn:hover {
+            background: rgba(14, 165, 233, 0.4);
+        }
+
         .instructions {
             font-size: 1rem;
             color: #94a3b8;
@@ -135,6 +176,9 @@
 <body>
 
     <canvas id="gameCanvas"></canvas>
+
+    <div id="musicToggle" onclick="toggleMusic()">🔇 Music: OFF</div>
+    <div id="pauseBtn" onclick="togglePause()">⏸️ Pause</div>
 
     <div id="hud">
         <div>Level: <span id="levelText">1</span></div>
@@ -171,6 +215,16 @@
             <button onclick="returnToMenu()">Main Menu</button>
         </div>
         
+        <!-- Pause Screen -->
+        <div id="pauseScreen" class="screen">
+            <h1>Paused</h1>
+            <h2>Take a breath!</h2>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button onclick="togglePause()">Continue</button>
+                <button onclick="returnToMenu()">Main Menu</button>
+            </div>
+        </div>
+
         <!-- Game Completed -->
         <div id="endScreen" class="screen">
             <h1>Victory!</h1>
@@ -189,16 +243,18 @@
             win: document.getElementById('winScreen'),
             lose: document.getElementById('loseScreen'),
             gameOver: document.getElementById('gameOverScreen'),
+            pause: document.getElementById('pauseScreen'),
             end: document.getElementById('endScreen')
         };
         const levelText = document.getElementById('levelText');
         const livesText = document.getElementById('livesText');
         const highScoreText = document.getElementById('highScoreText');
+        const pauseBtn = document.getElementById('pauseBtn');
 
         // Game Configuration
         let width, height;
         let zoom = 1.0;
-        let gameState = 'MENU'; // MENU, PLAYING, WIN, LOSE, GAMEOVER
+        let gameState = 'MENU'; // MENU, PLAYING, WIN, LOSE, GAMEOVER, PAUSE
         let currentLevel = 0;
         let lives = 3;
         let highScore = 0;
@@ -210,12 +266,13 @@
         // Game Objects
         let player = {
             x: 0, y: 0, vx: 0, vy: 0, radius: 15,
-            trail: []
+            trail: [], hasShield: false, magnetTimer: 0, grappleDisabledTimer: 0
         };
         
         let camera = { x: 0, y: 0 };
         let anchors = [];
         let bouncers = [];
+        let powerups = [];
         let finishLine = null;
         let particles = [];
         let levelBottom = 0;
@@ -227,6 +284,81 @@
         let targetAnchor = null; // Highlighted nearest anchor
         let ropeLength = 0;
 
+        // --- Web Audio API Music Synthesizer ---
+        const AudioEngine = {
+            ctx: null,
+            isPlaying: false,
+            noteIndex: 0,
+            nextNoteTime: 0,
+            // Ambient underwater pentatonic melody
+            melody: [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 261.63, 196.00], 
+            // Deep bassline
+            bass: [130.81, 130.81, 196.00, 196.00, 174.61, 174.61, 196.00, 196.00], 
+            
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            
+            toggle() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                
+                this.isPlaying = !this.isPlaying;
+                if (this.isPlaying) {
+                    this.nextNoteTime = this.ctx.currentTime + 0.1;
+                    this.schedule();
+                }
+            },
+            
+            playNote(freq, type, startTime, duration, vol) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start(startTime);
+                gain.gain.setValueAtTime(0, startTime);
+                // Soft attack for an underwater feel
+                gain.gain.linearRampToValueAtTime(vol, startTime + 0.1);
+                // Exponential decay
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                osc.stop(startTime + duration);
+            },
+            
+            schedule() {
+                if (!this.isPlaying) return;
+                
+                while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
+                    // Play melody (Sine wave for bubbly sound)
+                    this.playNote(this.melody[this.noteIndex % this.melody.length], 'sine', this.nextNoteTime, 0.4, 0.1);
+                    
+                    // Play bass every other note (Triangle for depth)
+                    if (this.noteIndex % 2 === 0) {
+                        this.playNote(this.bass[(Math.floor(this.noteIndex/2)) % this.bass.length], 'triangle', this.nextNoteTime, 0.8, 0.15);
+                    }
+                    
+                    // Random bubble pop sound effect
+                    if (Math.random() < 0.1) {
+                        this.playNote(400 + Math.random()*400, 'sine', this.nextNoteTime, 0.1, 0.05);
+                    }
+                    
+                    this.nextNoteTime += 0.4; // Tempo
+                    this.noteIndex++;
+                }
+                
+                requestAnimationFrame(() => this.schedule());
+            }
+        };
+
+        function toggleMusic() {
+            AudioEngine.toggle();
+            document.getElementById('musicToggle').innerText = AudioEngine.isPlaying ? '🎵 Music: ON' : '🔇 Music: OFF';
+        }
+
         // Procedural Level Generator
         function generateLevel(index) {
             let startX = 100;
@@ -234,6 +366,7 @@
             
             let anchors = [];
             let bouncers = [];
+            let generatedPowerups = [];
             
             // Difficulty scales with the level index
             let numAnchors = 3 + index * 2; // Level gets longer
@@ -266,6 +399,34 @@
                         h: 40 
                     });
                 }
+
+                // Spawn Powerups randomly between anchors
+                let powerupChance = 0.40; // 40% chance to spawn a powerup in a gap
+                if (Math.random() < powerupChance) {
+                    let pType = 'boost';
+                    // 1 in 6 chance for a negative power-down (1 negative per 5 positive)
+                    let isNegative = Math.random() < (1 / 6);
+                    
+                    if (isNegative) {
+                        let r = Math.random();
+                        if (r > 0.66) pType = 'anchor'; // Drags you down
+                        else if (r > 0.33) pType = 'zap'; // Disables grapple
+                        else pType = 'vortex'; // Flings you backwards
+                    } else {
+                        let r = Math.random();
+                        if (r > 0.9) pType = 'life';
+                        else if (r > 0.75) pType = 'shield';
+                        else if (r > 0.5) pType = 'magnet';
+                        else if (r > 0.3) pType = 'geyser';
+                    }
+
+                    generatedPowerups.push({
+                        x: currentX - xStep / 2,
+                        y: currentY + (Math.random() - 0.5) * 400,
+                        type: pType,
+                        radius: 18
+                    });
+                }
             }
             
             let finishX = currentX + 600;
@@ -274,6 +435,7 @@
                 start: { x: startX, y: startY },
                 anchors: anchors,
                 bouncers: bouncers,
+                powerups: generatedPowerups,
                 finish: { x: finishX, y: 0, w: 100, h: 1000 }
             };
         }
@@ -301,6 +463,7 @@
         // Input Listeners
         const handleDown = (e) => {
             if (gameState !== 'PLAYING') return;
+            if (player.grappleDisabledTimer > 0) return; // Cannot grapple if zapped!
             isPointerDown = true;
             if (targetAnchor) {
                 activeAnchor = targetAnchor;
@@ -333,11 +496,34 @@
         window.addEventListener('mouseup', handleUp);
         window.addEventListener('touchend', handleUp);
 
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                togglePause();
+            }
+        });
+
         // --- Game Management ---
 
         function switchScreen(screenName) {
             Object.values(screens).forEach(s => s.classList.remove('active'));
             if (screens[screenName]) screens[screenName].classList.add('active');
+            
+            // Show the pause button only during active gameplay or when paused
+            if (gameState === 'PLAYING' || gameState === 'PAUSE') {
+                pauseBtn.style.display = 'block';
+            } else {
+                pauseBtn.style.display = 'none';
+            }
+        }
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSE';
+                switchScreen('pause');
+            } else if (gameState === 'PAUSE') {
+                gameState = 'PLAYING';
+                switchScreen(null);
+            }
         }
 
         function startGame() {
@@ -347,6 +533,13 @@
             loadLevel(currentLevel);
             gameState = 'PLAYING';
             switchScreen(null);
+
+            // Start music automatically on first play
+            if (!AudioEngine.ctx) {
+                toggleMusic();
+            } else if (AudioEngine.ctx.state === 'suspended') {
+                AudioEngine.ctx.resume();
+            }
         }
 
         function nextLevel() {
@@ -374,15 +567,20 @@
             player.vx = 0;
             player.vy = 0;
             player.trail = [];
+            player.hasShield = false;
+            player.magnetTimer = 0;
+            player.grappleDisabledTimer = 0;
             
             anchors = data.anchors.map(a => ({ ...a, radius: 10 }));
             bouncers = data.bouncers.map(b => ({ ...b }));
+            powerups = data.powerups.map(p => ({ ...p }));
             finishLine = { ...data.finish };
             
             // Calculate the absolute lowest point in the level for the death boundary
             levelBottom = data.start.y; 
             for (let a of anchors) if (a.y > levelBottom) levelBottom = a.y;
             for (let b of bouncers) if (b.y + b.h > levelBottom) levelBottom = b.y + b.h;
+            for (let p of powerups) if (p.y > levelBottom) levelBottom = p.y;
             levelBottom += 800; // Add a generous margin for falling off-screen
 
             activeAnchor = null;
@@ -413,16 +611,21 @@
         function update() {
             if (gameState !== 'PLAYING') return;
 
+            if (player.magnetTimer > 0) player.magnetTimer--;
+            if (player.grappleDisabledTimer > 0) player.grappleDisabledTimer--;
+
             // 1. Find Target Anchor (Nearest in front of player)
             let nearest = null;
             let minDist = Infinity;
+            let maxDist = player.magnetTimer > 0 ? 2500 : 1200; // Double range if magnet is active
+
             for (let a of anchors) {
                 let dx = a.x - player.x;
                 let dy = a.y - player.y;
                 let dist = Math.hypot(dx, dy);
                 
-                // MADE MORE FORGIVING: Increased max distance (1200) and allowed reaching far backwards (-600)
-                if (dist < 1200 && dx > -600) { 
+                // MADE MORE FORGIVING: Increased max distance and allowed reaching far backwards (-600)
+                if (dist < maxDist && dx > -600) { 
                     if (dist < minDist) {
                         minDist = dist;
                         nearest = a;
@@ -476,6 +679,80 @@
             }
 
             // 3. Collisions
+            
+            // Powerups
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                let pu = powerups[i];
+                let dist = Math.hypot(player.x - pu.x, player.y - pu.y);
+                
+                if (dist < player.radius + pu.radius) {
+                    if (pu.type === 'boost') {
+                        // Forward and upward jet boost
+                        player.vx += 25;
+                        player.vy -= 15;
+                        spawnParticles(pu.x, pu.y, '#fde047', 30);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(800, 'sine', AudioEngine.ctx.currentTime, 0.2, 0.2);
+                        }
+                    } else if (pu.type === 'life') {
+                        // Extra life
+                        lives++;
+                        livesText.innerText = lives;
+                        spawnParticles(pu.x, pu.y, '#f43f5e', 30);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(523.25, 'sine', AudioEngine.ctx.currentTime, 0.1, 0.2);
+                            AudioEngine.playNote(659.25, 'sine', AudioEngine.ctx.currentTime + 0.1, 0.3, 0.2);
+                        }
+                    } else if (pu.type === 'geyser') {
+                        // Massive vertical boost
+                        player.vy = -40;
+                        spawnParticles(pu.x, pu.y, '#4ade80', 40);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(300, 'triangle', AudioEngine.ctx.currentTime, 0.4, 0.3);
+                        }
+                    } else if (pu.type === 'shield') {
+                        // Fall protection shield
+                        player.hasShield = true;
+                        spawnParticles(pu.x, pu.y, '#60a5fa', 20);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(600, 'sine', AudioEngine.ctx.currentTime, 0.3, 0.2);
+                        }
+                    } else if (pu.type === 'magnet') {
+                        // Magnetize grapple range
+                        player.magnetTimer = 300; // 5 seconds at 60fps
+                        spawnParticles(pu.x, pu.y, '#2dd4bf', 30);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(700, 'sine', AudioEngine.ctx.currentTime, 0.5, 0.2);
+                        }
+                    } else if (pu.type === 'anchor') {
+                        // Drops you straight down
+                        player.vy += 30;
+                        spawnParticles(pu.x, pu.y, '#475569', 30);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(100, 'square', AudioEngine.ctx.currentTime, 0.4, 0.3);
+                        }
+                    } else if (pu.type === 'zap') {
+                        // Instantly breaks rope and disables grapple for 1 second
+                        activeAnchor = null;
+                        isPointerDown = false;
+                        player.grappleDisabledTimer = 60; 
+                        spawnParticles(pu.x, pu.y, '#facc15', 30);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(900, 'sawtooth', AudioEngine.ctx.currentTime, 0.2, 0.2);
+                        }
+                    } else if (pu.type === 'vortex') {
+                        // Flings you rapidly backward
+                        player.vx = -30;
+                        player.vy = -15;
+                        spawnParticles(pu.x, pu.y, '#c084fc', 40);
+                        if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                            AudioEngine.playNote(300, 'sine', AudioEngine.ctx.currentTime, 0.5, 0.3);
+                        }
+                    }
+                    powerups.splice(i, 1); // Remove collected powerup
+                }
+            }
+
             // Bouncers
             for (let b of bouncers) {
                 // Expanded AABB for smooth fast collisions
@@ -521,15 +798,26 @@
 
             // Death / Fall off screen
             if (player.y > levelBottom || player.x < camera.x - (500 / zoom)) {
-                lives--;
-                livesText.innerText = lives;
-                
-                if (lives > 0) {
-                    gameState = 'LOSE';
-                    switchScreen('lose');
+                if (player.hasShield && player.y > levelBottom) {
+                    // Shield saves the player from falling!
+                    player.hasShield = false;
+                    player.vy = -45; // Massive bounce back up
+                    player.y = levelBottom - 50;
+                    spawnParticles(player.x, player.y, '#60a5fa', 50);
+                    if (AudioEngine.isPlaying && AudioEngine.ctx) {
+                        AudioEngine.playNote(200, 'triangle', AudioEngine.ctx.currentTime, 0.5, 0.4);
+                    }
                 } else {
-                    gameState = 'GAMEOVER';
-                    switchScreen('gameOver');
+                    lives--;
+                    livesText.innerText = lives;
+                    
+                    if (lives > 0) {
+                        gameState = 'LOSE';
+                        switchScreen('lose');
+                    } else {
+                        gameState = 'GAMEOVER';
+                        switchScreen('gameOver');
+                    }
                 }
             }
 
@@ -618,6 +906,129 @@
                 }
             }
 
+            // Draw Powerups
+            for (let pu of powerups) {
+                let floatY = pu.y + Math.sin(Date.now() / 300 + pu.x) * 10;
+                
+                if (pu.type === 'boost') {
+                    // Golden Boost Orb
+                    ctx.fillStyle = '#fde047';
+                    ctx.shadowColor = '#fde047';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#854d0e';
+                    ctx.font = 'bold 18px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('>>', pu.x, floatY);
+                } else if (pu.type === 'life') {
+                    // Life Bubble
+                    ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
+                    ctx.strokeStyle = '#f43f5e';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#f43f5e';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius * 1.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    ctx.font = '18px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('❤️', pu.x, floatY + 2);
+                } else if (pu.type === 'geyser') {
+                    // Upward Geyser
+                    ctx.fillStyle = '#4ade80';
+                    ctx.shadowColor = '#4ade80';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#14532d';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⏫', pu.x, floatY);
+                } else if (pu.type === 'shield') {
+                    // Bubble Shield
+                    ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+                    ctx.strokeStyle = '#60a5fa';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#60a5fa';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius * 1.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🛡️', pu.x, floatY + 2);
+                } else if (pu.type === 'magnet') {
+                    // Grapple Magnet
+                    ctx.fillStyle = '#2dd4bf';
+                    ctx.shadowColor = '#2dd4bf';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#042f2e';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🧲', pu.x, floatY + 2);
+                } else if (pu.type === 'anchor') {
+                    // Heavy Anchor
+                    ctx.fillStyle = '#475569';
+                    ctx.shadowColor = '#0f172a';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⚓', pu.x, floatY + 2);
+                } else if (pu.type === 'zap') {
+                    // Zap / Jellyfish Sting
+                    ctx.fillStyle = '#facc15';
+                    ctx.shadowColor = '#facc15';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#713f12';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⚡', pu.x, floatY + 2);
+                } else if (pu.type === 'vortex') {
+                    // Whirlpool Vortex
+                    ctx.fillStyle = '#c084fc';
+                    ctx.shadowColor = '#9333ea';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(pu.x, floatY, pu.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#4c1d95';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🌀', pu.x, floatY + 2);
+                }
+                ctx.shadowBlur = 0; // Reset
+            }
+
             // Draw Anchors (Glowing Pearls)
             for (let a of anchors) {
                 // Outer shell
@@ -679,6 +1090,30 @@
             ctx.save();
             ctx.translate(player.x, player.y);
             
+            // Blink if grapple is disabled (zapped)
+            if (player.grappleDisabledTimer > 0) {
+                ctx.globalAlpha = (Math.floor(Date.now() / 100) % 2 === 0) ? 0.5 : 1.0;
+            }
+
+            // Draw active auras
+            if (player.hasShield) {
+                ctx.beginPath();
+                ctx.arc(0, 0, player.radius * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(96, 165, 250, 0.2)';
+                ctx.strokeStyle = 'rgba(96, 165, 250, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            if (player.magnetTimer > 0) {
+                ctx.beginPath();
+                ctx.arc(0, 0, player.radius * 2 + Math.sin(Date.now() / 100) * 10, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(45, 212, 191, 0.5)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
             // Calculate squash and stretch based on velocity
             let velMag = Math.hypot(player.vx, player.vy);
             let angle = Math.atan2(player.vy, player.vx);
@@ -719,8 +1154,18 @@
             
             // Pupils (Looking forward)
             ctx.fillStyle = '#0f172a';
-            ctx.beginPath(); ctx.arc(player.radius * 0.75, -player.radius * 0.5, player.radius * 0.15, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(player.radius * 0.75, player.radius * 0.5, player.radius * 0.15, 0, Math.PI * 2); ctx.fill();
+            if (player.grappleDisabledTimer > 0) {
+                // Dizzy eyes if zapped
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('x', player.radius * 0.6, -player.radius * 0.5);
+                ctx.fillText('x', player.radius * 0.6, player.radius * 0.5);
+            } else {
+                // Normal pupils
+                ctx.beginPath(); ctx.arc(player.radius * 0.75, -player.radius * 0.5, player.radius * 0.15, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(player.radius * 0.75, player.radius * 0.5, player.radius * 0.15, 0, Math.PI * 2); ctx.fill();
+            }
 
             ctx.restore();
 
