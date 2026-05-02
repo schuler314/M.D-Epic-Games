@@ -581,7 +581,7 @@
             for (let a of anchors) if (a.y > levelBottom) levelBottom = a.y;
             for (let b of bouncers) if (b.y + b.h > levelBottom) levelBottom = b.y + b.h;
             for (let p of powerups) if (p.y > levelBottom) levelBottom = p.y;
-            levelBottom += 800; // Add a generous margin for falling off-screen
+            levelBottom += 400; // Adjusted to make the sea floor visible and reachable
 
             activeAnchor = null;
             isPointerDown = false;
@@ -796,13 +796,13 @@
                 spawnParticles(player.x, player.y, '#0ea5e9', 50);
             }
 
-            // Death / Fall off screen
-            if (player.y > levelBottom || player.x < camera.x - (500 / zoom)) {
-                if (player.hasShield && player.y > levelBottom) {
+            // Death / Fall off screen / Touch Sea Floor
+            if (player.y + player.radius > levelBottom || player.x < camera.x - (500 / zoom)) {
+                if (player.hasShield && player.y + player.radius > levelBottom) {
                     // Shield saves the player from falling!
                     player.hasShield = false;
                     player.vy = -45; // Massive bounce back up
-                    player.y = levelBottom - 50;
+                    player.y = levelBottom - player.radius;
                     spawnParticles(player.x, player.y, '#60a5fa', 50);
                     if (AudioEngine.isPlaying && AudioEngine.ctx) {
                         AudioEngine.playNote(200, 'triangle', AudioEngine.ctx.currentTime, 0.5, 0.4);
@@ -885,6 +885,22 @@
                 ctx.fillStyle = gradient;
                 ctx.fillRect(finishLine.x, startY, finishLine.w, endY - startY);
             }
+
+            // Draw Sea Floor
+            ctx.fillStyle = '#020617'; // Pitch black trench
+            ctx.fillRect(camera.x - worldWidth, levelBottom, worldWidth * 3, 1500);
+            
+            // Rocky/Sandy top trim for the sea floor
+            ctx.fillStyle = '#1e293b'; 
+            ctx.beginPath();
+            ctx.moveTo(camera.x - worldWidth, levelBottom + 50);
+            for(let tx = camera.x - worldWidth; tx <= camera.x + worldWidth * 2; tx += 80) {
+                let wave = Math.sin(tx / 60) * 20;
+                ctx.lineTo(tx, levelBottom + wave);
+            }
+            ctx.lineTo(camera.x + worldWidth * 2, levelBottom + 200);
+            ctx.lineTo(camera.x - worldWidth, levelBottom + 200);
+            ctx.fill();
 
             // Draw Bouncers (Sea Anemones)
             for (let b of bouncers) {
@@ -1189,6 +1205,83 @@
             ctx.globalAlpha = 1.0;
 
             ctx.restore();
+
+            // Draw Minimap (Desktop and Tablet)
+            if (width >= 600 && gameState === 'PLAYING') {
+                const mapW = 250;
+                const mapH = 80;
+                const mapX = 20;
+                const mapY = height - mapH - 20;
+                
+                ctx.save();
+                
+                // Background & Clipping path
+                ctx.beginPath();
+                ctx.roundRect(mapX, mapY, mapW, mapH, 10);
+                ctx.fillStyle = 'rgba(8, 47, 73, 0.8)';
+                ctx.fill();
+                ctx.clip(); // Clip contents so they don't draw outside the rounded map box
+                
+                if (anchors.length > 0 && finishLine) {
+                    const levelLength = finishLine.x + finishLine.w;
+                    const mapScaleX = mapW / levelLength;
+                    
+                    let minY = 0;
+                    for (let a of anchors) if (a.y < minY) minY = a.y;
+                    
+                    // Add padding to map bounds so player/floor aren't right on the edge
+                    let mapMinY = minY - 300;
+                    let mapMaxY = levelBottom + 200;
+                    let rangeY = mapMaxY - mapMinY;
+                    const mapScaleY = mapH / Math.max(rangeY, 1000);
+                    
+                    const mX = (x) => mapX + x * mapScaleX;
+                    const mY = (y) => mapY + (y - mapMinY) * mapScaleY;
+                    
+                    // Draw Sea Floor on map
+                    ctx.fillStyle = '#020617';
+                    ctx.fillRect(mapX, mY(levelBottom), mapW, mapH);
+                    
+                    // Draw Anchors
+                    ctx.fillStyle = '#e0f2fe';
+                    for (let a of anchors) {
+                        ctx.beginPath();
+                        ctx.arc(mX(a.x), mY(a.y), 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Draw Bouncers
+                    ctx.fillStyle = '#ea580c';
+                    for (let b of bouncers) {
+                        ctx.fillRect(mX(b.x), mY(b.y), Math.max(2, b.w * mapScaleX), 3);
+                    }
+                    
+                    // Draw Finish Line
+                    ctx.fillStyle = 'rgba(14, 165, 233, 0.6)';
+                    ctx.fillRect(mX(finishLine.x), mapY, Math.max(3, finishLine.w * mapScaleX), mapH);
+                    
+                    // Draw Camera Viewport Box
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.lineWidth = 1;
+                    let camW = (width / zoom) * mapScaleX;
+                    ctx.strokeRect(mX(camera.x), mY(camera.y), camW, (height / zoom) * mapScaleY);
+
+                    // Draw Player
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.beginPath();
+                    ctx.arc(mX(player.x), mY(player.y), 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+                
+                // Draw map border outside the clip
+                ctx.strokeStyle = 'rgba(14, 165, 233, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(mapX, mapY, mapW, mapH, 10);
+                ctx.stroke();
+            }
         }
 
         function loop() {
