@@ -1574,7 +1574,10 @@
                 }
 
                 let immune = (this.activePowerup === 'heavy' || this.activePowerup === 'invincible');
-                if (Math.sqrt(minDist) > TRACK_WIDTH / 2 && !immune) this.speed *= 0.90; 
+                if (Math.sqrt(minDist) > TRACK_WIDTH / 2 && !immune) {
+                    this.speed *= 0.90;
+                    if (Math.abs(this.speed) < 0.1 && (keys.w || keys.ArrowUp || touchState.fwd)) this.speed = 0.1;
+                } 
 
                 if (this.trackIndex > trackPoints.length * 0.8 && bestIndex < trackPoints.length * 0.2) {
                     this.lap++;
@@ -2079,7 +2082,7 @@
 
                     if (distSq < minDistance * minDistance) {
                         let dist = Math.sqrt(distSq) || 0.01;
-                        if (dist === 0.01 && distSq === 0) { dx = 0.01; dz = 0.01; }
+                        if (dist === 0.01 && distSq === 0) { dx = 0.01; dz = 0.01; dist = Math.sqrt(0.0002); }
 
                         let nx = dx / dist; let nz = dz / dist;
                         let push = (minDistance - dist) * 0.5;
