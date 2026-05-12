@@ -2,512 +2,2137 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M.D Epic Games</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Poly Racing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Base page styling */
-        html, body {
+        :root {
+            --bg-color: #87CEEB;
+            --primary: #ff4757;
+            --primary-hover: #ff6b81;
+            --secondary: #1e90ff;
+            --secondary-hover: #70a1ff;
+            --accent: #2ed573;
+            --dark-glass: rgba(15, 20, 30, 0.75);
+            --border-light: rgba(255, 255, 255, 0.1);
+            --text-main: #f1f2f6;
+            --text-muted: #a4b0be;
+        }
+
+        body {
             margin: 0;
-            padding: 0;
-            background-color: #0f172a; /* Slate 900 */
-            color: white;
-            font-family: 'Fredoka', sans-serif;
-            overflow-x: hidden; /* Prevent horizontal scrolling entirely */
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            color: var(--text-main);
+            touch-action: none;
         }
-
-        /* Fun animated background blobs */
-        .blob {
+        
+        #game-container {
             position: absolute;
-            filter: blur(80px);
-            opacity: 0.6;
-            animation: float 10s infinite ease-in-out alternate;
-        }
-        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #ff0080; }
-        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #7928ca; animation-delay: -5s; }
-        .blob-3 { top: 40%; left: 40%; width: 400px; height: 400px; background: #00d2ff; animation-duration: 15s; }
-
-        @keyframes float {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(30px, 50px) scale(1.1); }
+            top: 0; left: 0; width: 100%; height: 100%;
         }
 
-        /* Header animation */
-        .title-glow {
-            animation: pulse-glow 2s infinite alternate;
-        }
-        @keyframes pulse-glow {
-            from { filter: drop-shadow(0 0 10px rgba(0, 210, 255, 0.8)); }
-            to { filter: drop-shadow(0 0 25px rgba(255, 0, 128, 0.9)); }
-        }
-
-        /* ========================================================== */
-        /* GAME CARD COMPONENT (Shared Styles)                        */
-        /* ========================================================== */
-        .game-card {
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 1.5rem;
+        .full-screen-menu {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
             display: flex;
-            height: 100%;
-            cursor: pointer;
+            overflow-y: auto;
+            overflow-x: hidden;
+            pointer-events: auto;
+            z-index: 20;
+            background: linear-gradient(135deg, rgba(10, 15, 25, 0.95) 0%, rgba(20, 30, 45, 0.95) 100%);
+            backdrop-filter: blur(12px);
+            opacity: 1;
+            transition: opacity 0.4s ease;
         }
 
-        .game-card:hover {
-            border-color: #00d2ff;
-            box-shadow: 0 20px 40px rgba(0, 210, 255, 0.2);
-        }
-
-        .game-icon {
-            border-radius: 1rem;
-            flex-shrink: 0;
-            transition: transform 0.3s ease;
-        }
-        .game-card:hover .game-icon {
-            transform: scale(1.1);
-        }
-
-        .play-btn {
-            transition: all 0.2s ease;
-            background: linear-gradient(45deg, #ff0080, #ff8c00);
-            background-size: 200% auto;
-            width: 100%;
-            border: none;
-            outline: none;
-            pointer-events: none;
-        }
-        .game-card:hover .play-btn {
-            background-position: right center;
-            transform: scale(1.05) rotate(-2deg);
-        }
-
-        /* ----------------------------------------------------------------- */
-        /* VIEW MODES (Applied by Toggle Buttons - Forces Layout Style)      */
-        /* ----------------------------------------------------------------- */
-        #device-container {
-            transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            margin: 0 auto;
-        }
-        
-        /* --- DESKTOP MODE (Vertical Cards) --- */
-        .view-desktop { width: 100%; max-width: 100%; }
-        .view-desktop .responsive-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-        }
-        .view-desktop .game-card {
+        .menu-left {
+            flex: 1;
+            padding: clamp(30px, 5vh, 60px) clamp(30px, 5vw, 80px);
+            display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding: 1.5rem;
+            justify-content: center;
+            border-right: 1px solid var(--border-light);
+            min-height: min-content;
         }
-        .view-desktop .game-card:hover { transform: translateY(-15px) scale(1.03); }
-        .view-desktop .game-icon { width: 6rem; height: 6rem; font-size: 3rem; margin-bottom: 1.5rem; }
-        .view-desktop .game-title { font-size: 1.5rem; margin-bottom: 0.75rem; }
-        .view-desktop .game-desc { font-size: 1rem; margin-bottom: 1.5rem; }
-        .view-desktop .play-btn { padding: 0.75rem; font-size: 1.125rem; border-radius: 0.75rem; margin-top: auto; }
 
-        /* --- TABLET MODE (Compact Horizontal Cards, 2 Columns) --- */
-        .view-pad { width: 100%; max-width: 850px; }
-        .view-pad .responsive-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
+        .menu-right {
+            flex: 1;
+            padding: clamp(30px, 5vh, 60px) clamp(30px, 5vw, 80px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+            min-height: min-content;
         }
-        .view-pad .game-card {
-            flex-direction: row;
-            align-items: center;
-            text-align: left;
-            padding: 1.25rem;
-            gap: 1rem;
-        }
-        .view-pad .game-card:hover { transform: translateY(-5px) scale(1.02); }
-        .view-pad .game-icon { width: 5rem; height: 5rem; font-size: 2.25rem; margin-bottom: 0; }
-        .view-pad .game-title { font-size: 1.25rem; margin-bottom: 0.25rem; }
-        .view-pad .game-desc { font-size: 0.85rem; margin-bottom: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .view-pad .play-btn { padding: 0.5rem; font-size: 0.95rem; border-radius: 0.75rem; margin-top: auto; }
 
-        /* --- PHONE MODE (Compact Horizontal Cards, 1 Column) --- */
-        .view-phone { width: 100%; max-width: 500px; }
-        .view-phone .responsive-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1rem;
+        h1 { 
+            font-family: 'Rajdhani', sans-serif;
+            font-size: clamp(3.5rem, 8vw, 6rem); 
+            text-transform: uppercase; 
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, #fff, #a4b0be);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 10px 0;
+            line-height: 0.9;
         }
-        .view-phone .game-card {
-            flex-direction: row;
-            align-items: center;
-            text-align: left;
-            padding: 1rem;
-            gap: 1rem;
+        
+        h2 { 
+            font-family: 'Rajdhani', sans-serif; 
+            font-size: clamp(2rem, 4vw, 2.8rem); 
+            margin-top: 0; 
+            color: #fff; 
+            border-bottom: 2px solid var(--border-light); 
+            padding-bottom: 10px; 
+            margin-bottom: 25px;
         }
-        .view-phone .game-card:hover { transform: translateY(-3px) scale(1.01); }
-        .view-phone .game-icon { width: 4.5rem; height: 4.5rem; font-size: 2rem; margin-bottom: 0; }
-        .view-phone .game-title { font-size: 1.15rem; margin-bottom: 0.25rem; }
-        .view-phone .game-desc { font-size: 0.85rem; margin-bottom: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .view-phone .play-btn { padding: 0.5rem; font-size: 0.9rem; border-radius: 0.75rem; margin-top: auto; }
+        h3 { color: var(--text-muted); font-size: 1rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), #e84118);
+            color: white;
+            border: none;
+            padding: 18px 36px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 800;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-right: 15px;
+        }
+
+        button:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(255, 71, 87, 0.5); filter: brightness(1.1); }
+        button:active { transform: translateY(1px); }
+
+        .btn-blue { background: linear-gradient(135deg, var(--secondary), #0984e3); box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3); }
+        .btn-blue:hover { box-shadow: 0 8px 25px rgba(30, 144, 255, 0.5); }
+        
+        .btn-green { background: linear-gradient(135deg, var(--accent), #27ae60); box-shadow: 0 4px 15px rgba(46, 213, 115, 0.3); }
+        .btn-green:hover { box-shadow: 0 8px 25px rgba(46, 213, 115, 0.5); }
+
+        .play-buttons { display: flex; margin-top: 30px; }
+
+        .highlight { color: var(--accent); font-weight: bold; }
+
+        .track-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+            margin-bottom: 40px; padding-right: 10px;
+        }
+
+        .track-btn { 
+            background: rgba(255,255,255,0.05); color: var(--text-main); 
+            padding: 15px 10px; margin: 0; box-shadow: none;
+            border: 1px solid var(--border-light); border-radius: 8px; font-size: 0.95rem; text-align: center;
+        }
+        .track-btn:hover { background: rgba(255,255,255,0.1); transform: none; box-shadow: none;}
+        .track-btn.active { 
+            background: rgba(46, 213, 115, 0.2); border-color: var(--accent);
+            color: #fff; box-shadow: inset 0 0 20px rgba(46, 213, 115, 0.2); 
+        }
+
+        .car-select {
+            flex: 1; display: flex; flex-direction: column;
+            background: rgba(0,0,0,0.3); padding: 15px;
+            border-radius: 8px; border: 1px solid var(--border-light);
+        }
+        .car-select label { font-size: 0.85rem; font-weight: 800; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;}
+        .car-select select { 
+            padding: 12px; border-radius: 6px; border: 1px solid var(--border-light); 
+            background: rgba(255,255,255,0.05); color: white; font-size: 1rem; 
+            font-family: 'Inter', sans-serif; outline: none; cursor: pointer;
+        }
+        .car-select select option { background: #2f3542; color: white; }
+
+        .toggle-wrapper {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; background: rgba(0,0,0,0.3);
+            border-radius: 8px; border: 1px solid var(--border-light);
+        }
+        .toggle-label { font-size: 1rem; font-weight: 600; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        .hud {
+            position: absolute; color: white; font-weight: 800; font-family: 'Rajdhani', sans-serif;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; z-index: 5;
+        }
+
+        #pause-btn {
+            top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.5); padding: 10px 30px; border-radius: 30px;
+            border: 2px solid rgba(255,255,255,0.2); cursor: pointer;
+            pointer-events: auto; display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px); transition: 0.2s; font-size: 1.2rem; gap: 10px;
+        }
+        #pause-btn:hover { background: rgba(255,255,255,0.2); }
+        #pause-btn svg { width: 18px; height: 18px; fill: white; }
+
+        #p1-hud { top: 30px; left: 30px; font-size: 2.5rem;}
+        #p1-pos { top: 30px; right: 30px; font-size: 4rem; color: #ffd700; line-height: 1;}
+        
+        #p2-hud { top: calc(50% + 30px); left: 30px; font-size: 2.5rem; }
+        #p2-pos { top: calc(50% + 30px); right: 30px; font-size: 4rem; color: #ffd700; line-height: 1;}
+
+        .wrong-way {
+            top: 20%; left: 50%; transform: translateX(-50%);
+            font-size: 4rem; color: #ff3333; text-shadow: 0 0 10px #000, 0 0 30px #ff0000;
+            animation: blink 0.5s infinite alternate; white-space: nowrap;
+        }
+        #p2-wrong-way { top: calc(50% + 20%); }
+
+        @keyframes blink {
+            0% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+            100% { opacity: 0.2; transform: translateX(-50%) scale(1); }
+        }
+
+        .powerup-toast {
+            position: absolute; left: 50%; transform: translateX(-50%) translateY(20px);
+            padding: 10px 40px; border-radius: 50px; font-family: 'Rajdhani', sans-serif;
+            font-size: 2.5rem; font-weight: bold; color: white; text-transform: uppercase;
+            letter-spacing: 3px; z-index: 25; pointer-events: none; opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(10, 15, 25, 0.85); box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        .powerup-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        #p1-toast { top: 15%; }
+        #p2-toast { top: calc(50% + 15%); }
+
+        .analog-speedometer {
+            position: absolute; width: 180px; height: 180px; border-radius: 50%;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 100%);
+            border: 4px solid #333; box-shadow: 0 0 15px rgba(0, 255, 0, 0.4), inset 0 0 20px rgba(0,0,0,0.8);
+            z-index: 6; pointer-events: none; overflow: hidden;
+        }
+        .analog-speedometer::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%; border: 2px solid #555; box-shadow: inset 0 0 15px #0f0; pointer-events: none;
+        }
+        .speed-ticks { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+        .speed-tick {
+            position: absolute; width: 2px; height: 10px; background: #ccc;
+            top: 10px; left: 50%; transform-origin: 50% 80px;
+        }
+        .speed-tick.major { height: 15px; width: 3px; background: #fff;}
+        .speed-tick.red { background: #f00; }
+        .speed-label { position: absolute; font-family: 'Inter', sans-serif; font-size: 0.7rem; color: #ccc; font-weight: 600; }
+        .speed-needle-container {
+            position: absolute; top: 50%; left: 50%; width: 0; height: 0;
+            transform: rotate(-120deg); transition: transform 0.1s cubic-bezier(0.1, 0.5, 0.5, 1); z-index: 10;
+        }
+        .speed-needle {
+            position: absolute; bottom: -5px; left: -3px; width: 6px; height: 85px;
+            background: #f00; border-radius: 3px; transform-origin: 50% calc(100% - 5px);
+            box-shadow: 0 0 5px rgba(255,0,0,0.8); clip-path: polygon(50% 0%, 100% 10%, 80% 100%, 20% 100%, 0% 10%);
+        }
+        .speed-center-cap {
+            position: absolute; top: 50%; left: 50%; width: 30px; height: 30px;
+            background: #111; border: 2px solid #f00; border-radius: 50%;
+            transform: translate(-50%, -50%); box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 2px 5px rgba(0,0,0,0.5); z-index: 11;
+        }
+        .speed-gear {
+            position: absolute; bottom: 25px; width: 100%; text-align: center;
+            font-family: 'Rajdhani', sans-serif; font-size: 1.5rem; color: #fff; font-weight: bold; z-index: 8;
+        }
+        .speed-prndl {
+            position: absolute; bottom: 50px; width: 100%; text-align: center;
+            font-family: 'Inter', sans-serif; font-size: 0.7rem; color: #0ff; letter-spacing: 2px; z-index: 8;
+        }
+        #p1-speed-container { bottom: 30px; left: 30px; }
+        #p2-speed-container { bottom: 30px; left: 30px; }
+
+        .minimap {
+            position: absolute; width: 180px; height: 180px;
+            background: rgba(0, 0, 0, 0.4); border: 2px solid var(--border-light);
+            border-radius: 50%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px); z-index: 5;
+        }
+        #minimap-p1 { bottom: 30px; right: 30px; }
+        #minimap-p2 { bottom: 30px; right: 30px; }
+        
+        #split-divider {
+            position: absolute; top: 50%; left: 0; width: 100%; height: 4px;
+            background: #fff; z-index: 20; transform: translateY(-50%);
+            pointer-events: none; box-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        #touch-controls {
+            position: absolute; bottom: 30px; left: 0; width: 100%; height: auto;
+            display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box;
+            z-index: 15; pointer-events: none;
+        }
+        #touch-dpad, #touch-action { display: flex; gap: 20px; pointer-events: auto; }
+        .touch-btn {
+            width: 80px; height: 80px; border-radius: 50%; background: rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.4); color: white; font-size: 2rem;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px); box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            user-select: none; transition: 0.1s;
+        }
+        .touch-btn.active { background: rgba(255,255,255,0.4); transform: scale(0.95); }
+        #btn-gas { background: rgba(46, 213, 115, 0.3); border-color: var(--accent); }
+        #btn-gas.active { background: rgba(46, 213, 115, 0.6); }
+        #btn-brake { background: rgba(255, 71, 87, 0.3); border-color: var(--primary); }
+        #btn-brake.active { background: rgba(255, 71, 87, 0.6); }
+
+        .hidden { display: none !important; }
+        
+        .overlay-center {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 30; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
+        }
+        .overlay-center.active { pointer-events: auto; }
+        
+        .box-panel {
+            background: var(--dark-glass); padding: 40px; border-radius: 15px; text-align: center;
+            border: 1px solid var(--border-light); box-shadow: 0 20px 50px rgba(0,0,0,0.8); min-width: 400px;
+        }
+        
+        #standings-list {
+            list-style: none; padding: 0; font-size: 1.5rem; text-align: left;
+            margin-bottom: 30px; font-family: 'Rajdhani', sans-serif; font-weight: bold;
+        }
+        #standings-list li {
+            padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2); margin-bottom: 5px; border-radius: 4px;
+        }
+
+        .setup-btn {
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border-light);
+            padding: 15px 20px; border-radius: 8px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; transition: 0.2s;
+        }
+        .setup-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--secondary); }
+        .setup-btn span { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; }
+        .setup-btn strong { color: #fff; font-size: 1.2rem; }
+
+        .modal-panel { width: 90vw; max-width: 1000px; max-height: 85vh; padding: clamp(20px, 4vw, 40px); display: flex; flex-direction: column; }
+        .modal-panel h2 { margin-bottom: 15px; }
+        .carousel {
+            display: flex; gap: 20px; overflow-x: auto; padding: 10px 5px 20px 5px;
+            scroll-snap-type: x mandatory; flex: 1; min-height: 300px;
+        }
+        .carousel::-webkit-scrollbar { height: 10px; }
+        .carousel::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 5px; }
+        .carousel::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 5px; }
+
+        .carousel-card {
+            flex: 0 0 clamp(220px, 40vw, 280px); scroll-snap-align: center; background: rgba(0,0,0,0.4);
+            border: 2px solid var(--border-light); border-radius: 12px; padding: 20px;
+            cursor: pointer; transition: 0.3s; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+        }
+        .carousel-card:hover { border-color: var(--secondary); transform: translateY(-5px); background: rgba(255,255,255,0.05); }
+        .carousel-card.active { border-color: var(--accent); box-shadow: 0 0 20px rgba(46, 213, 115, 0.3); background: rgba(46, 213, 115, 0.1); }
+        .carousel-card canvas { background: rgba(0,0,0,0.5); border-radius: 50%; padding: 10px; border: 1px solid var(--border-light); width: 150px; height: 150px; }
+
+        .stat-row { width: 100%; display: flex; align-items: center; margin-bottom: 8px; font-size: 0.85rem; }
+        .stat-row span { width: 70px; text-align: left; color: #ccc; font-weight: 600; text-transform: uppercase;}
+        .stat-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .stat-fill { height: 100%; transition: 0.5s; }
+
+        .car-3d-preview {
+            width: 140px; height: 140px; object-fit: contain;
+            margin-bottom: 15px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8));
+        }
+        
+        .distance-lobby { padding: 20px; background: rgba(0,0,0,0.4); border-radius: 12px; border: 1px solid var(--border-light); margin-bottom: 20px;}
+        .distance-lobby input { padding: 12px; border-radius: 6px; border: 1px solid var(--border-light); background: rgba(255,255,255,0.1); color: white; font-size: 1.2rem; text-align: center; width: 150px; margin-right: 10px; outline: none; }
+        .lobby-status { margin-top: 15px; font-weight: bold; color: var(--accent); }
+        
+        #remote-audio { display: none; }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
-<body class="relative">
+<body>
 
-    <!-- LOCKED BACKGROUND LAYER -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
+    <div id="game-container"></div>
+    <audio id="remote-audio" autoplay></audio>
+
+    <div id="pause-btn" class="hud hidden" onclick="togglePause()">
+        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> PAUSE
     </div>
-        
-    <!-- HUB VIEW -->
-    <div id="hub-view" class="relative w-full min-h-screen">
-        
-        <!-- Device View Switcher UI -->
-        <div class="fixed top-4 right-4 sm:right-6 z-[100] flex gap-1 sm:gap-2 bg-black/60 p-1.5 rounded-full backdrop-blur-md border border-white/20 shadow-xl">
-            <button id="btn-desktop" onclick="switchView('desktop')" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-white text-xs sm:text-sm font-bold bg-white/20 transition-colors">🖥️ Desktop</button>
-            <button id="btn-pad" onclick="switchView('pad')" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-white/60 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors"><span class="inline-block -rotate-90">📱</span> Tablet</button>
-            <button id="btn-phone" onclick="switchView('phone')" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-white/60 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors">📱 Phone</button>
+
+    <!-- On-screen Touch Controls -->
+    <div id="touch-controls" class="hidden">
+        <div id="touch-dpad">
+            <div class="touch-btn" id="btn-left">◀</div>
+            <div class="touch-btn" id="btn-right">▶</div>
         </div>
+        <div id="touch-action">
+            <div class="touch-btn" id="btn-brake">BRK</div>
+            <div class="touch-btn" id="btn-gas">GAS</div>
+        </div>
+    </div>
 
-        <!-- Scalable Device Container -->
-        <div id="device-container" class="view-desktop">
-            <!-- Navigation / Header -->
-            <nav class="p-6 text-center pt-24 md:pt-28">
-                <h1 class="text-[clamp(2.2rem,8vw,4.5rem)] font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 title-glow mb-2 leading-tight">
-                    M.D Epic Games
-                </h1>
-                <p class="text-[clamp(1rem,4vw,1.5rem)] text-cyan-100 font-semibold tracking-wide">
-                    The Ultimate Gaming Hub! 🎮✨
-                </p>
-            </nav>
+    <div id="p1-hud" class="hud hidden">P1 Lap: <span id="p1-lap">1</span>/3</div>
+    <div id="p1-pos" class="hud hidden">1st</div>
+    <div id="p1-wrong-way" class="hud wrong-way hidden">TURN AROUND!</div>
+    <div id="p1-toast" class="powerup-toast hidden"></div>
+    
+    <div id="p1-speed-container" class="analog-speedometer hidden">
+        <div class="speed-ticks" id="p1-ticks"></div>
+        <div class="speed-needle-container" id="p1-needle"><div class="speed-needle"></div></div>
+        <div class="speed-center-cap"></div>
+        <div class="speed-prndl">R <span style="color:#0ff; font-size:1.2em">D</span> N</div>
+        <div class="speed-gear" id="p1-gear">1</div>
+    </div>
+    <canvas id="minimap-p1" class="minimap hidden" width="180" height="180"></canvas>
 
-            <!-- Main Content -->
-            <main class="w-full px-4 sm:px-6 py-12 max-w-7xl mx-auto">
+    <div id="p2-hud" class="hud hidden">P2 Lap: <span id="p2-lap">1</span>/3</div>
+    <div id="p2-pos" class="hud hidden">2nd</div>
+    <div id="p2-wrong-way" class="hud wrong-way hidden">TURN AROUND!</div>
+    <div id="p2-toast" class="powerup-toast hidden"></div>
+    
+    <div id="p2-speed-container" class="analog-speedometer hidden">
+        <div class="speed-ticks" id="p2-ticks"></div>
+        <div class="speed-needle-container" id="p2-needle"><div class="speed-needle"></div></div>
+        <div class="speed-center-cap"></div>
+        <div class="speed-prndl">R <span style="color:#0ff; font-size:1.2em">D</span> N</div>
+        <div class="speed-gear" id="p2-gear">1</div>
+    </div>
+    <canvas id="minimap-p2" class="minimap hidden" width="180" height="180"></canvas>
+
+    <div id="split-divider" class="hidden"></div>
+
+    <div id="main-menu" class="full-screen-menu">
+        <div class="menu-left">
+            <h1>M.D Super<br>Poly Racing</h1>
+            
+            <div class="car-select" style="margin-top: 10px; background: rgba(30,144,255,0.2); border-color: var(--secondary);">
+                <label style="color: #fff;">Input Device Type</label>
+                <select id="input-mode" onchange="updateInstructions()">
+                    <option value="desktop">Desktop Keyboard</option>
+                    <option value="gamepad">Gamepad (Controller)</option>
+                    <option value="mobile">Mobile/Tablet (Touch Screen)</option>
+                </select>
+            </div>
+
+            <!-- New dynamic Instructions Modal Button -->
+            <button class="btn-blue" style="width: 100%; margin: 20px 0 0 0; font-size: 1.1rem; padding: 15px;" onclick="openInstructionsModal()">📖 How to Play & Power-Ups</button>
+        </div>
+        
+        <div class="menu-right">
+            <h2>Race Setup</h2>
+
+            <h3>1. Players</h3>
+            <div class="track-grid">
+                <button id="btn-1p" class="track-btn active" onclick="setPlayerMode('1p')">1 Player</button>
+                <button id="btn-2p-local" class="track-btn" onclick="setPlayerMode('2p-local')">2 Player Same Computer</button>
+                <button id="btn-2p-dist" class="track-btn" onclick="setPlayerMode('2p-dist')">2 Player Distance</button>
+            </div>
+            
+            <div id="track-setup-container">
+                <h3>2. Select Track</h3>
+                <div class="setup-btn" onclick="openTrackModal()">
+                    <span>Current Track</span>
+                    <strong id="track-name-display">Oval Circuit</strong>
+                </div>
+            </div>
+
+            <h3>3. Choose Vehicles</h3>
+            <div class="setup-btn" id="p1-car-setup-btn" onclick="openCarModal(1)">
+                <span id="p1-car-label">Player 1 Class</span>
+                <strong id="p1-car-display">Balanced</strong>
+            </div>
+            <div class="setup-btn" id="p2-car-setup-btn" style="display: none;" onclick="openCarModal(2)">
+                <span id="p2-car-label">Player 2 Class</span>
+                <strong id="p2-car-display">Speedster</strong>
+            </div>
+
+            <h3>4. Options</h3>
+            <div class="toggle-wrapper" style="margin-bottom: 10px;">
+                <span class="toggle-label">Show Speedometer</span>
+                <label class="switch">
+                    <input type="checkbox" id="speedo-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-wrapper" style="margin-bottom: 25px;">
+                <span class="toggle-label">Enable Game Audio</span>
+                <label class="switch">
+                    <input type="checkbox" id="audio-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="distance-lobby-ui" class="distance-lobby hidden">
+                <div id="lobby-pre">
+                    <button class="btn-blue" style="padding: 12px 20px; font-size: 1rem;" onclick="hostDistanceGame()">Create Room</button>
+                    <span style="margin: 0 15px; font-weight: bold;">OR</span>
+                    <input type="text" id="join-room-code" placeholder="Enter Code" maxlength="6">
+                    <button class="btn-green" style="padding: 12px 20px; font-size: 1rem;" onclick="joinDistanceGame()">Join</button>
+                    <div id="lobby-error" style="color: #ff4757; margin-top: 15px; font-weight: bold; font-size: 0.95rem;"></div>
+                </div>
+                <div id="lobby-active" class="hidden">
+                    <div style="font-size: 1.2rem;">Room Code: <strong id="display-room-code" style="color: #ffd700; font-size: 1.8rem; letter-spacing: 2px;">----</strong></div>
+                    <button id="btn-copy-link" class="btn-blue" style="padding: 8px 15px; font-size: 0.9rem; margin-top: 10px; margin-bottom: 10px;" onclick="copyInviteLink()">Copy Invite Link</button>
+                    <div id="lobby-status-text" class="lobby-status">Waiting for host to start...</div>
+                    <button class="btn-blue" style="padding: 8px 15px; font-size: 0.9rem; margin-top: 15px; background: linear-gradient(135deg, #444, #222);" onclick="returnToMenu(false)">Leave Room</button>
+                </div>
                 
-                <!-- Search and Filter -->
-                <div class="flex justify-center mb-12">
-                    <div class="relative w-full max-w-md">
-                        <input type="text" id="searchInput" placeholder="Search for a game..." 
-                               class="w-full px-6 py-4 rounded-full bg-white/10 border-2 border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:bg-white/20 transition-all text-lg font-semibold shadow-lg">
-                        <span class="absolute right-6 top-4 text-2xl">🔍</span>
-                    </div>
+                <div class="toggle-wrapper" style="margin-top: 15px; border-color: rgba(255,255,255,0.2);">
+                    <span class="toggle-label" style="display:flex; align-items:center; gap:10px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+                        Voice Chat (Live Audio)
+                    </span>
+                    <label class="switch">
+                        <input type="checkbox" id="voice-toggle" onchange="toggleVoiceChat()">
+                        <span class="slider"></span>
+                    </label>
                 </div>
+            </div>
 
-                <!-- Game Grid -->
-                <div id="gamesContainer" class="responsive-grid">
-                    <!-- Games will be injected here by JavaScript -->
-                </div>
-
-            </main>
-
-            <!-- Footer -->
-            <footer class="text-center py-8 text-white/60 font-semibold">
-                <p>© 2026 M.D Epic Games. Ready, Set, PLAY!</p>
-            </footer>
-        </div> <!-- End Device Container -->
-    </div> <!-- End Hub View -->
-
-    <!-- GAME PLAYER VIEW -->
-    <div id="game-view" class="hidden fixed inset-0 z-[200] bg-black">
-        <!-- Iframe Container takes full screen now -->
-        <iframe id="game-frame" class="absolute inset-0 w-full h-full border-0" src="" allow="autoplay; fullscreen" allowfullscreen></iframe>
-        
-        <!-- Floating Compact Player Toolbar (Pill) -->
-        <div id="player-toolbar" class="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 bg-gray-900/80 hover:bg-gray-900/95 backdrop-blur-md pl-2 pr-3 py-1.5 sm:pl-3 sm:pr-4 sm:py-2 flex items-center gap-2 sm:gap-3 text-white border border-white/20 shadow-2xl rounded-full transition-all duration-300 z-10 max-w-[95%]">
-            <button onclick="closeGame()" class="bg-pink-600 hover:bg-pink-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full font-bold transition-transform hover:scale-105 shadow-[0_0_10px_rgba(219,39,119,0.4)] flex items-center justify-center shrink-0" title="Back to Hub">
-                <span class="text-sm sm:text-lg leading-none -ml-0.5">⬅️</span>
-            </button>
-            <span id="playing-title" class="font-bold text-sm sm:text-base text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 truncate cursor-default">Game Title</span>
-            
-            <div class="w-px h-5 sm:h-6 bg-white/20 mx-1"></div>
-            
-            <!-- Hide Toolbar Button -->
-            <button onclick="toggleToolbar()" class="text-white/50 hover:text-white transition-colors focus:outline-none p-1" title="Hide Header">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
-                </svg>
-            </button>
+            <button id="start-btn" class="btn-blue" style="width: 100%; margin: 0; font-size: 1.5rem; padding: 20px; box-shadow: 0 10px 30px rgba(30, 144, 255, 0.4);" onclick="startGame()">START RACE</button>
         </div>
+    </div>
 
-        <!-- Hidden Tab to show toolbar again -->
-        <button id="show-toolbar-btn" onclick="toggleToolbar()" class="absolute top-0 left-1/2 -translate-x-1/2 bg-gray-900/60 hover:bg-gray-900/90 backdrop-blur-md px-6 py-1 sm:py-1.5 rounded-b-xl border-x border-b border-white/20 shadow-lg text-white/70 hover:text-white transition-all duration-300 z-10 -translate-y-full opacity-0" title="Show Header">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-        </button>
-    </div> <!-- End Game View -->
+    <!-- Instructions Modal -->
+    <div id="instructions-modal" class="overlay-center hidden">
+        <div class="box-panel modal-panel" style="max-width: 600px; text-align: left;">
+            <h2 style="border-bottom: 1px solid var(--border-light); padding-bottom: 10px; font-family: 'Rajdhani', sans-serif;">Instructions</h2>
+            <ul id="instructions-list" style="font-size: 1rem; line-height: 1.6; margin-bottom: 20px; color: #fff; padding-left: 20px;">
+                <!-- Populated by JS -->
+            </ul>
+            <h3 style="margin-top: 10px; color: var(--accent);">POWER-UPS</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.9em;">
+                <div><span style="color:#ffff00">★</span> <b>Nitro:</b> Speed boost</div>
+                <div><span style="color:#ff00ff">★</span> <b>Heavy:</b> Mass x10</div>
+                <div><span style="color:#00ffff">★</span> <b>Ghost:</b> Pass thru cars</div>
+                <div><span style="color:#ff4444">★</span> <b>Bumper:</b> High bounce</div>
+                <div><span style="color:#44ff44">★</span> <b>Magnet:</b> Pull others</div>
+                <div><span style="color:#ff8800">★</span> <b>Oil:</b> Spin out competitors</div>
+                <div><span style="color:#4444ff">★</span> <b>Shrink:</b> Make others small</div>
+                <div><span style="color:#ffffff">★</span> <b>Invincible:</b> Max speed + immune</div>
+            </div>
+            <button class="btn-blue" onclick="closeInstructionsModal()" style="margin: 25px auto 0 auto; width: 100%;">Got it!</button>
+        </div>
+    </div>
+
+    <div id="selection-modal" class="overlay-center hidden">
+        <div class="box-panel modal-panel">
+            <h2 id="modal-title" style="font-family: 'Rajdhani', sans-serif; font-size: 2.5rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; margin-top:0;">Select</h2>
+            <div class="carousel" id="modal-carousel">
+                <!-- Injected via JS -->
+            </div>
+            <button class="btn-blue" onclick="closeModal()" style="margin: 20px auto 0 auto; width: 200px;">Back</button>
+        </div>
+    </div>
+
+    <div id="pause-menu" class="overlay-center hidden">
+        <div class="box-panel">
+            <h2>Paused</h2>
+            <button onclick="togglePause()">Resume</button>
+            <button class="btn-blue" onclick="returnToMenu(false)">Restart to Home</button>
+        </div>
+    </div>
+
+    <div id="game-over" class="overlay-center hidden">
+        <div class="box-panel">
+            <h2>Race Finished!</h2>
+            <ul id="standings-list"></ul>
+            <button onclick="returnToMenu(false)" style="width: 100%; margin: 0;">Main Menu</button>
+        </div>
+    </div>
 
     <script>
-        // --- View Switcher Logic ---
-        function switchView(view) {
-            const container = document.getElementById('device-container');
-            const btns = {
-                desktop: document.getElementById('btn-desktop'),
-                pad: document.getElementById('btn-pad'),
-                phone: document.getElementById('btn-phone')
-            };
+        // === SUPABASE SETTINGS ===
+        const supabaseUrl = 'https://apgfskdxexlyyavmhdlg.supabase.co';
+        const supabaseKey = 'sb_publishable_rvwuan8wg1tyegGFSt2jMA_E1CJaM5L';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        let currentUser = null;
+        let isDistanceMode = false;
+        let isHost = false;
+        let roomCode = null;
+        let roomChannel = null;
+        let channelConnected = false;
+        let remotePlayerReady = false;
 
-            container.className = `view-${view}`;
+        // === WEBRTC SETTINGS ===
+        let localStream = null;
+        let peerConnection = null;
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
 
-            Object.keys(btns).forEach(key => {
-                const btnClassBase = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ";
-                if(key === view) {
-                    btns[key].className = btnClassBase + "text-white bg-white/20";
-                } else {
-                    btns[key].className = btnClassBase + "text-white/60 hover:bg-white/10";
+        // Authenticate Anonymously & Check for Auto-Join Links
+        async function initAuth() {
+            try {
+                const { data, error } = await supabaseClient.auth.signInAnonymously();
+                if (error) throw error;
+                if (data?.user) currentUser = data.user;
+            } catch (err) {
+                console.error("Auth error:", err);
+                throw err;
+            }
+        }
+        
+        window.addEventListener('load', () => {
+            initAuth().catch(e => console.log("Silent auth fail on load:", e));
+            
+            // Check for invite link parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const room = urlParams.get('room');
+            if (room) {
+                setPlayerMode('2p-dist');
+                document.getElementById('join-room-code').value = room.toUpperCase();
+                joinDistanceGame();
+                // Strip the URL so it doesn't linger
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+
+        const TOTAL_LAPS = 3;
+        const TRACK_WIDTH = 24;
+        let gameMode = '1p'; 
+        let gameState = 'menu'; 
+        
+        let scene, renderer;
+        let camera1, camera2;
+        let trackGroup;
+        let trackCurve, trackPoints;
+        let cars = [];
+        let scenery = [];
+        let powerups = [];
+        let currentTrackIndex = 0;
+        let gpPausePressed = false;
+        
+        let mapScale1 = 1, mapOffsetX1 = 0, mapOffsetZ1 = 0;
+        let mapScale2 = 1, mapOffsetX2 = 0, mapOffsetZ2 = 0;
+
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        class EngineSynth {
+            constructor() {
+                if (!audioCtx) return;
+                this.osc = audioCtx.createOscillator();
+                this.osc.type = 'sawtooth';
+                this.filter = audioCtx.createBiquadFilter();
+                this.filter.type = 'lowpass';
+                this.gain = audioCtx.createGain();
+
+                this.osc.connect(this.filter);
+                this.filter.connect(this.gain);
+                this.gain.connect(audioCtx.destination);
+
+                this.osc.start();
+                this.gain.gain.value = 0;
+            }
+            update(speed) {
+                if (!audioCtx || !this.osc) return;
+                let s = Math.abs(speed);
+                this.osc.frequency.setTargetAtTime(40 + s * 80, audioCtx.currentTime, 0.1);
+                this.filter.frequency.setTargetAtTime(200 + s * 600, audioCtx.currentTime, 0.1);
+                this.gain.gain.setTargetAtTime(0.05 + s * 0.05, audioCtx.currentTime, 0.1);
+            }
+            stop() {
+                if (!audioCtx || !this.gain) return;
+                this.gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+            }
+        }
+
+        function playSound(type, intensity = 1) {
+            if (!soundEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            if (type === 'crash') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150 * intensity, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
+                gain.gain.setValueAtTime(0.2 * intensity, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'powerup') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        }
+
+        const TRACK_NAMES = [
+            "Oval Circuit", "Figure 8 Loop", "Serpent's Pass", "Grand Prix", 
+            "Star Blazer", "Peanut Valley", "Tri-point Peak", "The Block", 
+            "Hairpin Haven", "Wavy Wasteland", "Diamond Dash", "C-Curve Canyon", 
+            "Hex Circuit", "The Boot"
+        ];
+
+        const CAR_STATS = {
+            balanced:  { name: "Balanced", desc: "A great all-rounder with no distinct weaknesses.", max: 1.4, acc: 0.015, turn: 0.045, mass: 1.0, dim: [2.0, 0.8, 4.0], color: '#2ed573' },
+            speedster: { name: "Speedster", desc: "Unmatched top speed but lighter mass. Don't get bullied!", max: 1.8, acc: 0.025, turn: 0.035, mass: 0.6, dim: [1.6, 0.6, 4.5], color: '#ff4757' },
+            bruiser:   { name: "Bruiser", desc: "Heavy and durable. Perfect for pushing opponents around.", max: 1.3, acc: 0.012, turn: 0.040, mass: 2.0, dim: [2.2, 1.0, 3.8], color: '#1e90ff' },
+            drifter:   { name: "Drifter", desc: "Incredible cornering ability for technical tracks.", max: 1.4, acc: 0.018, turn: 0.065, mass: 0.8, dim: [1.8, 0.7, 3.5], color: '#9b59b6' },
+            tank:      { name: "Tank", desc: "Slow acceleration but unstoppable mass and off-road immunity.", max: 1.1, acc: 0.008, turn: 0.030, mass: 4.0, dim: [2.8, 1.4, 4.8], color: '#f1c40f' }
+        };
+
+        const POWERUP_TYPES = ['boost', 'heavy', 'ghost', 'bumper', 'magnet', 'oil', 'shrink', 'invincible'];
+        const POWERUP_COLORS = {
+            boost: 0xffff00, heavy: 0xff00ff, ghost: 0x00ffff, bumper: 0xff4444,
+            magnet: 0x44ff44, oil: 0xff8800, shrink: 0x4444ff, invincible: 0xffffff
+        };
+
+        const trackConfigs = [
+            [ new THREE.Vector3(0, 0, 150), new THREE.Vector3(100, 0, 150), new THREE.Vector3(180, 0, 50), new THREE.Vector3(100, 0, -50), new THREE.Vector3(150, 0, -150), new THREE.Vector3(0, 0, -180), new THREE.Vector3(-150, 0, -150), new THREE.Vector3(-100, 0, -50), new THREE.Vector3(-180, 0, 50), new THREE.Vector3(-100, 0, 150) ],
+            [ new THREE.Vector3(0, 0, 200), new THREE.Vector3(150, 0, 200), new THREE.Vector3(250, 0, 100), new THREE.Vector3(200, 0, -100), new THREE.Vector3(50, 0, -200), new THREE.Vector3(-50, 0, -50), new THREE.Vector3(-200, 0, -150), new THREE.Vector3(-250, 0, 0), new THREE.Vector3(-150, 0, 150) ],
+            [ new THREE.Vector3(0, 0, 250), new THREE.Vector3(150, 0, 250), new THREE.Vector3(200, 0, 150), new THREE.Vector3(0, 0, 50), new THREE.Vector3(-150, 0, -50), new THREE.Vector3(-200, 0, -150), new THREE.Vector3(0, 0, -250), new THREE.Vector3(200, 0, -200), new THREE.Vector3(250, 0, 0), new THREE.Vector3(-100, 0, 150) ],
+            [ new THREE.Vector3(-200, 0, 200), new THREE.Vector3(200, 0, 200), new THREE.Vector3(250, 0, 100), new THREE.Vector3(0, 0, 100), new THREE.Vector3(-100, 0, 0), new THREE.Vector3(250, 0, -50), new THREE.Vector3(200, 0, -250), new THREE.Vector3(-200, 0, -250), new THREE.Vector3(-250, 0, 0) ],
+            [ new THREE.Vector3(0, 0, 200), new THREE.Vector3(50, 0, 50), new THREE.Vector3(200, 0, 0), new THREE.Vector3(50, 0, -50), new THREE.Vector3(0, 0, -200), new THREE.Vector3(-50, 0, -50), new THREE.Vector3(-200, 0, 0), new THREE.Vector3(-50, 0, 50) ],
+            [ new THREE.Vector3(100, 0, 150), new THREE.Vector3(250, 0, 50), new THREE.Vector3(250, 0, -50), new THREE.Vector3(100, 0, -150), new THREE.Vector3(0, 0, -50), new THREE.Vector3(-100, 0, -150), new THREE.Vector3(-250, 0, -50), new THREE.Vector3(-250, 0, 50), new THREE.Vector3(-100, 0, 150), new THREE.Vector3(0, 0, 50) ],
+            [ new THREE.Vector3(0, 0, 250), new THREE.Vector3(250, 0, -150), new THREE.Vector3(-250, 0, -150) ],
+            [ new THREE.Vector3(-200, 0, 100), new THREE.Vector3(200, 0, 100), new THREE.Vector3(200, 0, -100), new THREE.Vector3(-200, 0, -100) ],
+            [ new THREE.Vector3(-200, 0, 200), new THREE.Vector3(200, 0, 200), new THREE.Vector3(200, 0, 100), new THREE.Vector3(-100, 0, 100), new THREE.Vector3(-100, 0, 0), new THREE.Vector3(200, 0, 0), new THREE.Vector3(200, 0, -100), new THREE.Vector3(-100, 0, -100), new THREE.Vector3(-100, 0, -200), new THREE.Vector3(200, 0, -200), new THREE.Vector3(250, 0, -250), new THREE.Vector3(-250, 0, -250), new THREE.Vector3(-250, 0, 200) ],
+            [ new THREE.Vector3(0, 0, 150), new THREE.Vector3(100, 0, 100), new THREE.Vector3(200, 0, 150), new THREE.Vector3(300, 0, 0), new THREE.Vector3(200, 0, -150), new THREE.Vector3(100, 0, -100), new THREE.Vector3(0, 0, -150), new THREE.Vector3(-100, 0, -100), new THREE.Vector3(-200, 0, -150), new THREE.Vector3(-300, 0, 0), new THREE.Vector3(-200, 0, 150), new THREE.Vector3(-100, 0, 100) ],
+            [ new THREE.Vector3(0, 0, 300), new THREE.Vector3(300, 0, 0), new THREE.Vector3(0, 0, -300), new THREE.Vector3(-300, 0, 0) ],
+            [ new THREE.Vector3(-150, 0, 200), new THREE.Vector3(150, 0, 200), new THREE.Vector3(200, 0, 150), new THREE.Vector3(200, 0, -150), new THREE.Vector3(150, 0, -200), new THREE.Vector3(-150, 0, -200), new THREE.Vector3(-100, 0, -100), new THREE.Vector3(100, 0, -100), new THREE.Vector3(100, 0, 100), new THREE.Vector3(-100, 0, 100) ],
+            [ new THREE.Vector3(0, 0, 200), new THREE.Vector3(173, 0, 100), new THREE.Vector3(173, 0, -100), new THREE.Vector3(0, 0, -200), new THREE.Vector3(-173, 0, -100), new THREE.Vector3(-173, 0, 100) ],
+            [ new THREE.Vector3(-150, 0, 200), new THREE.Vector3(50, 0, 200), new THREE.Vector3(50, 0, 0), new THREE.Vector3(200, 0, 0), new THREE.Vector3(200, 0, -150), new THREE.Vector3(-150, 0, -150) ]
+        ];
+        
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+        const touchState = { fwd: false, rev: false, left: false, right: false };
+
+        const mainMenu = document.getElementById('main-menu');
+        const gameOverMenu = document.getElementById('game-over');
+        const pauseMenu = document.getElementById('pause-menu');
+        const standingsList = document.getElementById('standings-list');
+        
+        const p1Hud = document.getElementById('p1-hud');
+        const p1Pos = document.getElementById('p1-pos');
+        const p1LapEl = document.getElementById('p1-lap');
+        const p1SpeedContainer = document.getElementById('p1-speed-container');
+        const p1Needle = document.getElementById('p1-needle');
+        const p1Gear = document.getElementById('p1-gear');
+        const p1WrongWay = document.getElementById('p1-wrong-way');
+        const minimapCanvasP1 = document.getElementById('minimap-p1');
+        const ctxP1 = minimapCanvasP1.getContext('2d');
+
+        const p2Hud = document.getElementById('p2-hud');
+        const p2Pos = document.getElementById('p2-pos');
+        const p2LapEl = document.getElementById('p2-lap');
+        const p2SpeedContainer = document.getElementById('p2-speed-container');
+        const p2Needle = document.getElementById('p2-needle');
+        const p2Gear = document.getElementById('p2-gear');
+        const p2WrongWay = document.getElementById('p2-wrong-way');
+        const minimapCanvasP2 = document.getElementById('minimap-p2');
+        const ctxP2 = minimapCanvasP2.getContext('2d');
+        
+        const p1Toast = document.getElementById('p1-toast');
+        const p2Toast = document.getElementById('p2-toast');
+        let p1ToastTimeout = null;
+        let p2ToastTimeout = null;
+        
+        const speedoToggle = document.getElementById('speedo-toggle');
+        const audioToggle = document.getElementById('audio-toggle');
+        const inputModeSelect = document.getElementById('input-mode');
+
+        let p1SelectedCar = 'balanced';
+        let p2SelectedCar = 'speedster';
+        let selectingPlayer = 1;
+        let carPreviews = {};
+
+        function setPlayerMode(mode) {
+            gameMode = mode;
+            isDistanceMode = mode === '2p-dist';
+            
+            document.getElementById('btn-1p').classList.toggle('active', mode === '1p');
+            document.getElementById('btn-2p-local').classList.toggle('active', mode === '2p-local');
+            document.getElementById('btn-2p-dist').classList.toggle('active', mode === '2p-dist');
+            
+            const p1Btn = document.getElementById('p1-car-setup-btn');
+            const p2Btn = document.getElementById('p2-car-setup-btn');
+            const p1Span = document.getElementById('p1-car-label');
+            const p2Span = document.getElementById('p2-car-label');
+            
+            const distUi = document.getElementById('distance-lobby-ui');
+            const trackSetup = document.getElementById('track-setup-container');
+            const startBtn = document.getElementById('start-btn');
+            
+            if (mode === '1p') {
+                p1Span.innerText = "Player 1 Class";
+                p2Btn.style.display = 'none';
+                p1Btn.style.pointerEvents = 'auto'; p1Btn.style.opacity = '1';
+                distUi.classList.add('hidden');
+                trackSetup.classList.remove('hidden');
+                startBtn.classList.remove('hidden');
+            } else if (mode === '2p-local') {
+                p1Span.innerText = "Player 1 Class";
+                p2Span.innerText = "Player 2 Class";
+                p2Btn.style.display = 'flex';
+                p1Btn.style.pointerEvents = 'auto'; p1Btn.style.opacity = '1';
+                p2Btn.style.pointerEvents = 'auto'; p2Btn.style.opacity = '1';
+                distUi.classList.add('hidden');
+                trackSetup.classList.remove('hidden');
+                startBtn.classList.remove('hidden');
+            } else if (mode === '2p-dist') {
+                p1Span.innerText = "Host Vehicle";
+                p2Span.innerText = "Guest Vehicle";
+                p2Btn.style.display = 'flex'; 
+                distUi.classList.remove('hidden');
+                trackSetup.classList.remove('hidden'); 
+                startBtn.classList.add('hidden'); 
+                
+                // Keep both open until they click Create/Join
+                if (!roomCode) {
+                    p1Btn.style.pointerEvents = 'auto'; p1Btn.style.opacity = '1';
+                    p2Btn.style.pointerEvents = 'auto'; p2Btn.style.opacity = '1';
+                }
+            }
+            
+            if (!isDistanceMode) {
+                // Disconnect if returning from distance lobby
+                if (roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; channelConnected = false; }
+                if (peerConnection) { peerConnection.close(); peerConnection = null; }
+            }
+        }
+
+        // === DISTANCE MODE LOGIC ===
+        function generateRoomCode() {
+            return Math.random().toString(36).substring(2, 6).toUpperCase();
+        }
+        
+        function copyInviteLink() {
+            if (!roomCode) return;
+            const link = window.location.origin + window.location.pathname + "?room=" + roomCode;
+            const textArea = document.createElement("textarea");
+            textArea.value = link;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('btn-copy-link');
+                btn.innerText = "Copied!";
+                setTimeout(() => btn.innerText = "Copy Invite Link", 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // Auto clean rooms older than 2 hours
+        async function cleanupOldRooms() {
+            try {
+                const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+                await supabaseClient.schema('mateopolyracing').from('rooms').delete().lt('created_at', twoHoursAgo);
+            } catch (e) { console.warn("Cleanup failed:", e); }
+        }
+
+        async function hostDistanceGame() {
+            const errorEl = document.getElementById('lobby-error');
+            if(errorEl) errorEl.innerText = "Connecting...";
+
+            try {
+                if (!currentUser) await initAuth();
+                await cleanupOldRooms(); 
+                
+                roomCode = generateRoomCode();
+                isHost = true;
+                
+                // Insert room
+                const { error } = await supabaseClient.schema('mateopolyracing').from('rooms').insert([{
+                    room_code: roomCode, host_id: currentUser.id, track_index: currentTrackIndex, host_car: p1SelectedCar 
+                }]);
+                
+                if(error) { if(errorEl) errorEl.innerText = "DB Error: " + error.message; return; }
+                
+                if(errorEl) errorEl.innerText = "";
+                setupLobbyUI();
+                joinRealtimeChannel();
+            } catch (err) {
+                if(errorEl) errorEl.innerText = "Connection failed";
+                console.error(err);
+            }
+        }
+
+        async function joinDistanceGame() {
+            const errorEl = document.getElementById('lobby-error');
+            if(errorEl) errorEl.innerText = "Connecting...";
+
+            try {
+                if (!currentUser) await initAuth();
+                const codeInput = document.getElementById('join-room-code').value.toUpperCase();
+                if(!codeInput) { if(errorEl) errorEl.innerText = "Enter a room code!"; return; }
+
+                const { data, error } = await supabaseClient.schema('mateopolyracing').from('rooms').select('*').eq('room_code', codeInput).single();
+                if (error || !data) { if(errorEl) errorEl.innerText = "Room not found!"; return; }
+                if (data.status !== 'waiting') { if(errorEl) errorEl.innerText = "Game already in progress!"; return; }
+
+                roomCode = codeInput;
+                isHost = false;
+                
+                currentTrackIndex = data.track_index;
+                document.getElementById('track-name-display').innerText = TRACK_NAMES[currentTrackIndex];
+                
+                p1SelectedCar = data.host_car || 'balanced';
+                document.getElementById('p1-car-display').innerText = CAR_STATS[p1SelectedCar].name;
+                
+                // Update DB with guest
+                const { error: updateErr } = await supabaseClient.schema('mateopolyracing').from('rooms').update({
+                    guest_id: currentUser.id, guest_car: p2SelectedCar
+                }).eq('room_code', roomCode);
+                
+                if(updateErr) { if(errorEl) errorEl.innerText = "Error joining: " + updateErr.message; return; }
+
+                if(errorEl) errorEl.innerText = "";
+                setupLobbyUI();
+                joinRealtimeChannel();
+            } catch (err) {
+                if(errorEl) errorEl.innerText = "Connection failed";
+                console.error(err);
+            }
+        }
+
+        function setupLobbyUI() {
+            document.getElementById('lobby-pre').classList.add('hidden');
+            document.getElementById('lobby-active').classList.remove('hidden');
+            document.getElementById('display-room-code').innerText = roomCode;
+            document.getElementById('lobby-status-text').innerText = isHost ? "Waiting for opponent to join..." : "Joined! Waiting for Host to start.";
+            document.getElementById('start-btn').classList.remove('hidden');
+            document.getElementById('start-btn').style.display = isHost ? '' : 'none';
+
+            // Secure Setup Buttons per Player Role
+            if (!isHost) {
+                document.getElementById('track-setup-container').style.opacity = '0.5';
+                document.getElementById('track-setup-container').style.pointerEvents = 'none';
+                document.getElementById('p1-car-setup-btn').style.opacity = '0.5';
+                document.getElementById('p1-car-setup-btn').style.pointerEvents = 'none';
+                
+                document.getElementById('p2-car-setup-btn').style.opacity = '1';
+                document.getElementById('p2-car-setup-btn').style.pointerEvents = 'auto';
+            } else {
+                document.getElementById('track-setup-container').style.opacity = '1';
+                document.getElementById('track-setup-container').style.pointerEvents = 'auto';
+                document.getElementById('p1-car-setup-btn').style.opacity = '1';
+                document.getElementById('p1-car-setup-btn').style.pointerEvents = 'auto';
+                
+                document.getElementById('p2-car-setup-btn').style.opacity = '0.5';
+                document.getElementById('p2-car-setup-btn').style.pointerEvents = 'none';
+            }
+        }
+
+        function joinRealtimeChannel() {
+            channelConnected = false;
+            roomChannel = supabaseClient.channel(`room:${roomCode}`);
+            
+            // Host listens for Player Joined
+            roomChannel.on('broadcast', { event: 'player_joined' }, payload => {
+                if(isHost) {
+                    remotePlayerReady = true;
+                    if(payload.payload.guestCar) {
+                        p2SelectedCar = payload.payload.guestCar;
+                        document.getElementById('p2-car-display').innerText = CAR_STATS[p2SelectedCar].name;
+                    }
+                    document.getElementById('lobby-status-text').innerText = "Opponent joined! Ready to start.";
+                    document.getElementById('lobby-status-text').style.color = "#2ed573";
+                    
+                    roomChannel.send({
+                        type: 'broadcast', event: 'room_settings',
+                        payload: { track: currentTrackIndex, hostCar: p1SelectedCar }
+                    }).catch(e=>console.log(e));
+                    
+                    if(document.getElementById('voice-toggle').checked) initiateWebRTC();
+                }
+            });
+
+            // Remote Vehicle Live Sync
+            roomChannel.on('broadcast', { event: 'guest_update' }, payload => {
+                if(isHost && payload.payload.guestCar) {
+                    p2SelectedCar = payload.payload.guestCar;
+                    document.getElementById('p2-car-display').innerText = CAR_STATS[p2SelectedCar].name;
+                }
+            });
+            
+            roomChannel.on('broadcast', { event: 'room_settings' }, payload => {
+                if(!isHost) {
+                    if (payload.payload.track !== undefined) {
+                        currentTrackIndex = payload.payload.track;
+                        selectTrack(currentTrackIndex);
+                    }
+                    if (payload.payload.hostCar) {
+                        p1SelectedCar = payload.payload.hostCar;
+                        document.getElementById('p1-car-display').innerText = CAR_STATS[p1SelectedCar].name;
+                    }
+                }
+            });
+
+            // Start Game Trigger
+            roomChannel.on('broadcast', { event: 'start_game' }, payload => {
+                if(!isHost) startGameDistance(false);
+            });
+            
+            // Sync Positional Physics Payload
+            roomChannel.on('broadcast', { event: 'sync_pos' }, payload => {
+                let pData = payload.payload;
+                if ((isHost && pData.sender === 'host') || (!isHost && pData.sender === 'guest')) return;
+                
+                let remoteCar = isHost ? cars[1] : cars[0]; 
+                if(remoteCar) {
+                    // Snap remote car to sync coords (extrapolation logic handles frames between ticks)
+                    remoteCar.position.set(pData.x, pData.y, pData.z);
+                    remoteCar.angle = pData.a;
+                    remoteCar.speed = pData.s;
+                    remoteCar.steerVisual = pData.st;
+                }
+            });
+
+            // Sync Powerup Claim
+            roomChannel.on('broadcast', { event: 'powerup_grab' }, payload => {
+                let { pIndex, carNum } = payload.payload;
+                let p = powerups[pIndex];
+                let car = cars.find(c => c.playerNum === carNum);
+                if (p && p.active && car) {
+                    p.active = false; p.mesh.visible = false; p.respawnTimer = 400; 
+                    applyPowerupToCar(car, p.type);
+                }
+            });
+            
+            // Distant Pausing & Exiting
+            roomChannel.on('broadcast', { event: 'pause' }, payload => {
+                let st = payload.payload.state;
+                if (st === 'paused' && gameState === 'playing') togglePause(true);
+                else if (st === 'playing' && gameState === 'paused') togglePause(true);
+            });
+
+            roomChannel.on('broadcast', { event: 'player_left' }, payload => { returnToMenu(true); });
+
+            // WebRTC
+            roomChannel.on('broadcast', { event: 'webrtc_offer' }, async payload => {
+                if (!peerConnection) await setupPeerConnection();
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                roomChannel.send({ type: 'broadcast', event: 'webrtc_answer', payload: answer }).catch(e=>console.log(e));
+            });
+            roomChannel.on('broadcast', { event: 'webrtc_answer' }, async payload => { await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload)); });
+            roomChannel.on('broadcast', { event: 'webrtc_ice' }, async payload => { if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(payload.payload)); });
+
+            roomChannel.subscribe((status) => {
+                if(status === 'SUBSCRIBED') {
+                    channelConnected = true;
+                    if (!isHost) {
+                        roomChannel.send({ type: 'broadcast', event: 'player_joined', payload: { guestCar: p2SelectedCar } }).catch(e=>console.log(e));
+                    }
                 }
             });
         }
 
-        // --- Auto Detect Optimal View on Load ---
-        function initView() {
-            const width = window.innerWidth;
-            if (width < 600) {
-                switchView('phone');
-            } else if (width < 900) {
-                switchView('pad');
+        // === WEBRTC LOGIC ===
+        async function toggleVoiceChat() {
+            if(!document.getElementById('voice-toggle').checked) {
+                if(localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+                if(peerConnection) { peerConnection.close(); peerConnection = null; }
             } else {
-                switchView('desktop');
+                if(isHost && remotePlayerReady) initiateWebRTC();
+                else if (!isHost && roomChannel) await setupPeerConnection(); 
             }
         }
 
-        // --- Game Player Logic ---
-        let toolbarVisible = true;
+        async function setupPeerConnection() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                peerConnection = new RTCPeerConnection(rtcConfig);
+                
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-        function toggleToolbar() {
-            const toolbar = document.getElementById('player-toolbar');
-            const showBtn = document.getElementById('show-toolbar-btn');
-            toolbarVisible = !toolbarVisible;
+                peerConnection.ontrack = event => { document.getElementById('remote-audio').srcObject = event.streams[0]; };
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate && roomChannel && channelConnected) {
+                        roomChannel.send({ type: 'broadcast', event: 'webrtc_ice', payload: event.candidate }).catch(e=>console.log(e));
+                    }
+                };
+            } catch (err) { console.error("Mic access denied:", err); }
+        }
+
+        async function initiateWebRTC() {
+            await setupPeerConnection();
+            if(peerConnection) {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                roomChannel.send({ type: 'broadcast', event: 'webrtc_offer', payload: offer }).catch(e=>console.log(e));
+            }
+        }
+
+
+        // === UI & MODALS ===
+        function openTrackModal() {
+            const modal = document.getElementById('selection-modal');
+            const carousel = document.getElementById('modal-carousel');
+            document.getElementById('modal-title').innerText = "Select Track";
             
-            if (toolbarVisible) {
-                toolbar.classList.remove('-translate-y-[150%]', 'opacity-0', 'pointer-events-none');
-                showBtn.classList.add('-translate-y-full', 'opacity-0');
-            } else {
-                toolbar.classList.add('-translate-y-[150%]', 'opacity-0', 'pointer-events-none');
-                showBtn.classList.remove('-translate-y-full', 'opacity-0');
-            }
-        }
-
-        function openGame(url, title) {
-            document.body.style.overflow = 'hidden'; 
-            document.getElementById('game-view').classList.remove('hidden');
-            document.getElementById('playing-title').innerText = title;
-            const gameFrame = document.getElementById('game-frame');
-            gameFrame.src = url;
-            
-            // Ensure toolbar is visible when a new game opens
-            toolbarVisible = false;
-            toggleToolbar();
-
-            setTimeout(() => { gameFrame.focus(); }, 100);
-        }
-
-        function closeGame() {
-            document.body.style.overflow = ''; 
-            document.getElementById('game-view').classList.add('hidden');
-            document.getElementById('game-frame').src = ""; 
-        }
-
-        const gamesData = [
-            {
-                title: "Adventure Bingo",
-                description: "Turn everyday car rides and shopping trips into an exciting, real-time scavenger hunt where kids can play solo or race against friends to get the first BINGO!",
-                icon: "🗺️",
-                bgColor: "from-emerald-500 to-teal-700",
-                url: "./games/bingo/index.html"
-            },
-            {
-                title: "Memory Flash",
-                description: "This is a Simon Says inspired game to test your memory and add some big successes to your day.",
-                icon: "🧠",
-                bgColor: "from-rose-500 to-pink-700",
-                url: "./games/memory-flash/index.html"
-            },
-            {
-                title: "M.D Super Poly Racing",
-                description: "Race a car, race a tank - sit side-by-side or play from different countries.",
-                icon: "🏁",
-                bgColor: "from-amber-500 to-red-600",
-                url: "./games/poly-racing/index.html"
-            },
-            {
-                title: "Inky's Ocean Escape",
-                description: "Launch your stretchy purple octopus through an endless, deep-sea obstacle course by grappling glowing pearls and bouncing off squishy anemones!",
-                icon: "🐙",
-                bgColor: "from-indigo-600 to-purple-800",
-                url: "./games/inkys-ocean-escape/index.html"
-            },
-            {
-                title: "City Rush",
-                description: "You drive a high-speed delivery vehicle through a maze-like Cyber-City. Racing is legal and mandatory.",
-                icon: "🏙️",
-                bgColor: "from-fuchsia-700 to-blue-900",
-                url: "./games/city-rush/index.html"
-            },
-            {
-                title: "Spelling Searcher",
-                description: "Snap a picture of your spelling words and instantly unlock a customized, interactive word search world packed with stickers, streaks, and trophies!",
-                icon: "🔍",
-                bgColor: "from-violet-500 to-purple-700",
-                url: "./games/SpellingSearcher/index.html"
-            },
-            {
-                title: "Project M.O.Z.Z.A.R.E.L.L.A.",
-                description: "Play as 'Agent 8' testing a classified multi-terrain prototype in this high-speed evasion game!",
-                icon: "🕵️‍♂️",
-                bgColor: "from-slate-700 to-gray-900",
-                url: "./games/project-mozzarella/index.html"
-            },
-            {
-                title: "Race cars",
-                description: "Zoom around the track and build the ultimate racing base!",
-                icon: "🏎️",
-                bgColor: "from-red-500 to-orange-500",
-                url: "./games/race-cars/index.html"
-            },
-            {
-                title: "Gravity Run",
-                description: "Defy physics! Use your antigravity boots to run on the ceiling and dodge deadly gaps.",
-                icon: `<svg viewBox="0 0 100 100" class="w-16 h-16 sm:w-20 sm:h-20" fill="currentColor">
-                    <rect x="10" y="15" width="80" height="4" rx="2" fill="white" opacity="0.4"/>
-                    <rect x="10" y="81" width="80" height="4" rx="2" fill="white" opacity="0.4"/>
-                    <path d="M50 35 L65 50 L35 50 Z" fill="white" opacity="0.8"/>
-                    <path d="M50 65 L65 50 L35 50 Z" fill="white" opacity="0.8" transform="rotate(180 50 57.5)"/>
-                    <text x="50" y="60" font-size="32" text-anchor="middle">👟</text>
-                </svg>`,
-                bgColor: "from-indigo-500 to-purple-600",
-                url: "./games/gravity-run/index.html"
-            },
-            {
-                title: "Retro Traffic Game",
-                description: "Dodge cars and cross the busy retro streets!",
-                icon: "🚦",
-                bgColor: "from-yellow-400 to-amber-600",
-                url: "./games/retro-traffic/index.html"
-            },
-            {
-                title: "Snakes",
-                description: "Slither around, eat apples, and grow your snake!",
-                icon: "🐍",
-                bgColor: "from-lime-400 to-green-600",
-                url: "./games/snakes/index.html"
-            },
-            {
-                title: "Sonic the Hedgehog",
-                description: "Gotta go fast! Spin dash through loops and collect rings.",
-                icon: "🦔",
-                bgColor: "from-blue-400 to-blue-600",
-                url: "./games/sonic/index.html"
-            },
-            {
-                title: "Neon Pac Mac",
-                description: "Chomp the dots and dodge ghosts in glowing neon!",
-                icon: "👻",
-                bgColor: "from-fuchsia-500 to-pink-600",
-                url: "./games/pacman/index.html"
-            },
-            {
-                title: "Mountain Bike EXTREME",
-                description: "Pedal to the metal! Pull off crazy tricks on the mountain.",
-                icon: "🚵‍♂️",
-                bgColor: "from-green-500 to-emerald-700",
-                url: "./games/mountain-bike/index.html"
-            },
-            {
-                title: "Battleship 3D",
-                description: "Command your fleet and sink enemy ships in 3D!",
-                icon: "🚢",
-                bgColor: "from-cyan-500 to-blue-700",
-                url: "./games/battleship/index.html"
-            },
-            {
-                title: "Deep Sea Catch",
-                description: "Dive deep and catch the rarest, coolest ocean fish!",
-                icon: "🎣",
-                bgColor: "from-teal-400 to-cyan-600",
-                url: "./games/deep-sea-catch/index.html"
-            },
-            {
-                title: "Sky Defender",
-                description: "Take to the skies and defend your base from invaders!",
-                icon: "✈️",
-                bgColor: "from-sky-400 to-blue-600",
-                url: "./games/sky-defender/index.html"
-            },
-            {
-                title: "3D Building",
-                description: "Stack blocks high into the sky to build massive towers!",
-                icon: "🏗️",
-                bgColor: "from-orange-400 to-amber-600",
-                url: "./games/3d-building/index.html"
-            },
-            {
-                title: "3D Basketball",
-                description: "Shoot hoops and score spectacular three-pointers!",
-                icon: "🏀",
-                bgColor: "from-orange-500 to-red-500",
-                url: "./games/3d-basketball/index.html"
-            },
-            {
-                title: "Tetris",
-                description: "The classic block-stacking puzzle game!",
-                icon: "🧱",
-                bgColor: "from-blue-500 to-indigo-600",
-                url: "./games/tetris/index.html"
-            },
-            {
-                title: "Paper Plane Extreme",
-                description: "You're a paper plane flying down a school hallway dodging projectors, students, and fans!",
-                icon: `<svg viewBox="0 0 24 24" class="w-12 h-12 sm:w-16 sm:h-16" fill="white" opacity="0.9">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>`,
-                bgColor: "from-slate-400 to-gray-600",
-                url: "./games/paper-plane/index.html"
-            }
-        ];
-
-        const gamesContainer = document.getElementById('gamesContainer');
-        const searchInput = document.getElementById('searchInput');
-
-        function renderGames(games) {
-            gamesContainer.innerHTML = ''; 
-            if (games.length === 0) {
-                gamesContainer.innerHTML = `<p class="col-span-full text-center text-2xl text-white/60 mt-8">No games found!</p>`;
-                return;
-            }
-            games.forEach(game => {
+            carousel.innerHTML = '';
+            TRACK_NAMES.forEach((name, i) => {
                 const card = document.createElement('div');
-                card.className = 'game-card group';
-                card.onclick = () => openGame(game.url, game.title);
+                card.className = `carousel-card ${currentTrackIndex === i ? 'active' : ''}`;
+                card.onclick = () => { selectTrack(i); closeModal(); };
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 150; canvas.height = 150;
+                drawMiniMapToCanvas(canvas, i);
+                
+                const title = document.createElement('h3');
+                title.innerText = name; title.style.marginTop = '15px'; title.style.textAlign = 'center';
+                
+                card.appendChild(canvas); card.appendChild(title);
+                carousel.appendChild(card);
+            });
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function drawMiniMapToCanvas(canvas, index) {
+            const ctx = canvas.getContext('2d');
+            const points = trackConfigs[index];
+            const curve = new THREE.CatmullRomCurve3(points, true);
+            const pts = curve.getSpacedPoints(100);
+            
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            pts.forEach(p => {
+                if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+                if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
+            });
+            
+            const padding = 10; const mapW = maxX - minX + padding * 2; const mapH = maxZ - minZ + padding * 2;
+            let scale = Math.min(130 / mapW, 130 / mapH);
+            let offX = 75 - ((maxX + minX) / 2) * scale; let offZ = 75 - ((maxZ + minZ) / 2) * scale;
+            
+            ctx.clearRect(0, 0, 150, 150);
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = Math.max(2, TRACK_WIDTH * scale * 0.5); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            for(let i=0; i<pts.length; i++) {
+                let mx = pts[i].x * scale + offX; let mz = pts[i].z * scale + offZ;
+                if (i === 0) ctx.moveTo(mx, mz); else ctx.lineTo(mx, mz);
+            }
+            ctx.closePath(); ctx.stroke();
+        }
+
+        function openCarModal(pNum) {
+            selectingPlayer = pNum;
+            const modal = document.getElementById('selection-modal');
+            const carousel = document.getElementById('modal-carousel');
+            
+            let titleStr = `Select Player ${pNum} Vehicle`;
+            if (gameMode === '2p-dist') {
+                titleStr = pNum === 1 ? "Select Host Vehicle" : "Select Guest Vehicle";
+            }
+            document.getElementById('modal-title').innerText = titleStr;
+            
+            carousel.innerHTML = '';
+            const currentCar = pNum === 1 ? p1SelectedCar : p2SelectedCar;
+            
+            Object.keys(CAR_STATS).forEach(key => {
+                const stat = CAR_STATS[key];
+                const card = document.createElement('div');
+                card.className = `carousel-card ${currentCar === key ? 'active' : ''}`;
+                card.onclick = () => { selectCar(key); closeModal(); };
+                
+                let spdPct = (stat.max / 1.8) * 100; let accPct = (stat.acc / 0.025) * 100;
+                let trnPct = (stat.turn / 0.065) * 100; let mssPct = (stat.mass / 4.0) * 100;
+                
                 card.innerHTML = `
-                    <div class="game-icon bg-gradient-to-br ${game.bgColor} flex items-center justify-center shadow-lg">
-                        ${game.icon}
-                    </div>
-                    <div class="game-info flex flex-col flex-1 min-w-0 h-full">
-                        <h3 class="game-title font-bold text-white truncate">${game.title}</h3>
-                        <p class="game-desc text-white/70 font-semibold flex-grow">${game.description}</p>
-                        <div class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block w-full">
-                            Play Now!
-                        </div>
-                    </div>
+                    <img src="${carPreviews[key]}" class="car-3d-preview" alt="${stat.name}">
+                    <h3>${stat.name}</h3>
+                    <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 15px; height: 40px;">${stat.desc}</p>
+                    <div class="stat-row"><span>Speed</span><div class="stat-bar"><div class="stat-fill" style="width:${spdPct}%; background:${stat.color};"></div></div></div>
+                    <div class="stat-row"><span>Accel</span><div class="stat-bar"><div class="stat-fill" style="width:${accPct}%; background:${stat.color};"></div></div></div>
+                    <div class="stat-row"><span>Handling</span><div class="stat-bar"><div class="stat-fill" style="width:${trnPct}%; background:${stat.color};"></div></div></div>
+                    <div class="stat-row"><span>Mass</span><div class="stat-bar"><div class="stat-fill" style="width:${mssPct}%; background:${stat.color};"></div></div></div>
                 `;
-                gamesContainer.appendChild(card);
+                carousel.appendChild(card);
+            });
+            
+            modal.classList.remove('hidden'); setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function selectCar(key) {
+            if (selectingPlayer === 1) {
+                p1SelectedCar = key;
+                document.getElementById('p1-car-display').innerText = CAR_STATS[key].name;
+                if (gameMode === '2p-dist' && isHost && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'room_settings', payload: { track: currentTrackIndex, hostCar: p1SelectedCar } }).catch(e=>console.log(e));
+                }
+            } else {
+                p2SelectedCar = key;
+                document.getElementById('p2-car-display').innerText = CAR_STATS[key].name;
+                if (gameMode === '2p-dist' && !isHost && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'guest_update', payload: { guestCar: p2SelectedCar } }).catch(e=>console.log(e));
+                }
+            }
+        }
+
+        function selectTrack(index) {
+            currentTrackIndex = index;
+            document.getElementById('track-name-display').innerText = TRACK_NAMES[index];
+            loadTrack(index);
+            if (gameMode === '2p-dist' && isHost && roomChannel && channelConnected) {
+                roomChannel.send({ type: 'broadcast', event: 'room_settings', payload: { track: currentTrackIndex, hostCar: p1SelectedCar } }).catch(e=>console.log(e));
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('selection-modal');
+            modal.classList.remove('active'); setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function openInstructionsModal() {
+            const modal = document.getElementById('instructions-modal');
+            modal.classList.remove('hidden'); setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function closeInstructionsModal() {
+            const modal = document.getElementById('instructions-modal');
+            modal.classList.remove('active'); setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function updateInstructions() {
+            const mode = inputModeSelect.value;
+            const inst = document.getElementById('instructions-list');
+            
+            if (mode === 'desktop') {
+                document.body.classList.remove('mobile-ui');
+                inst.innerHTML = `<li><strong class="highlight">Player 1:</strong> W, A, S, D</li><li><strong class="highlight">Player 2:</strong> Arrow Keys</li><li><strong class="highlight">Pause:</strong> ESC</li>`;
+            } else if (mode === 'gamepad') {
+                document.body.classList.remove('mobile-ui');
+                inst.innerHTML = `<li><strong class="highlight">Player 1:</strong> Gamepad 1 (Left Stick & Triggers)</li><li><strong class="highlight">Player 2:</strong> Gamepad 2</li><li><strong class="highlight">Pause:</strong> Start Button</li>`;
+            } else if (mode === 'mobile') {
+                document.body.classList.add('mobile-ui');
+                inst.innerHTML = `<li><strong class="highlight">Touch Controls:</strong> Use the on-screen steering.</li>`;
+                if(gameMode === '2p-local') setPlayerMode('1p'); 
+            }
+        }
+        
+        function bindTouch(id, key) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); touchState[key] = true; el.classList.add('active'); }, {passive: false});
+            el.addEventListener('touchend', (e) => { e.preventDefault(); touchState[key] = false; el.classList.remove('active'); }, {passive: false});
+            el.addEventListener('touchcancel', (e) => { e.preventDefault(); touchState[key] = false; el.classList.remove('active'); }, {passive: false});
+        }
+
+        bindTouch('btn-left', 'left'); bindTouch('btn-right', 'right');
+        bindTouch('btn-gas', 'fwd'); bindTouch('btn-brake', 'rev');
+
+        function setupSpeedometer(ticksContainerId) {
+            const container = document.getElementById(ticksContainerId);
+            container.innerHTML = ''; 
+            const minAngle = -120; const maxAngle = 120;
+            const range = maxAngle - minAngle; const numTicks = 25; 
+            
+            for(let i=0; i<numTicks; i++) {
+                let angle = minAngle + (i / (numTicks-1)) * range;
+                let val = i * 10;
+                
+                let tick = document.createElement('div'); tick.className = 'speed-tick';
+                let isMajor = i % 2 === 0;
+                if(isMajor) tick.classList.add('major');
+                if(val >= 160) tick.classList.add('red'); 
+                
+                tick.style.transform = `rotate(${angle}deg) translateY(-80px)`;
+                container.appendChild(tick);
+                
+                if (isMajor && val > 0 && val < 240) {
+                    let label = document.createElement('div'); label.className = 'speed-label';
+                    label.innerText = val; if(val >= 160) label.style.color = '#f55';
+                    let rad = (angle - 90) * (Math.PI/180);
+                    label.style.left = `${90 + Math.cos(rad) * 55 - 10}px`;
+                    label.style.top = `${90 + Math.sin(rad) * 55 - 8}px`;
+                    container.appendChild(label);
+                }
+            }
+        }
+        setupSpeedometer('p1-ticks'); setupSpeedometer('p2-ticks');
+
+        class Car {
+            constructor(name, color, isPlayer, playerNum = 0, type = 'balanced', targetScene = scene) {
+                this.name = name; this.isPlayer = isPlayer; this.playerNum = playerNum; this.carType = type;
+                const stats = CAR_STATS[type];
+                
+                this.position = new THREE.Vector3(); this.velocity = new THREE.Vector3();
+                this.angle = 0; this.speed = 0; this.steerVisual = 0;
+                
+                this.baseMaxSpeed = isPlayer ? stats.max : stats.max - 0.1 + (Math.random() * 0.1);
+                this.maxSpeed = this.baseMaxSpeed; this.acceleration = stats.acc;
+                this.braking = 0.03; this.friction = 0.98; this.steerSpeed = stats.turn;
+                this.baseMass = stats.mass; this.mass = this.baseMass;
+                
+                this.activePowerup = null; this.powerupTimer = 0;
+                this.lap = 1; this.trackIndex = 0; this.distanceCovered = 0;
+                this.finished = false; this.finishTime = 0;
+
+                this.engineSynth = (isPlayer && soundEnabled) ? new EngineSynth() : null;
+
+                this.mesh = new THREE.Group();
+                this.wheels = []; this.frontWheels = []; this.taillights = [];
+                
+                this.buildCarMesh(type, color, stats);
+
+                const auraGeo = new THREE.SphereGeometry(Math.max(stats.dim[0], stats.dim[2]) * 0.8, 16, 16);
+                this.auraMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+                this.aura = new THREE.Mesh(auraGeo, this.auraMat); this.aura.position.y = 1; this.aura.visible = false;
+                this.mesh.add(this.aura);
+
+                targetScene.add(this.mesh);
+            }
+
+            buildCarMesh(type, colorHex, stats) {
+                const w = stats.dim[0], h = stats.dim[1], l = stats.dim[2];
+                const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.2, metalness: 0.7 });
+                const roofMat = new THREE.MeshStandardMaterial({ color: type === 'speedster' ? 0x111111 : colorHex, roughness: 0.2, metalness: 0.7 });
+                const glassMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.05, metalness: 0.9 });
+                const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9, metalness: 0.2 });
+                const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 1.0 });
+                const hlMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffee, emissiveIntensity: 2 });
+                this.tlMat = new THREE.MeshStandardMaterial({ color: 0x550000, emissive: 0x550000, emissiveIntensity: 1 });
+
+                const createWheel = (x, y, z, r, tw, isFront) => {
+                    let steerGroup = new THREE.Group(); steerGroup.position.set(x, y, z);
+                    let spinGroup = new THREE.Group();
+                    let tire = new THREE.Mesh(new THREE.CylinderGeometry(r, r, tw, 24), darkMat); tire.rotation.z = Math.PI/2;
+                    let rim = new THREE.Mesh(new THREE.CylinderGeometry(r*0.6, r*0.6, tw*1.05, 12), rimMat); rim.rotation.z = Math.PI/2;
+                    spinGroup.add(tire, rim); steerGroup.add(spinGroup);
+                    this.wheels.push({ spin: spinGroup, r: r });
+                    if (isFront) this.frontWheels.push(steerGroup);
+                    return steerGroup;
+                };
+
+                const yOff = type === 'bruiser' || type === 'tank' ? 0.8 : 0.5; 
+                const wR = type === 'tank' || type === 'bruiser' ? 0.6 : 0.45; const wW = 0.5;
+                
+                let chassis = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.6, l), bodyMat); chassis.position.y = yOff + h*0.3; chassis.castShadow = true; this.mesh.add(chassis);
+
+                let cabW = w * 0.85, cabH = h * 0.5, cabL = l * 0.5;
+                let cabZ = type === 'speedster' ? -l*0.15 : (type === 'bruiser' ? l*0.1 : 0);
+                let cabin = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabL), glassMat); cabin.position.set(0, yOff + h*0.6 + cabH/2, cabZ); cabin.castShadow = true; this.mesh.add(cabin);
+
+                let roof = new THREE.Mesh(new THREE.BoxGeometry(cabW + 0.05, 0.05, cabL + 0.05), roofMat); roof.position.set(0, cabin.position.y + cabH/2, cabZ); roof.castShadow = true; this.mesh.add(roof);
+
+                let hw = 0.4, hh = 0.15, hl = 0.1;
+                let hlL = new THREE.Mesh(new THREE.BoxGeometry(hw, hh, hl), hlMat); hlL.position.set(w/2 - 0.3, yOff + h*0.4, l/2 + 0.01);
+                let hlR = hlL.clone(); hlR.position.x = -w/2 + 0.3; this.mesh.add(hlL, hlR);
+
+                let tlL = new THREE.Mesh(new THREE.BoxGeometry(hw, hh, hl), this.tlMat); tlL.position.set(w/2 - 0.3, yOff + h*0.4, -l/2 - 0.01);
+                let tlR = tlL.clone(); tlR.position.x = -w/2 + 0.3; this.mesh.add(tlL, tlR); this.taillights.push(tlL, tlR);
+                
+                let grille = new THREE.Mesh(new THREE.BoxGeometry(w*0.5, hh*1.5, hl), darkMat); grille.position.set(0, yOff + h*0.3, l/2 + 0.02); this.mesh.add(grille);
+
+                if (type === 'speedster' || type === 'drifter') {
+                    let spoiler = new THREE.Mesh(new THREE.BoxGeometry(w*1.1, 0.05, 0.4), roofMat); spoiler.position.set(0, yOff + h*0.6 + 0.3, -l/2 + 0.1); spoiler.castShadow = true;
+                    let stL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.1), darkMat); stL.position.set(w/2 - 0.2, yOff + h*0.6 + 0.15, -l/2 + 0.1);
+                    let stR = stL.clone(); stR.position.x = -w/2 + 0.2; this.mesh.add(spoiler, stL, stR);
+                    let ex = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.4, 8), darkMat); ex.rotation.x = Math.PI/2; ex.position.set(w/2 - 0.3, yOff + 0.15, -l/2 - 0.1);
+                    let ex2 = ex.clone(); ex2.position.x = -w/2 + 0.3; this.mesh.add(ex, ex2);
+                }
+
+                if (type === 'drifter') { let skirt = new THREE.Mesh(new THREE.BoxGeometry(w*1.05, h*0.3, l*0.6), roofMat); skirt.position.set(0, yOff + h*0.15, 0); this.mesh.add(skirt); }
+                if (type === 'bruiser') {
+                    let bar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, w*1.1, 8), rimMat); bar.rotation.z = Math.PI/2; bar.position.set(0, yOff + h*0.3, l/2 + 0.15);
+                    let bar2 = bar.clone(); bar2.position.y += 0.25; this.mesh.add(bar, bar2);
+                    let bed = new THREE.Mesh(new THREE.BoxGeometry(w*0.9, 0.15, l*0.4), darkMat); bed.position.set(0, yOff + h*0.6, -l*0.3); this.mesh.add(bed);
+                }
+                if (type === 'tank') {
+                    let turret = new THREE.Mesh(new THREE.CylinderGeometry(w*0.35, w*0.45, 0.4, 16), bodyMat); turret.position.set(0, cabin.position.y + cabH/2 + 0.2, cabZ);
+                    let barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, l*0.7, 8), darkMat); barrel.rotation.x = Math.PI/2; barrel.position.set(0, turret.position.y, cabZ + l*0.35); this.mesh.add(turret, barrel);
+                    let trackL = new THREE.Mesh(new THREE.BoxGeometry(wW*1.2, wR*2.1, l*0.9), darkMat); trackL.position.set(w/2 + wW/2, wR, 0);
+                    let trackR = trackL.clone(); trackR.position.x = -(w/2 + wW/2); this.mesh.add(trackL, trackR);
+                }
+
+                const wX = w/2 + wW/2 - 0.1; const wZ = l/2 - wR - 0.2;
+                this.mesh.add(createWheel(wX, wR, wZ, wR, wW, true)); this.mesh.add(createWheel(-wX, wR, wZ, wR, wW, true));
+                this.mesh.add(createWheel(wX, wR, -wZ, wR, wW, false)); this.mesh.add(createWheel(-wX, wR, -wZ, wR, wW, false));
+                if (type === 'tank') { this.mesh.add(createWheel(wX, wR, 0, wR, wW, false)); this.mesh.add(createWheel(-wX, wR, 0, wR, wW, false)); }
+            }
+
+            update(trackPoints) {
+                if (this.powerupTimer > 0) {
+                    this.powerupTimer--;
+                    if (this.powerupTimer <= 0) this.resetStats();
+                }
+
+                let isBraking = false;
+                const inputMode = inputModeSelect.value;
+                let processInputs = false; let isRemote = false;
+
+                if (gameMode === '1p' || gameMode === '2p-local') {
+                    processInputs = this.isPlayer;
+                } else if (gameMode === '2p-dist') {
+                    if (isHost && this.playerNum === 1) processInputs = true;
+                    if (!isHost && this.playerNum === 2) processInputs = true;
+                    
+                    if (isHost && this.playerNum === 2) isRemote = true;
+                    if (!isHost && this.playerNum === 1) isRemote = true;
+                }
+
+                if (this.finished) {
+                    this.speed *= 0.95; isBraking = true;
+                } else if (processInputs) {
+                    let fwd = false, rev = false, left = false, right = false;
+                    
+                    if (this.playerNum === 1 || (gameMode === '2p-dist' && this.playerNum === 2)) {
+                        fwd = keys.w || (gameMode !== '2p-local' ? keys.ArrowUp : false) || touchState.fwd; 
+                        rev = keys.s || (gameMode !== '2p-local' ? keys.ArrowDown : false) || touchState.rev;
+                        left = keys.a || (gameMode !== '2p-local' ? keys.ArrowLeft : false) || touchState.left; 
+                        right = keys.d || (gameMode !== '2p-local' ? keys.ArrowRight : false) || touchState.right;
+                        
+                        if (inputMode === 'gamepad') {
+                            let gp = navigator.getGamepads()[0];
+                            if (gp) {
+                                if (gp.buttons[7]?.pressed || gp.buttons[0]?.pressed) fwd = true; 
+                                if (gp.buttons[6]?.pressed || gp.buttons[1]?.pressed) rev = true; 
+                                if (gp.axes[0] < -0.2 || gp.buttons[14]?.pressed) left = true;
+                                if (gp.axes[0] > 0.2 || gp.buttons[15]?.pressed) right = true;
+                                if (gp.buttons[9]?.pressed && !gpPausePressed) { togglePause(); gpPausePressed = true; } 
+                                else if (!gp.buttons[9]?.pressed) { gpPausePressed = false; }
+                            }
+                        }
+                    } else if (this.playerNum === 2 && gameMode === '2p-local') {
+                        fwd = keys.ArrowUp; rev = keys.ArrowDown; left = keys.ArrowLeft; right = keys.ArrowRight;
+                        if (inputMode === 'gamepad') {
+                            let gp = navigator.getGamepads()[1];
+                            if (gp) {
+                                if (gp.buttons[7]?.pressed || gp.buttons[0]?.pressed) fwd = true; 
+                                if (gp.buttons[6]?.pressed || gp.buttons[1]?.pressed) rev = true; 
+                                if (gp.axes[0] < -0.2 || gp.buttons[14]?.pressed) left = true;
+                                if (gp.axes[0] > 0.2 || gp.buttons[15]?.pressed) right = true;
+                                if (gp.buttons[9]?.pressed && !gpPausePressed) { togglePause(); gpPausePressed = true; } 
+                                else if (!gp.buttons[9]?.pressed) { gpPausePressed = false; }
+                            }
+                        }
+                    }
+
+                    if (fwd) this.speed += this.acceleration;
+                    if (rev) { this.speed -= this.braking; if (this.speed > 0) isBraking = true; }
+                    
+                    if (this.speed > 0.1) {
+                        if (left) this.angle += this.steerSpeed;
+                        if (right) this.angle -= this.steerSpeed;
+                    } else if (this.speed < -0.1) {
+                        if (left) this.angle -= this.steerSpeed;
+                        if (right) this.angle += this.steerSpeed;
+                    }
+
+                    if (left) this.steerVisual = 0.5; else if (right) this.steerVisual = -0.5; else this.steerVisual = 0;
+                    
+                    // WRONG WAY DETECTION
+                    let nextIdx = (this.trackIndex + 5) % trackPoints.length;
+                    let pt1 = trackPoints[this.trackIndex]; let pt2 = trackPoints[nextIdx];
+                    let dx = pt2.x - pt1.x; let dz = pt2.z - pt1.z;
+                    let len = Math.sqrt(dx*dx + dz*dz) || 1;
+                    let dot = ((dx/len) * Math.sin(this.angle) + (dz/len) * Math.cos(this.angle)) * (this.speed >= 0 ? 1 : -1);
+                    
+                    let wwEl = this.playerNum === 1 ? p1WrongWay : p2WrongWay;
+                    if (gameMode === '2p-dist') wwEl = p1WrongWay; 
+                    if (dot < -0.2 && Math.abs(this.speed) > 0.1) wwEl.classList.remove('hidden'); else wwEl.classList.add('hidden');
+                    
+                } else if (!this.isPlayer && gameMode !== '2p-dist') {
+                    // AI controlled
+                    this.speed += this.acceleration;
+                    let lookAhead = Math.floor(10 + (this.speed * 15));
+                    let targetPoint = trackPoints[(this.trackIndex + lookAhead) % trackPoints.length];
+                    let targetAngle = Math.atan2(targetPoint.x - this.position.x, targetPoint.z - this.position.z);
+                    let angleDiff = targetAngle - this.angle;
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                    this.angle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), this.steerSpeed);
+                    this.steerVisual = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * 5, 0.6); 
+                }
+
+                // Smooth Network Extrapolation + Local Physics
+                if(!isRemote) {
+                    if (this.activePowerup === 'oil') { this.speed *= 0.90; this.angle += (Math.random() - 0.5) * 0.1; } 
+                    else { this.speed *= this.friction; }
+                    this.speed = Math.max(Math.min(this.speed, this.maxSpeed), -this.maxSpeed / 2);
+                    this.position.x += Math.sin(this.angle) * this.speed;
+                    this.position.z += Math.cos(this.angle) * this.speed;
+                } else {
+                    // EXTRAPOLATE Remote cars between 10hz Network ticks so they smoothly glide forward
+                    this.speed *= this.friction;
+                    this.position.x += Math.sin(this.angle) * this.speed;
+                    this.position.z += Math.cos(this.angle) * this.speed;
+                }
+
+                this.updateTrackProgress(trackPoints);
+
+                this.mesh.position.copy(this.position);
+                this.mesh.rotation.y = this.angle;
+                
+                this.wheels.forEach(w => { w.spin.rotation.x += this.speed / w.r; });
+                this.frontWheels.forEach(w => { w.rotation.y += (this.steerVisual - w.rotation.y) * 0.2; });
+
+                if (this.tlMat) { this.tlMat.color.setHex(isBraking ? 0xff3333 : 0x550000); this.tlMat.emissive.setHex(isBraking ? 0xff3333 : 0x550000); }
+
+                if (this.isPlayer) {
+                    let speedMph = Math.abs(this.speed) * 120; 
+                    let sAngle = Math.max(-120, Math.min(120, -120 + (speedMph / 240) * 240));
+                    
+                    let needle = this.playerNum === 1 ? p1Needle : p2Needle;
+                    let gearEl = this.playerNum === 1 ? p1Gear : p2Gear;
+                    
+                    if(gameMode === '2p-dist' && this.playerNum === 2 && !isHost) { needle = p1Needle; gearEl = p1Gear; }
+                    
+                    if(needle) needle.style.transform = `rotate(${sAngle}deg)`;
+                    if(gearEl) gearEl.innerText = this.speed < -0.05 ? "R" : (this.speed < 0.1 ? "N" : Math.min(6, Math.floor(1 + speedMph/40)));
+                }
+
+                if (this.engineSynth) {
+                    if (gameState === 'paused' || this.finished) this.engineSynth.stop();
+                    else this.engineSynth.update(this.speed);
+                }
+            }
+
+            resetStats() {
+                this.maxSpeed = this.baseMaxSpeed; this.mass = this.baseMass;
+                this.mesh.scale.set(1, 1, 1); this.aura.visible = false; this.activePowerup = null;
+                this.mesh.children.forEach(c => { if(c.material && c.material.transparent) { c.material.transparent=false; c.material.opacity=1; }});
+            }
+
+            updateTrackProgress(trackPoints) {
+                let minDist = Infinity; let bestIndex = this.trackIndex;
+                for (let i = 0; i < trackPoints.length; i+=2) { 
+                    let distSq = this.position.distanceToSquared(trackPoints[i]);
+                    if (distSq < minDist) { minDist = distSq; bestIndex = i; }
+                }
+
+                let immune = (this.activePowerup === 'heavy' || this.activePowerup === 'invincible');
+                if (Math.sqrt(minDist) > TRACK_WIDTH / 2 && !immune) this.speed *= 0.90; 
+
+                if (this.trackIndex > trackPoints.length * 0.8 && bestIndex < trackPoints.length * 0.2) {
+                    this.lap++;
+                    if (this.lap > TOTAL_LAPS && !this.finished) { this.finished = true; this.finishTime = Date.now(); checkRaceEnd(); }
+                    if (this.isPlayer) {
+                        let lapEl = (gameMode === '2p-dist' && !isHost && this.playerNum === 2) ? p1LapEl : (this.playerNum === 1 ? p1LapEl : p2LapEl);
+                        lapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
+                    }
+                } else if (this.trackIndex < trackPoints.length * 0.2 && bestIndex > trackPoints.length * 0.8) {
+                    this.lap--; 
+                }
+
+                this.trackIndex = bestIndex;
+                this.distanceCovered = (this.lap * trackPoints.length) + this.trackIndex;
+            }
+        }
+
+        function createPowerupMesh(type, pColor) {
+            let group = new THREE.Group();
+            let mat = new THREE.MeshLambertMaterial({ color: pColor, emissive: pColor, emissiveIntensity: 0.5 });
+            
+            if (type === 'boost') {
+                let mesh = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 4), mat); mesh.rotation.x = Math.PI/2; group.add(mesh);
+            } else if (type === 'heavy') {
+                let base = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 2), mat);
+                let top = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 16), mat); top.position.y = 1; group.add(base, top);
+            } else if (type === 'ghost') {
+                let base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 1.5, 16), mat);
+                let head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), mat); head.position.y = 0.75;
+                mat.transparent = true; mat.opacity = 0.6; group.add(base, head);
+            } else if (type === 'bumper') {
+                let mesh = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.6, 16, 32), mat); mesh.rotation.x = Math.PI/2; group.add(mesh);
+            } else if (type === 'magnet') {
+                let mesh = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.4, 16, 32, Math.PI), mat); mesh.position.y = 0.5;
+                let cap1 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1), mat); cap1.position.set(1.2, -0.5, 0);
+                let cap2 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1), mat); cap2.position.set(-1.2, -0.5, 0);
+                group.add(mesh, cap1, cap2);
+            } else if (type === 'oil') {
+                let base = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), mat);
+                let tip = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2, 16), mat); tip.position.y = 1.2; group.add(base, tip);
+            } else if (type === 'shrink') {
+                let core = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), mat);
+                let box = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 2.5), new THREE.MeshBasicMaterial({ color: pColor, wireframe: true }));
+                group.add(core, box);
+            } else if (type === 'invincible') {
+                let mesh1 = new THREE.Mesh(new THREE.OctahedronGeometry(1.5), mat);
+                let mesh2 = new THREE.Mesh(new THREE.OctahedronGeometry(1.5), mat); mesh2.rotation.set(Math.PI/4, Math.PI/4, 0); group.add(mesh1, mesh2);
+            }
+            return group;
+        }
+
+        function generateCarPreviews() {
+            const previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); previewRenderer.setSize(256, 256);
+            const previewScene = new THREE.Scene();
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); dirLight.position.set(10, 20, 10); previewScene.add(dirLight);
+            previewScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const previewCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100); previewCamera.position.set(6, 4, 7); previewCamera.lookAt(0, 0.5, 0);
+
+            Object.keys(CAR_STATS).forEach(key => {
+                const dummyCar = new Car("Preview", CAR_STATS[key].color, false, 0, key, previewScene);
+                previewRenderer.render(previewScene, previewCamera);
+                carPreviews[key] = previewRenderer.domElement.toDataURL("image/png");
+                previewScene.remove(dummyCar.mesh);
+            });
+            previewRenderer.dispose();
+        }
+
+        function init() {
+            const container = document.getElementById('game-container');
+            
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB); scene.fog = new THREE.Fog(0x87CEEB, 100, 400);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setScissorTest(true);
+            container.appendChild(renderer.domElement);
+
+            camera1 = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera2 = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(100, 150, 50); dirLight.castShadow = true;
+            dirLight.shadow.camera.left = -200; dirLight.shadow.camera.right = 200;
+            dirLight.shadow.camera.top = 200; dirLight.shadow.camera.bottom = -200;
+            dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshLambertMaterial({ color: 0x3b7a33 }));
+            ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+            trackGroup = new THREE.Group(); scene.add(trackGroup);
+            generateCarPreviews();
+
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) inputModeSelect.value = 'mobile';
+            updateInstructions(); selectTrack(0);
+            
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', (e) => { 
+                if(keys.hasOwnProperty(e.key)) keys[e.key] = true; 
+                if(e.key === 'Escape' || e.key.toLowerCase() === 'p') togglePause(false);
+            });
+            window.addEventListener('keyup', (e) => { if(keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
+            animate();
+        }
+
+        function loadTrack(index) {
+            while(trackGroup.children.length > 0) trackGroup.remove(trackGroup.children[0]);
+            scenery = []; powerups = [];
+
+            const points = trackConfigs[index];
+            trackCurve = new THREE.CatmullRomCurve3(points, true);
+            trackPoints = trackCurve.getSpacedPoints(600);
+
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            trackPoints.forEach(p => {
+                if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+                if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
+            });
+            
+            const padding = 20; const mapW = maxX - minX + padding * 2; const mapH = maxZ - minZ + padding * 2;
+            let scale = Math.min(180 / mapW, 180 / mapH);
+            let offX = 90 - ((maxX + minX) / 2) * scale; let offZ = 90 - ((maxZ + minZ) / 2) * scale;
+            mapScale1 = mapScale2 = scale; mapOffsetX1 = mapOffsetX2 = offX; mapOffsetZ1 = mapOffsetZ2 = offZ;
+
+            const tubeGeo = new THREE.TubeGeometry(trackCurve, 200, TRACK_WIDTH/2, 8, true);
+            const positions = tubeGeo.attributes.position;
+            for(let i=0; i<positions.count; i++) positions.setY(i, 0.1); 
+            tubeGeo.computeVertexNormals();
+            const trackMesh = new THREE.Mesh(tubeGeo, new THREE.MeshLambertMaterial({ color: 0x444444 }));
+            trackMesh.receiveShadow = true; trackGroup.add(trackMesh);
+
+            const arrowCanvas = document.createElement('canvas'); arrowCanvas.width = 128; arrowCanvas.height = 128;
+            const actx = arrowCanvas.getContext('2d');
+            actx.fillStyle = 'rgba(255, 255, 255, 0.4)'; actx.beginPath(); actx.moveTo(64, 10); actx.lineTo(110, 100); actx.lineTo(64, 80); actx.lineTo(18, 100); actx.closePath(); actx.fill();
+            const arrowMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(arrowCanvas), transparent: true, depthWrite: false });
+            const arrowGeo = new THREE.PlaneGeometry(TRACK_WIDTH/1.5, TRACK_WIDTH/1.5);
+
+            for(let i=30; i<trackPoints.length; i+=60) {
+                let pt = trackPoints[i]; let nextPt = trackPoints[(i+2)%trackPoints.length];
+                let arrow = new THREE.Mesh(arrowGeo, arrowMat);
+                arrow.position.set(pt.x, 0.2, pt.z); arrow.lookAt(nextPt.x, 0.2, nextPt.z); arrow.rotation.x -= Math.PI / 2; trackGroup.add(arrow);
+            }
+
+            const startLineGeo = new THREE.PlaneGeometry(TRACK_WIDTH, 5);
+            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,64,64); ctx.fillStyle = '#000'; ctx.fillRect(0,0,32,32); ctx.fillRect(32,32,32,32);
+            const startTex = new THREE.CanvasTexture(canvas); startTex.wrapS = THREE.RepeatWrapping; startTex.wrapT = THREE.RepeatWrapping; startTex.repeat.set(TRACK_WIDTH/2, 2);
+
+            const startLine = new THREE.Mesh(startLineGeo, new THREE.MeshBasicMaterial({ map: startTex }));
+            startLine.rotation.x = -Math.PI / 2; startLine.position.set(trackPoints[0].x, 0.15, trackPoints[0].z);
+            startLine.lookAt(trackPoints[1].x, 0.15, trackPoints[1].z); trackGroup.add(startLine);
+
+            for (let i = 40; i < trackPoints.length; i += 60) {
+                let pt = trackPoints[i]; let type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+                let pMesh = createPowerupMesh(type, POWERUP_COLORS[type]);
+                let offset = (Math.random() - 0.5) * (TRACK_WIDTH - 6);
+                let ptNext = trackPoints[(i + 1) % trackPoints.length];
+                let dx = ptNext.x - pt.x; let dz = ptNext.z - pt.z; let len = Math.sqrt(dx*dx + dz*dz);
+                pMesh.position.set(pt.x + (-dz/len) * offset, 2, pt.z + (dx/len) * offset);
+                trackGroup.add(pMesh); powerups.push({ mesh: pMesh, type: type, active: true, respawnTimer: 0, pos: pMesh.position.clone() });
+            }
+
+            const treeGeo = new THREE.ConeGeometry(3, 10, 8); const treeMat = new THREE.MeshLambertMaterial({ color: 0x225511 });
+            const trunkGeo = new THREE.CylinderGeometry(0.8, 0.8, 4); const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5c4033 });
+
+            for (let i = 0; i < 200; i++) {
+                let x = minX - 100 + Math.random() * (maxX - minX + 200); let z = minZ - 100 + Math.random() * (maxZ - minZ + 200);
+                let testPt = new THREE.Vector3(x, 0, z); let onTrack = false;
+                for(let p of trackPoints) { if (testPt.distanceToSquared(p) < (TRACK_WIDTH * TRACK_WIDTH)) { onTrack = true; break; } }
+                if (!onTrack) {
+                    const tree = new THREE.Group();
+                    const top = new THREE.Mesh(treeGeo, treeMat); top.position.y = 7; top.castShadow = true;
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMat); trunk.position.y = 2; trunk.castShadow = true;
+                    tree.add(top, trunk); tree.position.set(x, 0, z); trackGroup.add(tree);
+                }
+            }
+        }
+
+        function startGame() {
+            if (gameMode === '2p-dist') {
+                if(!isHost || !remotePlayerReady) { alert("Waiting for opponent to join!"); return; }
+                roomChannel.send({ type: 'broadcast', event: 'start_game', payload: {} }).catch(e=>console.log(e));
+                startGameDistance(true);
+            } else {
+                startGameLocal();
+            }
+        }
+
+        function startGameLocal() {
+            gameState = 'playing';
+            
+            soundEnabled = audioToggle.checked;
+            if (soundEnabled && !audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+            mainMenu.style.opacity = '0';
+            setTimeout(() => { mainMenu.style.display = 'none'; mainMenu.style.opacity = '1'; }, 400);
+            gameOverMenu.classList.remove('active'); gameOverMenu.classList.add('hidden');
+            p1WrongWay.classList.add('hidden'); p2WrongWay.classList.add('hidden');
+            
+            let showSpeedo = speedoToggle.checked;
+            
+            document.getElementById('pause-btn').classList.remove('hidden');
+            p1Hud.classList.remove('hidden'); p1Pos.classList.remove('hidden'); p1LapEl.innerText = '1';
+            minimapCanvasP1.classList.remove('hidden');
+            if(showSpeedo) p1SpeedContainer.classList.remove('hidden'); else p1SpeedContainer.classList.add('hidden');
+            
+            if (inputModeSelect.value === 'mobile') document.getElementById('touch-controls').classList.remove('hidden');
+
+            if (gameMode === '2p-local') {
+                document.getElementById('split-divider').classList.remove('hidden');
+                p2Hud.classList.remove('hidden'); p2Pos.classList.remove('hidden'); p2LapEl.innerText = '1';
+                minimapCanvasP2.classList.remove('hidden');
+                if(showSpeedo) p2SpeedContainer.classList.remove('hidden'); else p2SpeedContainer.classList.add('hidden');
+                
+                p1SpeedContainer.style.bottom = 'auto'; p1SpeedContainer.style.top = 'calc(50% - 210px)'; 
+                minimapCanvasP1.style.bottom = 'auto'; minimapCanvasP1.style.top = 'calc(50% - 210px)';
+            } else {
+                document.getElementById('split-divider').classList.add('hidden');
+                p2Hud.classList.add('hidden'); p2Pos.classList.add('hidden');
+                minimapCanvasP2.classList.add('hidden'); p2SpeedContainer.classList.add('hidden');
+                
+                p1SpeedContainer.style.bottom = '30px'; p1SpeedContainer.style.top = 'auto';
+                minimapCanvasP1.style.bottom = '30px'; minimapCanvasP1.style.top = 'auto';
+            }
+
+            onWindowResize();
+
+            cars.forEach(car => scene.remove(car.mesh)); cars = [];
+            const cpuTypes = ['balanced', 'speedster', 'bruiser', 'drifter', 'tank'];
+
+            cars.push(new Car("Player 1", 0xff4757, true, 1, p1SelectedCar));
+            if (gameMode === '2p-local') cars.push(new Car("Player 2", 0x1e90ff, true, 2, p2SelectedCar));
+            else cars.push(new Car("CPU 1", 0x1e90ff, false, 0, cpuTypes[Math.floor(Math.random() * cpuTypes.length)]));
+
+            const cpuColors = [0xf1c40f, 0x2ed573, 0x9b59b6, 0xe67e22]; 
+            for (let i = 0; i < 4; i++) cars.push(new Car(`CPU ${i+(gameMode==='2p-local'?1:2)}`, cpuColors[i], false, 0, cpuTypes[Math.floor(Math.random() * cpuTypes.length)]));
+
+            positionCarsAtStart();
+        }
+
+        function startGameDistance(isHosting) {
+            gameState = 'playing';
+            
+            soundEnabled = audioToggle.checked;
+            if (soundEnabled && !audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+            mainMenu.style.opacity = '0';
+            setTimeout(() => { mainMenu.style.display = 'none'; mainMenu.style.opacity = '1'; }, 400);
+            gameOverMenu.classList.remove('active'); gameOverMenu.classList.add('hidden');
+            
+            document.getElementById('pause-btn').classList.remove('hidden');
+            p1Hud.classList.remove('hidden'); p1Pos.classList.remove('hidden'); p1LapEl.innerText = '1';
+            minimapCanvasP1.classList.remove('hidden');
+            if(speedoToggle.checked) p1SpeedContainer.classList.remove('hidden'); else p1SpeedContainer.classList.add('hidden');
+            
+            if (inputModeSelect.value === 'mobile') document.getElementById('touch-controls').classList.remove('hidden');
+
+            document.getElementById('split-divider').classList.add('hidden');
+            p2Hud.classList.add('hidden'); p2Pos.classList.add('hidden');
+            minimapCanvasP2.classList.add('hidden'); p2SpeedContainer.classList.add('hidden');
+            p1SpeedContainer.style.bottom = '30px'; p1SpeedContainer.style.top = 'auto';
+            minimapCanvasP1.style.bottom = '30px'; minimapCanvasP1.style.top = 'auto';
+
+            onWindowResize();
+
+            cars.forEach(car => scene.remove(car.mesh)); cars = [];
+
+            // Spawn only the two players
+            cars.push(new Car(isHost ? "You" : "Opponent", 0xff4757, true, 1, p1SelectedCar));
+            cars.push(new Car(!isHost ? "You" : "Opponent", 0x1e90ff, true, 2, p2SelectedCar));
+
+            positionCarsAtStart();
+            if(isHost) supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
+        }
+
+        function positionCarsAtStart() {
+            const startPt = trackPoints[0];
+            const fwdVec = new THREE.Vector3().subVectors(trackPoints[1], trackPoints[0]).normalize();
+            const rightVec = new THREE.Vector3(-fwdVec.z, 0, fwdVec.x).normalize();
+
+            for (let i = 0; i < cars.length; i++) {
+                let row = Math.floor(i / 2); let col = i % 2 === 0 ? -1 : 1;
+                let pos = startPt.clone().add(fwdVec.clone().multiplyScalar(-10 - (row * 15))).add(rightVec.clone().multiplyScalar(col * 6));
+                cars[i].position.copy(pos); cars[i].angle = Math.atan2(fwdVec.x, fwdVec.z);
+                cars[i].updateTrackProgress(trackPoints);
+            }
+        }
+
+        function togglePause(isRemoteEvent = false) {
+            if (gameState === 'playing') {
+                gameState = 'paused'; pauseMenu.classList.remove('hidden'); pauseMenu.classList.add('active');
+                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'paused' } }).catch(e=>console.log(e));
+                }
+            } else if (gameState === 'paused') {
+                gameState = 'playing'; pauseMenu.classList.add('hidden'); pauseMenu.classList.remove('active');
+                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'playing' } }).catch(e=>console.log(e));
+                }
+            }
+        }
+
+        function checkRaceEnd() {
+            let playersFinished = true;
+            for (let car of cars) { if (car.isPlayer && !car.finished) { playersFinished = false; break; } }
+            if (playersFinished) setTimeout(showGameOver, 1500);
+        }
+
+        function showGameOver() {
+            if(gameState === 'finished') return;
+            gameState = 'finished'; updateStandings();
+            document.getElementById('pause-btn').classList.add('hidden');
+            
+            cars.forEach(car => { if (car.engineSynth) car.engineSynth.stop(); });
+            
+            standingsList.innerHTML = '';
+            cars.forEach((car, index) => {
+                let li = document.createElement('li');
+                let timeStr = car.finished ? "Finished" : "DNF";
+                if(car.isPlayer) li.innerHTML = `<span style="color:${car.playerNum===1?'#ff4757':'#1e90ff'}">${index + 1}. ${car.name}</span> <span style="float:right; font-size:0.8em; color:#ccc;">${timeStr}</span>`;
+                else li.innerHTML = `${index + 1}. ${car.name} <span style="float:right; font-size:0.8em; color:#ccc;">${timeStr}</span>`;
+                standingsList.appendChild(li);
+            });
+
+            gameOverMenu.classList.remove('hidden'); gameOverMenu.classList.add('active');
+            if(isDistanceMode && isHost && roomCode) supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
+        }
+
+        async function returnToMenu(remoteTrigger = false) {
+            gameState = 'menu';
+            gameOverMenu.classList.remove('active'); gameOverMenu.classList.add('hidden');
+            pauseMenu.classList.remove('active'); pauseMenu.classList.add('hidden');
+            p1WrongWay.classList.add('hidden'); p2WrongWay.classList.add('hidden');
+            p1Toast.classList.add('hidden'); p1Toast.classList.remove('show');
+            p2Toast.classList.add('hidden'); p2Toast.classList.remove('show');
+            document.getElementById('pause-btn').classList.add('hidden');
+            document.getElementById('touch-controls').classList.add('hidden');
+            document.getElementById('start-btn').style.display = ''; // Reset UI inline style override
+            
+            mainMenu.style.display = 'flex';
+
+            if (gameMode === '2p-dist' && roomCode) {
+                if (!remoteTrigger && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'player_left', payload: {} }).catch(e=>console.log(e));
+                }
+                if (isHost) { await supabaseClient.schema('mateopolyracing').from('rooms').delete().eq('room_code', roomCode); } 
+                else if (!remoteTrigger) { await supabaseClient.schema('mateopolyracing').from('rooms').update({ guest_id: null }).eq('room_code', roomCode); }
+            }
+            
+            if(roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; channelConnected = false;}
+            if(peerConnection) { peerConnection.close(); peerConnection = null; }
+            if(localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+            
+            document.getElementById('lobby-pre').classList.remove('hidden');
+            document.getElementById('lobby-active').classList.add('hidden');
+            roomCode = null; remotePlayerReady = false; isHost = false;
+            
+            document.getElementById('split-divider').classList.add('hidden');
+            minimapCanvasP1.classList.add('hidden'); minimapCanvasP2.classList.add('hidden');
+            p1Hud.classList.add('hidden'); p1Pos.classList.add('hidden'); p1SpeedContainer.classList.add('hidden');
+            p2Hud.classList.add('hidden'); p2Pos.classList.add('hidden'); p2SpeedContainer.classList.add('hidden');
+            
+            cars.forEach(car => { if (car.engineSynth) car.engineSynth.stop(); scene.remove(car.mesh); }); 
+            cars = [];
+            
+            setPlayerMode(gameMode);
+
+            if (remoteTrigger) {
+                const errorEl = document.getElementById('lobby-error');
+                if (errorEl) errorEl.innerText = "Opponent disconnected / left the room.";
+            }
+        }
+
+        function getOrdinal(n) {
+            let s = ["th", "st", "nd", "rd"], v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+
+        function updateStandings() {
+            cars.sort((a, b) => b.distanceCovered - a.distanceCovered);
+            if(gameState === 'playing') {
+                cars.forEach((car, index) => {
+                    if (car.isPlayer) {
+                        let posStr = getOrdinal(index + 1);
+                        if(gameMode === '2p-dist' && !isHost && car.playerNum === 2) p1Pos.innerText = posStr; 
+                        else {
+                            if (car.playerNum === 1) p1Pos.innerText = posStr;
+                            if (car.playerNum === 2) p2Pos.innerText = posStr;
+                        }
+                    }
+                });
+            }
+        }
+
+        function showPowerupToast(playerNum, type) {
+            let toast = playerNum === 1 ? p1Toast : p2Toast;
+            if (gameMode === '2p-dist') toast = p1Toast; 
+
+            const name = type.toUpperCase(); const colorHex = POWERUP_COLORS[type];
+            const colorStr = '#' + colorHex.toString(16).padStart(6, '0');
+
+            toast.innerText = name + "!";
+            toast.style.border = `2px solid ${colorStr}`;
+            toast.style.textShadow = `0 0 15px ${colorStr}`;
+            toast.style.boxShadow = `0 10px 30px rgba(0,0,0,0.6), inset 0 0 20px ${colorStr}40`;
+
+            toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('show'), 10);
+
+            if (playerNum === 1 || gameMode === '2p-dist') {
+                if (p1ToastTimeout) clearTimeout(p1ToastTimeout);
+                p1ToastTimeout = setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.classList.add('hidden'), 300); }, 2000);
+            } else {
+                if (p2ToastTimeout) clearTimeout(p2ToastTimeout);
+                p2ToastTimeout = setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.classList.add('hidden'), 300); }, 2000);
+            }
+        }
+
+        function applyPowerupToCar(car, pType) {
+            car.activePowerup = pType; car.powerupTimer = 240; 
+            car.aura.visible = true; car.auraMat.color.setHex(POWERUP_COLORS[pType]);
+            if (car.isPlayer) { showPowerupToast(car.playerNum, pType); playSound('powerup'); }
+            
+            if (pType === 'boost') { car.maxSpeed = car.baseMaxSpeed * 1.5; car.speed += 0.5; } 
+            else if (pType === 'heavy') car.mass = car.baseMass * 10;
+            else if (pType === 'shrink') { car.mesh.scale.set(0.5, 0.5, 0.5); car.mass = car.baseMass * 0.5; } 
+            else if (pType === 'invincible') { car.maxSpeed = car.baseMaxSpeed * 1.3; car.mass = car.baseMass * 100; }
+            else if (pType === 'ghost') { car.mesh.children.forEach(c => { if(c.material) { c.material.transparent=true; c.material.opacity=0.5; } }); }
+        }
+
+        function handlePowerups() {
+            powerups.forEach((p, pIndex) => {
+                if (!p.active) {
+                    p.respawnTimer--;
+                    if (p.respawnTimer <= 0) { p.active = true; p.mesh.visible = true; }
+                    return;
+                }
+                p.mesh.rotation.x += 0.05; p.mesh.rotation.y += 0.05;
+
+                for (let car of cars) {
+                    if (car.position.distanceToSquared(p.pos) < 20) {
+                        // Authoritative check so both remote sides don't claim double-hits
+                        let isLocalCar = false;
+                        if (gameMode !== '2p-dist') isLocalCar = true;
+                        else if (isHost && car.playerNum === 1) isLocalCar = true;
+                        else if (!isHost && car.playerNum === 2) isLocalCar = true;
+
+                        if (isLocalCar) {
+                            p.active = false; p.mesh.visible = false; p.respawnTimer = 400; 
+                            applyPowerupToCar(car, p.type);
+                            
+                            // Tell the remote screen we grabbed this
+                            if (gameMode === '2p-dist' && roomChannel && channelConnected) {
+                                roomChannel.send({ type: 'broadcast', event: 'powerup_grab', payload: { pIndex: pIndex, carNum: car.playerNum } }).catch(e=>console.log(e));
+                            }
+                        }
+                        break;
+                    }
+                }
             });
         }
 
-        initView();
-        renderGames(gamesData);
+        function handleCollisions() {
+            for (let i = 0; i < cars.length; i++) {
+                for (let j = i + 1; j < cars.length; j++) {
+                    let c1 = cars[i]; let c2 = cars[j];
+                    if(c1.activePowerup === 'ghost' || c2.activePowerup === 'ghost') continue;
+                    
+                    let dx = c1.position.x - c2.position.x; let dz = c1.position.z - c2.position.z;
+                    let distSq = dx*dx + dz*dz;
+                    let r1 = c1.activePowerup === 'shrink' ? 1.5 : 3.0; let r2 = c2.activePowerup === 'shrink' ? 1.5 : 3.0;
+                    const minDistance = r1 + r2; 
+                    
+                    if(distSq < 400 && (c1.activePowerup === 'magnet' || c2.activePowerup === 'magnet')) {
+                        let pull = 0.05;
+                        if(c1.activePowerup === 'magnet') { c2.position.x += dx*pull; c2.position.z += dz*pull; }
+                        if(c2.activePowerup === 'magnet') { c1.position.x -= dx*pull; c1.position.z -= dz*pull; }
+                    }
 
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filteredGames = gamesData.filter(game => 
-                game.title.toLowerCase().includes(searchTerm) || 
-                game.description.toLowerCase().includes(searchTerm)
-            );
-            renderGames(filteredGames);
-        });
+                    if (distSq < minDistance * minDistance) {
+                        // Skip physics calculations for P1/P2 hits in distance mode to prevent sync freezing
+                        if (gameMode === '2p-dist' && c1.isPlayer && c2.isPlayer) continue;
+
+                        let dist = Math.sqrt(distSq) || 0.01;
+                        if (dist === 0.01 && distSq === 0) { dx = 0.01; dz = 0.01; }
+
+                        let nx = dx / dist; let nz = dz / dist;
+                        let push = (minDistance - dist) * 0.5;
+                        let totalMass = c1.mass + c2.mass;
+                        let push1 = push * (c2.mass / totalMass); let push2 = push * (c1.mass / totalMass);
+                        
+                        if(c1.activePowerup === 'bumper') push2 *= 5; if(c2.activePowerup === 'bumper') push1 *= 5;
+
+                        if (c1.isPlayer || c2.isPlayer) {
+                            let impact = Math.abs(c1.speed - c2.speed) + push;
+                            if (impact > 0.05) playSound('crash', Math.min(impact, 1));
+                        }
+
+                        c1.position.x += nx * push1; c1.position.z += nz * push1;
+                        c2.position.x -= nx * push2; c2.position.z -= nz * push2;
+                        
+                        if(c1.activePowerup !== 'invincible') c1.speed *= 0.95; if(c2.activePowerup !== 'invincible') c2.speed *= 0.95;
+                    }
+                }
+            }
+        }
+
+        function updateCameras() {
+            const followDist = 12; const height = 5;
+            const p1 = (gameMode === '2p-dist' && !isHost) ? cars.find(c => c.playerNum === 2) : cars.find(c => c.playerNum === 1);
+            
+            if (p1) {
+                let offset = new THREE.Vector3(-Math.sin(p1.angle) * followDist, height, -Math.cos(p1.angle) * followDist);
+                camera1.position.lerp(p1.position.clone().add(offset), 0.1);
+                camera1.lookAt(p1.position.clone().add(new THREE.Vector3(0, 1, 0)));
+            }
+
+            if (gameMode === '2p-local') {
+                const p2 = cars.find(c => c.playerNum === 2);
+                if (p2) {
+                    let offset = new THREE.Vector3(-Math.sin(p2.angle) * followDist, height, -Math.cos(p2.angle) * followDist);
+                    camera2.position.lerp(p2.position.clone().add(offset), 0.1);
+                    camera2.lookAt(p2.position.clone().add(new THREE.Vector3(0, 1, 0)));
+                }
+            }
+        }
+
+        function drawMap(ctx, pNum, scale, offX, offZ) {
+            ctx.clearRect(0, 0, 180, 180);
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = Math.max(2, TRACK_WIDTH * scale * 0.8); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            for(let i=0; i<trackPoints.length; i++) {
+                let mx = trackPoints[i].x * scale + offX; let mz = trackPoints[i].z * scale + offZ;
+                if (i === 0) ctx.moveTo(mx, mz); else ctx.lineTo(mx, mz);
+            }
+            ctx.closePath(); ctx.stroke();
+            
+            cars.forEach(car => {
+                let mx = car.position.x * scale + offX; let mz = car.position.z * scale + offZ;
+                let isMe = (gameMode === '2p-dist' && !isHost) ? car.playerNum === 2 : car.playerNum === pNum;
+                ctx.fillStyle = car.isPlayer ? (car.playerNum === 1 ? '#ff4757' : '#1e90ff') : '#ffd700';
+                ctx.beginPath(); ctx.arc(mx, mz, isMe ? 4 : 2, 0, Math.PI * 2); ctx.fill();
+                if(isMe) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
+            });
+        }
+
+        function drawMinimaps() {
+            drawMap(ctxP1, 1, mapScale1, mapOffsetX1, mapOffsetZ1);
+            if(gameMode === '2p-local') drawMap(ctxP2, 2, mapScale2, mapOffsetX2, mapOffsetZ2);
+        }
+
+        // Throttle to 10hz to stay below Supabase Broadcast Rate Limits (prevents getting disconnected!)
+        let lastSyncTime = 0;
+        const SYNC_RATE = 100; // ms 
+
+        function update() {
+            if (gameState === 'playing' || gameState === 'finished') {
+                cars.forEach(car => car.update(trackPoints));
+                handlePowerups(); handleCollisions(); updateStandings(); updateCameras(); drawMinimaps();
+
+                if (gameMode === '2p-dist' && roomChannel && channelConnected && (Date.now() - lastSyncTime > SYNC_RATE)) {
+                    let myCar = isHost ? cars[0] : cars[1]; 
+                    if (myCar) {
+                        roomChannel.send({
+                            type: 'broadcast', event: 'sync_pos',
+                            payload: { 
+                                sender: isHost ? 'host' : 'guest', 
+                                x: myCar.position.x, y: myCar.position.y, z: myCar.position.z, 
+                                a: myCar.angle, s: myCar.speed, st: myCar.steerVisual 
+                            }
+                        }).catch(e => console.log("Network Frame Dropped: ", e));
+                        lastSyncTime = Date.now();
+                    }
+                }
+            } else if (gameState === 'menu') {
+                let t = Date.now() * 0.0001; camera1.position.set(Math.sin(t)*150, 80, Math.cos(t)*150); camera1.lookAt(0,0,0);
+            }
+        }
+
+        function render() {
+            const w = window.innerWidth; const h = window.innerHeight;
+
+            if (gameState === 'menu' || gameMode === '1p' || gameMode === '2p-dist') {
+                renderer.setViewport(0, 0, w, h); renderer.setScissor(0, 0, w, h); renderer.render(scene, camera1);
+            } else if (gameMode === '2p-local') {
+                renderer.setViewport(0, h/2, w, h/2); renderer.setScissor(0, h/2, w, h/2);
+                camera1.aspect = w / (h/2); camera1.updateProjectionMatrix(); renderer.render(scene, camera1);
+
+                renderer.setViewport(0, 0, w, h/2); renderer.setScissor(0, 0, w, h/2);
+                camera2.aspect = w / (h/2); camera2.updateProjectionMatrix(); renderer.render(scene, camera2);
+            }
+        }
+
+        function animate() { requestAnimationFrame(animate); update(); render(); }
+
+        function onWindowResize() {
+            const w = window.innerWidth; const h = window.innerHeight; renderer.setSize(w, h);
+            if (gameMode === '1p' || gameMode === '2p-dist' || gameState === 'menu') { 
+                camera1.aspect = w / h; camera1.updateProjectionMatrix(); 
+            } else { 
+                camera1.aspect = w / (h/2); camera1.updateProjectionMatrix(); 
+                camera2.aspect = w / (h/2); camera2.updateProjectionMatrix(); 
+            }
+        }
+
+        init();
     </script>
 </body>
 </html>
