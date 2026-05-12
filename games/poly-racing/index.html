@@ -504,7 +504,9 @@
                 </div>
                 <div id="lobby-active" class="hidden">
                     <div style="font-size: 1.2rem;">Room Code: <strong id="display-room-code" style="color: #ffd700; font-size: 1.8rem; letter-spacing: 2px;">----</strong></div>
+                    <button id="btn-copy-link" class="btn-blue" style="padding: 8px 15px; font-size: 0.9rem; margin-top: 10px; margin-bottom: 10px;" onclick="copyInviteLink()">Copy Invite Link</button>
                     <div id="lobby-status-text" class="lobby-status">Waiting for host to start...</div>
+                    <button class="btn-blue" style="padding: 8px 15px; font-size: 0.9rem; margin-top: 15px; background: linear-gradient(135deg, #444, #222);" onclick="returnToMenu(false)">Leave Room</button>
                 </div>
                 
                 <div class="toggle-wrapper" style="margin-top: 15px; border-color: rgba(255,255,255,0.2);">
@@ -537,7 +539,7 @@
         <div class="box-panel">
             <h2>Paused</h2>
             <button onclick="togglePause()">Resume</button>
-            <button class="btn-blue" onclick="returnToMenu()">Restart to Home</button>
+            <button class="btn-blue" onclick="returnToMenu(false)">Restart to Home</button>
         </div>
     </div>
 
@@ -545,7 +547,7 @@
         <div class="box-panel">
             <h2>Race Finished!</h2>
             <ul id="standings-list"></ul>
-            <button onclick="returnToMenu()" style="width: 100%; margin: 0;">Main Menu</button>
+            <button onclick="returnToMenu(false)" style="width: 100%; margin: 0;">Main Menu</button>
         </div>
     </div>
 
@@ -572,7 +574,7 @@
             ]
         };
 
-        // Authenticate Anonymously
+        // Authenticate Anonymously & Check for Auto-Join Links
         async function initAuth() {
             try {
                 const { data, error } = await supabaseClient.auth.signInAnonymously();
@@ -583,7 +585,21 @@
                 throw err;
             }
         }
-        initAuth().catch(e => console.log("Silent auth fail on load:", e));
+        
+        window.addEventListener('load', () => {
+            initAuth().catch(e => console.log("Silent auth fail on load:", e));
+            
+            // Check for invite link parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const room = urlParams.get('room');
+            if (room) {
+                setPlayerMode('2p-dist');
+                document.getElementById('join-room-code').value = room.toUpperCase();
+                joinDistanceGame();
+                // Strip the URL so it doesn't linger
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
 
         const TOTAL_LAPS = 3;
         const TRACK_WIDTH = 24;
@@ -777,6 +793,24 @@
         function generateRoomCode() {
             return Math.random().toString(36).substring(2, 6).toUpperCase();
         }
+        
+        function copyInviteLink() {
+            if (!roomCode) return;
+            const link = window.location.origin + window.location.pathname + "?room=" + roomCode;
+            const textArea = document.createElement("textarea");
+            textArea.value = link;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('btn-copy-link');
+                btn.innerText = "Copied!";
+                setTimeout(() => btn.innerText = "Copy Invite Link", 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
 
         async function hostDistanceGame() {
             const errorEl = document.getElementById('lobby-error');
@@ -788,7 +822,7 @@
                 isHost = true;
                 
                 // Insert room into DB
-                const { error } = await supabaseClient.schema('mateopolyracing').from('rooms').insert([{
+                const { error } = await supabaseClient.from('rooms').insert([{
                     room_code: roomCode,
                     host_id: currentUser.id,
                     track_index: currentTrackIndex,
@@ -818,17 +852,20 @@
                 const codeInput = document.getElementById('join-room-code').value.toUpperCase();
                 if(!codeInput) { if(errorEl) errorEl.innerText = "Enter a room code!"; return; }
                 
-                const { data, error } = await supabaseClient.schema('mateopolyracing').from('rooms').select('*').eq('room_code', codeInput).single();
+                const { data, error } = await supabaseClient.from('rooms').select('*').eq('room_code', codeInput).single();
                 if (error || !data) { if(errorEl) errorEl.innerText = "Room not found!"; return; }
                 if (data.status !== 'waiting') { if(errorEl) errorEl.innerText = "Game already in progress!"; return; }
 
                 roomCode = codeInput;
                 isHost = false;
+                
+                // Grab Host's preferences to display immediately
                 currentTrackIndex = data.track_index;
                 document.getElementById('track-name-display').innerText = TRACK_NAMES[currentTrackIndex];
+                p1SelectedCar = data.host_car || 'balanced';
                 
-                // Update DB
-                const { error: updateErr } = await supabaseClient.schema('mateopolyracing').from('rooms').update({
+                // Update DB with guest
+                const { error: updateErr } = await supabaseClient.from('rooms').update({
                     guest_id: currentUser.id,
                     guest_car: p2SelectedCar
                 }).eq('room_code', roomCode);
@@ -859,13 +896,17 @@
         function joinRealtimeChannel() {
             roomChannel = supabaseClient.channel(`room:${roomCode}`);
             
+            // Host listens for Player Joined
             roomChannel.on('broadcast', { event: 'player_joined' }, payload => {
                 if(isHost) {
                     remotePlayerReady = true;
+                    // Grab Guest's selected car from the payload
+                    if(payload.payload.guestCar) p2SelectedCar = payload.payload.guestCar;
+                    
                     document.getElementById('lobby-status-text').innerText = "Opponent joined! Ready to start.";
                     document.getElementById('lobby-status-text').style.color = "#2ed573";
                     
-                    // Send current track/car to guest
+                    // Send current track/car back to guest just to be safe
                     roomChannel.send({
                         type: 'broadcast', event: 'room_settings',
                         payload: { track: currentTrackIndex, hostCar: p1SelectedCar }
@@ -875,6 +916,7 @@
                 }
             });
             
+            // Guest listens for Room Setting Updates
             roomChannel.on('broadcast', { event: 'room_settings' }, payload => {
                 if(!isHost) {
                     currentTrackIndex = payload.payload.track;
@@ -883,13 +925,15 @@
                 }
             });
 
+            // Start Game Trigger
             roomChannel.on('broadcast', { event: 'start_game' }, payload => {
                 if(!isHost) startGameDistance(false);
             });
             
+            // Sync Positional Physics Payload
             roomChannel.on('broadcast', { event: 'sync_pos' }, payload => {
                 let pData = payload.payload;
-                let remoteCar = isHost ? cars[1] : cars[0]; // Host controls 0, Guest controls 1
+                let remoteCar = isHost ? cars[1] : cars[0]; // Host's remote is P2, Guest's remote is P1
                 if(remoteCar) {
                     remoteCar.position.set(pData.x, pData.y, pData.z);
                     remoteCar.angle = pData.a;
@@ -897,6 +941,17 @@
                     // Interpolate visual steering
                     remoteCar.frontWheels.forEach(w => { w.rotation.y = pData.st; });
                 }
+            });
+            
+            // Distant Pausing & Exiting
+            roomChannel.on('broadcast', { event: 'pause' }, payload => {
+                let st = payload.payload.state;
+                if (st === 'paused' && gameState === 'playing') togglePause(true);
+                else if (st === 'playing' && gameState === 'paused') togglePause(true);
+            });
+
+            roomChannel.on('broadcast', { event: 'player_left' }, payload => {
+                returnToMenu(true);
             });
 
             // WebRTC Signaling
@@ -918,7 +973,8 @@
 
             roomChannel.subscribe((status) => {
                 if(status === 'SUBSCRIBED' && !isHost) {
-                    roomChannel.send({ type: 'broadcast', event: 'player_joined', payload: { ready: true } });
+                    // Send joining ping back to Host with our vehicle selection
+                    roomChannel.send({ type: 'broadcast', event: 'player_joined', payload: { guestCar: p2SelectedCar } });
                 }
             });
         }
@@ -1261,12 +1317,18 @@
                 let isBraking = false;
                 const inputMode = inputModeSelect.value;
                 
-                // For Distance mode, we only process inputs for our OWN car.
+                // Isolating Input Processes to fix the merging/disappearing bug
                 let processInputs = false;
-                if(gameMode === '1p' || gameMode === '2p-local') processInputs = this.isPlayer;
-                else if(gameMode === '2p-dist') {
-                    if(isHost && this.playerNum === 1) processInputs = true;
-                    if(!isHost && this.playerNum === 2) processInputs = true;
+                let isRemote = false;
+
+                if (gameMode === '1p' || gameMode === '2p-local') {
+                    processInputs = this.isPlayer;
+                } else if (gameMode === '2p-dist') {
+                    if (isHost && this.playerNum === 1) processInputs = true;
+                    if (!isHost && this.playerNum === 2) processInputs = true;
+                    
+                    if (isHost && this.playerNum === 2) isRemote = true;
+                    if (!isHost && this.playerNum === 1) isRemote = true;
                 }
 
                 if (this.finished) {
@@ -1274,12 +1336,11 @@
                 } else if (processInputs) {
                     let fwd = false, rev = false, left = false, right = false;
                     
-                    if (this.playerNum === 1 || (gameMode === '2p-dist' && !isHost && this.playerNum === 2)) {
-                        // In distance mode, guest uses WASD/Touch as their main control too
-                        fwd = keys.w || keys.ArrowUp || touchState.fwd; 
-                        rev = keys.s || keys.ArrowDown || touchState.rev;
-                        left = keys.a || keys.ArrowLeft || touchState.left; 
-                        right = keys.d || keys.ArrowRight || touchState.right;
+                    if (this.playerNum === 1 || (gameMode === '2p-dist' && this.playerNum === 2)) {
+                        fwd = keys.w || (gameMode !== '2p-local' ? keys.ArrowUp : false) || touchState.fwd; 
+                        rev = keys.s || (gameMode !== '2p-local' ? keys.ArrowDown : false) || touchState.rev;
+                        left = keys.a || (gameMode !== '2p-local' ? keys.ArrowLeft : false) || touchState.left; 
+                        right = keys.d || (gameMode !== '2p-local' ? keys.ArrowRight : false) || touchState.right;
                         
                         if (inputMode === 'gamepad') {
                             let gp = navigator.getGamepads()[0];
@@ -1302,6 +1363,8 @@
                                 if (gp.buttons[6]?.pressed || gp.buttons[1]?.pressed) rev = true; 
                                 if (gp.axes[0] < -0.2 || gp.buttons[14]?.pressed) left = true;
                                 if (gp.axes[0] > 0.2 || gp.buttons[15]?.pressed) right = true;
+                                if (gp.buttons[9]?.pressed && !gpPausePressed) { togglePause(); gpPausePressed = true; } 
+                                else if (!gp.buttons[9]?.pressed) { gpPausePressed = false; }
                             }
                         }
                     }
@@ -1353,14 +1416,7 @@
                     this.steerVisual = steerVisual;
                 }
 
-                // If remote controlled in distance mode, we skip physics application 
-                // and rely purely on sync data (position is updated externally)
-                let isRemote = false;
-                if(gameMode === '2p-dist') {
-                    if(isHost && this.playerNum === 2) isRemote = true;
-                    if(!isHost && this.playerNum === 1) isRemote = true;
-                }
-
+                // If remote controlled in distance mode, skip physics application entirely.
                 if(!isRemote) {
                     if (this.activePowerup === 'oil') {
                         this.speed *= 0.90; this.angle += (Math.random() - 0.5) * 0.1;
@@ -1536,7 +1592,7 @@
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('keydown', (e) => { 
                 if(keys.hasOwnProperty(e.key)) keys[e.key] = true; 
-                if(e.key === 'Escape' || e.key.toLowerCase() === 'p') togglePause();
+                if(e.key === 'Escape' || e.key.toLowerCase() === 'p') togglePause(false);
             });
             window.addEventListener('keyup', (e) => { if(keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
@@ -1728,7 +1784,7 @@
             
             if(isHost) {
                 // Update room to active
-                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
+                supabaseClient.from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
             }
         }
 
@@ -1745,11 +1801,17 @@
             }
         }
 
-        function togglePause() {
+        function togglePause(isRemoteEvent = false) {
             if (gameState === 'playing') {
                 gameState = 'paused'; pauseMenu.classList.remove('hidden'); pauseMenu.classList.add('active');
+                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel) {
+                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'paused' } });
+                }
             } else if (gameState === 'paused') {
                 gameState = 'playing'; pauseMenu.classList.add('hidden'); pauseMenu.classList.remove('active');
+                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel) {
+                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'playing' } });
+                }
             }
         }
 
@@ -1778,11 +1840,11 @@
             gameOverMenu.classList.remove('hidden'); gameOverMenu.classList.add('active');
             
             if(isDistanceMode && isHost && roomCode) {
-                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
+                supabaseClient.from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
             }
         }
 
-        function returnToMenu() {
+        async function returnToMenu(remoteTrigger = false) {
             gameState = 'menu';
             gameOverMenu.classList.remove('active'); gameOverMenu.classList.add('hidden');
             pauseMenu.classList.remove('active'); pauseMenu.classList.add('hidden');
@@ -1793,6 +1855,19 @@
             document.getElementById('touch-controls').classList.add('hidden');
             
             mainMenu.style.display = 'flex';
+
+            // Clean up DB Room
+            if (gameMode === '2p-dist' && roomCode) {
+                if (!remoteTrigger && roomChannel) {
+                    roomChannel.send({ type: 'broadcast', event: 'player_left', payload: {} });
+                }
+                
+                if (isHost) { // Host permanently cleans up the room on exit
+                    await supabaseClient.from('rooms').delete().eq('room_code', roomCode);
+                } else if (!remoteTrigger) { // Guest leaves on own accord
+                    await supabaseClient.from('rooms').update({ guest_id: null }).eq('room_code', roomCode);
+                }
+            }
             
             if(roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; }
             if(peerConnection) { peerConnection.close(); peerConnection = null; }
@@ -1811,6 +1886,11 @@
             cars = [];
             
             setPlayerMode(gameMode); // Re-apply UI state
+
+            if (remoteTrigger) {
+                const errorEl = document.getElementById('lobby-error');
+                if (errorEl) errorEl.innerText = "Opponent disconnected / left the room.";
+            }
         }
 
         function getOrdinal(n) {
@@ -1908,7 +1988,12 @@
                     }
 
                     if (distSq < minDistance * minDistance) {
+                        // Skip Player-to-Player physics collision entirely in distance mode to prevent network infinite freeze loops
+                        if (gameMode === '2p-dist' && c1.isPlayer && c2.isPlayer) continue;
+
                         let dist = Math.sqrt(distSq) || 0.01;
+                        if (dist === 0.01 && distSq === 0) { dx = 0.01; dz = 0.01; } // Prevent 0/0 NaN Lock 
+
                         let nx = dx / dist; let nz = dz / dist;
                         let push = (minDistance - dist) * 0.5;
                         let totalMass = c1.mass + c2.mass;
