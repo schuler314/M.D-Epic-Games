@@ -822,7 +822,7 @@
                 isHost = true;
                 
                 // Insert room into DB
-                const { error } = await supabaseClient.from('rooms').insert([{
+                const { error } = await supabaseClient.schema('mateopolyracing').from('rooms').insert([{
                     room_code: roomCode,
                     host_id: currentUser.id,
                     track_index: currentTrackIndex,
@@ -852,7 +852,7 @@
                 const codeInput = document.getElementById('join-room-code').value.toUpperCase();
                 if(!codeInput) { if(errorEl) errorEl.innerText = "Enter a room code!"; return; }
                 
-                const { data, error } = await supabaseClient.from('rooms').select('*').eq('room_code', codeInput).single();
+                const { data, error } = await supabaseClient.schema('mateopolyracing').from('rooms').select('*').eq('room_code', codeInput).single();
                 if (error || !data) { if(errorEl) errorEl.innerText = "Room not found!"; return; }
                 if (data.status !== 'waiting') { if(errorEl) errorEl.innerText = "Game already in progress!"; return; }
 
@@ -865,7 +865,7 @@
                 p1SelectedCar = data.host_car || 'balanced';
                 
                 // Update DB with guest
-                const { error: updateErr } = await supabaseClient.from('rooms').update({
+                const { error: updateErr } = await supabaseClient.schema('mateopolyracing').from('rooms').update({
                     guest_id: currentUser.id,
                     guest_car: p2SelectedCar
                 }).eq('room_code', roomCode);
@@ -1784,7 +1784,7 @@
             
             if(isHost) {
                 // Update room to active
-                supabaseClient.from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
+                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
             }
         }
 
@@ -1840,7 +1840,7 @@
             gameOverMenu.classList.remove('hidden'); gameOverMenu.classList.add('active');
             
             if(isDistanceMode && isHost && roomCode) {
-                supabaseClient.from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
+                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
             }
         }
 
@@ -1863,9 +1863,9 @@
                 }
                 
                 if (isHost) { // Host permanently cleans up the room on exit
-                    await supabaseClient.from('rooms').delete().eq('room_code', roomCode);
+                    await supabaseClient.schema('mateopolyracing').from('rooms').delete().eq('room_code', roomCode);
                 } else if (!remoteTrigger) { // Guest leaves on own accord
-                    await supabaseClient.from('rooms').update({ guest_id: null }).eq('room_code', roomCode);
+                    await supabaseClient.schema('mateopolyracing').from('rooms').update({ guest_id: null }).eq('room_code', roomCode);
                 }
             }
             
