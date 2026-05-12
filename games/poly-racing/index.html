@@ -1583,17 +1583,29 @@
                     this.lap++;
                     if (this.lap > TOTAL_LAPS && !this.finished) { this.finished = true; this.finishTime = Date.now(); checkRaceEnd(); }
                     if (this.isPlayer) {
+                        let dispLap = Math.max(1, Math.min(this.lap, TOTAL_LAPS));
                         if (gameMode === '2p-dist') {
                             if ((isHost && this.playerNum === 1) || (!isHost && this.playerNum === 2)) {
-                                p1LapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
+                                p1LapEl.innerText = dispLap;
                             }
                         } else {
-                            if (this.playerNum === 1) p1LapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
-                            if (this.playerNum === 2) p2LapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
+                            if (this.playerNum === 1) p1LapEl.innerText = dispLap;
+                            if (this.playerNum === 2) p2LapEl.innerText = dispLap;
                         }
                     }
                 } else if (this.trackIndex < trackPoints.length * 0.2 && bestIndex > trackPoints.length * 0.8) {
                     this.lap--; 
+                    if (this.isPlayer) {
+                        let dispLap = Math.max(1, Math.min(this.lap, TOTAL_LAPS));
+                        if (gameMode === '2p-dist') {
+                            if ((isHost && this.playerNum === 1) || (!isHost && this.playerNum === 2)) {
+                                p1LapEl.innerText = dispLap;
+                            }
+                        } else {
+                            if (this.playerNum === 1) p1LapEl.innerText = dispLap;
+                            if (this.playerNum === 2) p2LapEl.innerText = dispLap;
+                        }
+                    }
                 }
 
                 this.trackIndex = bestIndex;
