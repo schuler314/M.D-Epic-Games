@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Poly Racing</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <!-- Supabase SDK -->
@@ -26,6 +26,7 @@
             overflow: hidden;
             background-color: var(--bg-color);
             font-family: 'Inter', sans-serif;
+            -webkit-user-select: none;
             user-select: none;
             color: var(--text-main);
             touch-action: none;
@@ -45,6 +46,7 @@
             pointer-events: auto;
             z-index: 20;
             background: linear-gradient(135deg, rgba(10, 15, 25, 0.95) 0%, rgba(20, 30, 45, 0.95) 100%);
+            -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
             opacity: 1;
             transition: opacity 0.4s ease;
@@ -77,6 +79,7 @@
             letter-spacing: 4px;
             background: linear-gradient(135deg, #fff, #a4b0be);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             margin: 0 0 10px 0;
             line-height: 0.9;
@@ -175,7 +178,7 @@
             top: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.5); padding: 10px 30px; border-radius: 30px;
             border: 2px solid rgba(255,255,255,0.2); cursor: pointer;
-            pointer-events: auto; display: flex; align-items: center; justify-content: center;
+            -webkit-backdrop-filter: blur(5px); pointer-events: auto; display: flex; align-items: center; justify-content: center;
             backdrop-filter: blur(5px); transition: 0.2s; font-size: 1.2rem; gap: 10px;
         }
         #pause-btn:hover { background: rgba(255,255,255,0.2); }
@@ -258,7 +261,7 @@
             position: absolute; width: 180px; height: 180px;
             background: rgba(0, 0, 0, 0.4); border: 2px solid var(--border-light);
             border-radius: 50%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            backdrop-filter: blur(8px); z-index: 5;
+            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 5;
         }
         #minimap-p1 { bottom: 30px; right: 30px; }
         #minimap-p2 { bottom: 30px; right: 30px; }
@@ -279,8 +282,8 @@
             width: 80px; height: 80px; border-radius: 50%; background: rgba(0,0,0,0.4);
             border: 2px solid rgba(255,255,255,0.4); color: white; font-size: 2rem;
             display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(5px); box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            user-select: none; transition: 0.1s;
+            -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            -webkit-user-select: none; user-select: none; transition: 0.1s;
         }
         .touch-btn.active { background: rgba(255,255,255,0.4); transform: scale(0.95); }
         #btn-gas { background: rgba(46, 213, 115, 0.3); border-color: var(--accent); }
@@ -293,7 +296,7 @@
         .overlay-center {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 30; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
+            z-index: 30; background: rgba(0, 0, 0, 0.7); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
         }
         .overlay-center.active { pointer-events: auto; }
         
@@ -356,6 +359,46 @@
         .lobby-status { margin-top: 15px; font-weight: bold; color: var(--accent); }
         
         #remote-audio { display: none; }
+        
+        .speed-prndl-d { color: #0ff; font-size: 1.2em; }
+        .input-device-select { margin-top: 10px; background: rgba(30,144,255,0.2); border-color: var(--secondary); }
+        .input-device-label { color: #fff; }
+        .btn-instructions { width: 100%; margin: 20px 0 0 0; font-size: 1.1rem; padding: 15px; }
+        .btn-lobby { padding: 12px 20px; font-size: 1rem; }
+        .span-or { margin: 0 15px; font-weight: bold; }
+        .lobby-error-msg { color: #ff4757; margin-top: 15px; font-weight: bold; font-size: 0.95rem; }
+        .lobby-code-display { font-size: 1.2rem; }
+        .lobby-code-strong { color: #ffd700; font-size: 1.8rem; letter-spacing: 2px; }
+        .btn-copy { padding: 8px 15px; font-size: 0.9rem; margin-top: 10px; margin-bottom: 10px; }
+        .btn-leave { padding: 8px 15px; font-size: 0.9rem; margin-top: 15px; background: linear-gradient(135deg, #444, #222); }
+        .start-btn-large { width: 100%; margin: 0; font-size: 1.5rem; padding: 20px; box-shadow: 0 10px 30px rgba(30, 144, 255, 0.4); }
+        .instructions-panel { max-width: 600px; text-align: left; }
+        .modal-heading { font-family: 'Rajdhani', sans-serif; font-size: 2.5rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; margin-top:0; }
+        .instructions-heading { border-bottom: 1px solid var(--border-light); padding-bottom: 10px; font-family: 'Rajdhani', sans-serif; }
+        .instructions-list-styled { font-size: 1rem; line-height: 1.6; margin-bottom: 20px; color: #fff; padding-left: 20px; }
+        .powerup-heading { margin-top: 10px; color: var(--accent); }
+        .powerup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.9em; }
+        .star-nitro { color: #ffff00; }
+        .star-heavy { color: #ff00ff; }
+        .star-ghost { color: #00ffff; }
+        .star-bumper { color: #ff4444; }
+        .star-magnet { color: #44ff44; }
+        .star-oil { color: #ff8800; }
+        .star-shrink { color: #4444ff; }
+        .star-invincible { color: #ffffff; }
+        .btn-modal-gotit { margin: 25px auto 0 auto; width: 100%; }
+        .btn-modal-back { margin: 20px auto 0 auto; width: 200px; }
+        .btn-full-width { width: 100%; margin: 0; }
+        .toggle-margin-10 { margin-bottom: 10px; }
+        .toggle-margin-25 { margin-bottom: 25px; }
+        .toggle-margin-top { margin-top: 15px; border-color: rgba(255,255,255,0.2); }
+        .toggle-label-flex { display: flex; align-items: center; gap: 10px; }
+        
+        .car-desc-text { font-size: 0.8rem; color: #aaa; margin-bottom: 15px; height: 40px; }
+        .time-str-span { float:right; font-size:0.8em; color:#ccc; }
+        .player-one-color { color: #ff4757; }
+        .player-two-color { color: #1e90ff; }
+        .car-card-title { margin: 10px 0 5px 0; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -389,7 +432,7 @@
         <div class="speed-ticks" id="p1-ticks"></div>
         <div class="speed-needle-container" id="p1-needle"><div class="speed-needle"></div></div>
         <div class="speed-center-cap"></div>
-        <div class="speed-prndl">R <span style="color:#0ff; font-size:1.2em">D</span> N</div>
+        <div class="speed-prndl">R <span class="speed-prndl-d">D</span> N</div>
         <div class="speed-gear" id="p1-gear">1</div>
     </div>
     <canvas id="minimap-p1" class="minimap hidden" width="180" height="180"></canvas>
@@ -403,7 +446,7 @@
         <div class="speed-ticks" id="p2-ticks"></div>
         <div class="speed-needle-container" id="p2-needle"><div class="speed-needle"></div></div>
         <div class="speed-center-cap"></div>
-        <div class="speed-prndl">R <span style="color:#0ff; font-size:1.2em">D</span> N</div>
+        <div class="speed-prndl">R <span class="speed-prndl-d">D</span> N</div>
         <div class="speed-gear" id="p2-gear">1</div>
     </div>
     <canvas id="minimap-p2" class="minimap hidden" width="180" height="180"></canvas>
@@ -414,9 +457,9 @@
         <div class="menu-left">
             <h1>M.D Super<br>Poly Racing</h1>
             
-            <div class="car-select" style="margin-top: 10px; background: rgba(30,144,255,0.2); border-color: var(--secondary);">
-                <label style="color: #fff;">Input Device Type</label>
-                <select id="input-mode" onchange="updateInstructions()">
+            <div class="car-select input-device-select">
+                <label class="input-device-label">Input Device Type</label>
+                <select id="input-mode" aria-label="Input Mode" onchange="updateInstructions()">
                     <option value="desktop">Desktop Keyboard</option>
                     <option value="gamepad">Gamepad (Controller)</option>
                     <option value="mobile">Mobile/Tablet (Touch Screen)</option>
@@ -424,7 +467,7 @@
             </div>
 
             <!-- New dynamic Instructions Modal Button -->
-            <button class="btn-blue" style="width: 100%; margin: 20px 0 0 0; font-size: 1.1rem; padding: 15px;" onclick="openInstructionsModal()">📖 How to Play & Power-Ups</button>
+            <button class="btn-blue btn-instructions" onclick="openInstructionsModal()">📖 How to Play & Power-Ups</button>
         </div>
         
         <div class="menu-right">
@@ -447,47 +490,47 @@
 
             <h3>3. Choose Vehicles</h3>
             <div class="setup-btn" id="p1-car-setup-btn" onclick="openCarModal(1)">
-                <span>Player 1 Class</span>
+                <span id="p1-car-label">Player 1 Class</span>
                 <strong id="p1-car-display">Balanced</strong>
             </div>
-            <div class="setup-btn" id="p2-car-setup-btn" style="display: none;" onclick="openCarModal(2)">
-                <span>Player 2 Class</span>
+            <div class="setup-btn hidden" id="p2-car-setup-btn" onclick="openCarModal(2)">
+                <span id="p2-car-label">Player 2 Class</span>
                 <strong id="p2-car-display">Speedster</strong>
             </div>
 
             <h3>4. Options</h3>
-            <div class="toggle-wrapper" style="margin-bottom: 10px;">
+            <div class="toggle-wrapper toggle-margin-10">
                 <span class="toggle-label">Show Speedometer</span>
                 <label class="switch">
-                    <input type="checkbox" id="speedo-toggle" checked>
+                    <input type="checkbox" id="speedo-toggle" aria-label="Toggle Speedometer" checked>
                     <span class="slider"></span>
                 </label>
             </div>
-            <div class="toggle-wrapper" style="margin-bottom: 25px;">
+            <div class="toggle-wrapper toggle-margin-25">
                 <span class="toggle-label">Enable Game Audio</span>
                 <label class="switch">
-                    <input type="checkbox" id="audio-toggle" checked>
+                    <input type="checkbox" id="audio-toggle" aria-label="Toggle Audio" checked>
                     <span class="slider"></span>
                 </label>
             </div>
 
             <div id="distance-lobby-ui" class="distance-lobby hidden">
                 <div id="lobby-pre">
-                    <button class="btn-blue" style="padding: 12px 20px; font-size: 1rem;" onclick="hostDistanceGame()">Create Room</button>
-                    <span style="margin: 0 15px; font-weight: bold;">OR</span>
+                    <button class="btn-blue btn-lobby" onclick="hostDistanceGame()">Create Room</button>
+                    <span class="span-or">OR</span>
                     <input type="text" id="join-room-code" placeholder="Enter Code" maxlength="6">
-                    <button class="btn-green" style="padding: 12px 20px; font-size: 1rem;" onclick="joinDistanceGame()">Join</button>
-                    <div id="lobby-error" style="color: #ff4757; margin-top: 15px; font-weight: bold; font-size: 0.95rem;"></div>
+                    <button class="btn-green btn-lobby" onclick="joinDistanceGame()">Join</button>
+                    <div id="lobby-error" class="lobby-error-msg"></div>
                 </div>
                 <div id="lobby-active" class="hidden">
-                    <div style="font-size: 1.2rem;">Room Code: <strong id="display-room-code" style="color: #ffd700; font-size: 1.8rem; letter-spacing: 2px;">----</strong></div>
-                    <button id="btn-copy-link" class="btn-blue" style="padding: 8px 15px; font-size: 0.9rem; margin-top: 10px; margin-bottom: 10px;" onclick="copyInviteLink()">Copy Invite Link</button>
+                    <div class="lobby-code-display">Room Code: <strong id="display-room-code" class="lobby-code-strong">----</strong></div>
+                    <button id="btn-copy-link" class="btn-blue btn-copy" onclick="copyInviteLink()">Copy Invite Link</button>
                     <div id="lobby-status-text" class="lobby-status">Waiting for host to start...</div>
-                    <button class="btn-blue" style="padding: 8px 15px; font-size: 0.9rem; margin-top: 15px; background: linear-gradient(135deg, #444, #222);" onclick="returnToMenu(false)">Leave Room</button>
+                    <button class="btn-blue btn-leave" onclick="returnToMenu(false)">Leave Room</button>
                 </div>
                 
-                <div class="toggle-wrapper" style="margin-top: 15px; border-color: rgba(255,255,255,0.2);">
-                    <span class="toggle-label" style="display:flex; align-items:center; gap:10px;">
+                <div class="toggle-wrapper toggle-margin-top">
+                    <span class="toggle-label toggle-label-flex">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
                         Voice Chat (Live Audio)
                     </span>
@@ -498,39 +541,39 @@
                 </div>
             </div>
 
-            <button id="start-btn" class="btn-blue" style="width: 100%; margin: 0; font-size: 1.5rem; padding: 20px; box-shadow: 0 10px 30px rgba(30, 144, 255, 0.4);" onclick="startGame()">START RACE</button>
+            <button id="start-btn" class="btn-blue start-btn-large" onclick="startGame()">START RACE</button>
         </div>
     </div>
 
     <!-- Instructions Modal -->
     <div id="instructions-modal" class="overlay-center hidden">
-        <div class="box-panel modal-panel" style="max-width: 600px; text-align: left;">
-            <h2 style="border-bottom: 1px solid var(--border-light); padding-bottom: 10px; font-family: 'Rajdhani', sans-serif;">Instructions</h2>
-            <ul id="instructions-list" style="font-size: 1rem; line-height: 1.6; margin-bottom: 20px; color: #fff; padding-left: 20px;">
+        <div class="box-panel modal-panel instructions-panel">
+            <h2 class="instructions-heading">Instructions</h2>
+            <ul id="instructions-list" class="instructions-list-styled">
                 <!-- Populated by JS -->
             </ul>
-            <h3 style="margin-top: 10px; color: var(--accent);">POWER-UPS</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.9em;">
-                <div><span style="color:#ffff00">★</span> <b>Nitro:</b> Speed boost</div>
-                <div><span style="color:#ff00ff">★</span> <b>Heavy:</b> Mass x10</div>
-                <div><span style="color:#00ffff">★</span> <b>Ghost:</b> Pass thru cars</div>
-                <div><span style="color:#ff4444">★</span> <b>Bumper:</b> High bounce</div>
-                <div><span style="color:#44ff44">★</span> <b>Magnet:</b> Pull others</div>
-                <div><span style="color:#ff8800">★</span> <b>Oil:</b> Spin out competitors</div>
-                <div><span style="color:#4444ff">★</span> <b>Shrink:</b> Make others small</div>
-                <div><span style="color:#ffffff">★</span> <b>Invincible:</b> Max speed + immune</div>
+            <h3 class="powerup-heading">POWER-UPS</h3>
+            <div class="powerup-grid">
+                <div><span class="star-nitro">★</span> <b>Nitro:</b> Speed boost</div>
+                <div><span class="star-heavy">★</span> <b>Heavy:</b> Mass x10</div>
+                <div><span class="star-ghost">★</span> <b>Ghost:</b> Pass thru cars</div>
+                <div><span class="star-bumper">★</span> <b>Bumper:</b> High bounce</div>
+                <div><span class="star-magnet">★</span> <b>Magnet:</b> Pull others</div>
+                <div><span class="star-oil">★</span> <b>Oil:</b> Spin out competitors</div>
+                <div><span class="star-shrink">★</span> <b>Shrink:</b> Make others small</div>
+                <div><span class="star-invincible">★</span> <b>Invincible:</b> Max speed + immune</div>
             </div>
-            <button class="btn-blue" onclick="closeInstructionsModal()" style="margin: 25px auto 0 auto; width: 100%;">Got it!</button>
+            <button class="btn-blue btn-modal-gotit" onclick="closeInstructionsModal()">Got it!</button>
         </div>
     </div>
 
     <div id="selection-modal" class="overlay-center hidden">
         <div class="box-panel modal-panel">
-            <h2 id="modal-title" style="font-family: 'Rajdhani', sans-serif; font-size: 2.5rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; margin-top:0;">Select</h2>
+            <h2 id="modal-title" class="modal-heading">Select</h2>
             <div class="carousel" id="modal-carousel">
                 <!-- Injected via JS -->
             </div>
-            <button class="btn-blue" onclick="closeModal()" style="margin: 20px auto 0 auto; width: 200px;">Back</button>
+            <button class="btn-blue btn-modal-back" onclick="closeModal()">Back</button>
         </div>
     </div>
 
@@ -546,7 +589,7 @@
         <div class="box-panel">
             <h2>Race Finished!</h2>
             <ul id="standings-list"></ul>
-            <button onclick="returnToMenu(false)" style="width: 100%; margin: 0;">Main Menu</button>
+            <button class="btn-full-width" onclick="returnToMenu(false)">Main Menu</button>
         </div>
     </div>
 
@@ -561,6 +604,7 @@
         let isHost = false;
         let roomCode = null;
         let roomChannel = null;
+        let channelConnected = false;
         let remotePlayerReady = false;
 
         // === WEBRTC SETTINGS ===
@@ -768,7 +812,8 @@
             
             const p1Btn = document.getElementById('p1-car-setup-btn');
             const p2Btn = document.getElementById('p2-car-setup-btn');
-            const p1Span = p1Btn.querySelector('span');
+            const p1Span = document.getElementById('p1-car-label');
+            const p2Span = document.getElementById('p2-car-label');
             
             const distUi = document.getElementById('distance-lobby-ui');
             const trackSetup = document.getElementById('track-setup-container');
@@ -777,26 +822,37 @@
             if (mode === '1p') {
                 p1Span.innerText = "Player 1 Class";
                 p2Btn.style.display = 'none';
+                p1Btn.style.pointerEvents = 'auto'; p1Btn.style.opacity = '1';
                 distUi.classList.add('hidden');
                 trackSetup.classList.remove('hidden');
                 startBtn.classList.remove('hidden');
             } else if (mode === '2p-local') {
                 p1Span.innerText = "Player 1 Class";
+                p2Span.innerText = "Player 2 Class";
                 p2Btn.style.display = 'flex';
+                p1Btn.style.pointerEvents = 'auto'; p1Btn.style.opacity = '1';
+                p2Btn.style.pointerEvents = 'auto'; p2Btn.style.opacity = '1';
                 distUi.classList.add('hidden');
                 trackSetup.classList.remove('hidden');
                 startBtn.classList.remove('hidden');
             } else if (mode === '2p-dist') {
-                p1Span.innerText = "Your Vehicle Class";
-                p2Btn.style.display = 'none'; // Only pick own car before joining
+                p1Span.innerText = "Host Vehicle";
+                p2Span.innerText = "Guest Vehicle";
+                p2Btn.style.display = 'flex'; 
                 distUi.classList.remove('hidden');
-                trackSetup.classList.remove('hidden'); // Leave visible for host to pick before creating
+                trackSetup.classList.remove('hidden'); 
                 startBtn.classList.add('hidden'); 
+                
+                // Keep both open until they click Create/Join
+                if (!roomCode) {
+                    p1Btn.style.pointerEvents = 'auto'; p1Btn.style.opacity = '1';
+                    p2Btn.style.pointerEvents = 'auto'; p2Btn.style.opacity = '1';
+                }
             }
             
             if (!isDistanceMode) {
                 // Disconnect if returning from distance lobby
-                if (roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; }
+                if (roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; channelConnected = false; }
                 if (peerConnection) { peerConnection.close(); peerConnection = null; }
             }
         }
@@ -824,14 +880,12 @@
             document.body.removeChild(textArea);
         }
 
-        // Auto clean rooms older than 2 hours to keep database fresh
+        // Auto clean rooms older than 2 hours
         async function cleanupOldRooms() {
             try {
                 const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
                 await supabaseClient.schema('mateopolyracing').from('rooms').delete().lt('created_at', twoHoursAgo);
-            } catch (e) {
-                console.warn("Cleanup skipped or failed:", e);
-            }
+            } catch (e) { console.warn("Cleanup failed:", e); }
         }
 
         async function hostDistanceGame() {
@@ -840,29 +894,23 @@
 
             try {
                 if (!currentUser) await initAuth();
-                await cleanupOldRooms(); // Run DB maintenance 
+                await cleanupOldRooms(); 
                 
                 roomCode = generateRoomCode();
                 isHost = true;
                 
-                // Insert room into DB
+                // Insert room
                 const { error } = await supabaseClient.schema('mateopolyracing').from('rooms').insert([{
-                    room_code: roomCode,
-                    host_id: currentUser.id,
-                    track_index: currentTrackIndex,
-                    host_car: p1SelectedCar // Used as player 1
+                    room_code: roomCode, host_id: currentUser.id, track_index: currentTrackIndex, host_car: p1SelectedCar 
                 }]);
                 
-                if(error) { 
-                    if(errorEl) errorEl.innerText = "DB Error: " + error.message; 
-                    return; 
-                }
+                if(error) { if(errorEl) errorEl.innerText = "DB Error: " + error.message; return; }
                 
                 if(errorEl) errorEl.innerText = "";
                 setupLobbyUI();
                 joinRealtimeChannel();
             } catch (err) {
-                if(errorEl) errorEl.innerText = "Connection failed: " + (err.message || "Sandbox restriction");
+                if(errorEl) errorEl.innerText = "Connection failed";
                 console.error(err);
             }
         }
@@ -875,9 +923,6 @@
                 if (!currentUser) await initAuth();
                 const codeInput = document.getElementById('join-room-code').value.toUpperCase();
                 if(!codeInput) { if(errorEl) errorEl.innerText = "Enter a room code!"; return; }
-                
-                // Map the guest UI selection to the P2 variable
-                p2SelectedCar = p1SelectedCar; 
 
                 const { data, error } = await supabaseClient.schema('mateopolyracing').from('rooms').select('*').eq('room_code', codeInput).single();
                 if (error || !data) { if(errorEl) errorEl.innerText = "Room not found!"; return; }
@@ -886,30 +931,24 @@
                 roomCode = codeInput;
                 isHost = false;
                 
-                // Grab Host's preferences to display immediately
                 currentTrackIndex = data.track_index;
                 document.getElementById('track-name-display').innerText = TRACK_NAMES[currentTrackIndex];
                 
-                // Overwrite P1 variable with the Host's car
                 p1SelectedCar = data.host_car || 'balanced';
                 document.getElementById('p1-car-display').innerText = CAR_STATS[p1SelectedCar].name;
                 
                 // Update DB with guest
                 const { error: updateErr } = await supabaseClient.schema('mateopolyracing').from('rooms').update({
-                    guest_id: currentUser.id,
-                    guest_car: p2SelectedCar
+                    guest_id: currentUser.id, guest_car: p2SelectedCar
                 }).eq('room_code', roomCode);
                 
-                if(updateErr) {
-                    if(errorEl) errorEl.innerText = "Error joining: " + updateErr.message;
-                    return;
-                }
+                if(updateErr) { if(errorEl) errorEl.innerText = "Error joining: " + updateErr.message; return; }
 
                 if(errorEl) errorEl.innerText = "";
                 setupLobbyUI();
                 joinRealtimeChannel();
             } catch (err) {
-                if(errorEl) errorEl.innerText = "Connection failed: " + (err.message || "Sandbox restriction");
+                if(errorEl) errorEl.innerText = "Connection failed";
                 console.error(err);
             }
         }
@@ -920,47 +959,70 @@
             document.getElementById('display-room-code').innerText = roomCode;
             document.getElementById('lobby-status-text').innerText = isHost ? "Waiting for opponent to join..." : "Joined! Waiting for Host to start.";
             document.getElementById('start-btn').classList.remove('hidden');
-            if(!isHost) document.getElementById('start-btn').style.display = 'none'; // Only host starts
+            document.getElementById('start-btn').style.display = isHost ? '' : 'none';
 
-            // Lock settings once in a lobby to avoid syncing complexity
+            // Secure Setup Buttons per Player Role
             if (!isHost) {
                 document.getElementById('track-setup-container').style.opacity = '0.5';
                 document.getElementById('track-setup-container').style.pointerEvents = 'none';
+                document.getElementById('p1-car-setup-btn').style.opacity = '0.5';
+                document.getElementById('p1-car-setup-btn').style.pointerEvents = 'none';
+                
+                document.getElementById('p2-car-setup-btn').style.opacity = '1';
+                document.getElementById('p2-car-setup-btn').style.pointerEvents = 'auto';
+            } else {
+                document.getElementById('track-setup-container').style.opacity = '1';
+                document.getElementById('track-setup-container').style.pointerEvents = 'auto';
+                document.getElementById('p1-car-setup-btn').style.opacity = '1';
+                document.getElementById('p1-car-setup-btn').style.pointerEvents = 'auto';
+                
+                document.getElementById('p2-car-setup-btn').style.opacity = '0.5';
+                document.getElementById('p2-car-setup-btn').style.pointerEvents = 'none';
             }
-            document.getElementById('p1-car-setup-btn').style.opacity = '0.5';
-            document.getElementById('p1-car-setup-btn').style.pointerEvents = 'none';
         }
 
         function joinRealtimeChannel() {
+            channelConnected = false;
             roomChannel = supabaseClient.channel(`room:${roomCode}`);
             
             // Host listens for Player Joined
             roomChannel.on('broadcast', { event: 'player_joined' }, payload => {
                 if(isHost) {
                     remotePlayerReady = true;
-                    // Grab Guest's selected car from the payload
-                    if(payload.payload.guestCar) p2SelectedCar = payload.payload.guestCar;
-                    
+                    if(payload.payload.guestCar) {
+                        p2SelectedCar = payload.payload.guestCar;
+                        document.getElementById('p2-car-display').innerText = CAR_STATS[p2SelectedCar].name;
+                    }
                     document.getElementById('lobby-status-text').innerText = "Opponent joined! Ready to start.";
                     document.getElementById('lobby-status-text').style.color = "#2ed573";
                     
-                    // Send current track/car back to guest just to be safe
                     roomChannel.send({
                         type: 'broadcast', event: 'room_settings',
                         payload: { track: currentTrackIndex, hostCar: p1SelectedCar }
-                    });
+                    }).catch(e=>console.log(e));
                     
                     if(document.getElementById('voice-toggle').checked) initiateWebRTC();
                 }
             });
+
+            // Remote Vehicle Live Sync
+            roomChannel.on('broadcast', { event: 'guest_update' }, payload => {
+                if(isHost && payload.payload.guestCar) {
+                    p2SelectedCar = payload.payload.guestCar;
+                    document.getElementById('p2-car-display').innerText = CAR_STATS[p2SelectedCar].name;
+                }
+            });
             
-            // Guest listens for Room Setting Updates
             roomChannel.on('broadcast', { event: 'room_settings' }, payload => {
                 if(!isHost) {
-                    currentTrackIndex = payload.payload.track;
-                    selectTrack(currentTrackIndex); // load track early
-                    p1SelectedCar = payload.payload.hostCar;
-                    document.getElementById('p1-car-display').innerText = CAR_STATS[p1SelectedCar].name;
+                    if (payload.payload.track !== undefined) {
+                        currentTrackIndex = payload.payload.track;
+                        selectTrack(currentTrackIndex);
+                    }
+                    if (payload.payload.hostCar) {
+                        p1SelectedCar = payload.payload.hostCar;
+                        document.getElementById('p1-car-display').innerText = CAR_STATS[p1SelectedCar].name;
+                    }
                 }
             });
 
@@ -972,17 +1034,26 @@
             // Sync Positional Physics Payload
             roomChannel.on('broadcast', { event: 'sync_pos' }, payload => {
                 let pData = payload.payload;
-                
-                // IMPORTANT: Filter out our OWN broadcast to prevent the cars from merging/snapping
                 if ((isHost && pData.sender === 'host') || (!isHost && pData.sender === 'guest')) return;
                 
-                let remoteCar = isHost ? cars[1] : cars[0]; // Host's remote is P2, Guest's remote is P1
+                let remoteCar = isHost ? cars[1] : cars[0]; 
                 if(remoteCar) {
+                    // Snap remote car to sync coords (extrapolation logic handles frames between ticks)
                     remoteCar.position.set(pData.x, pData.y, pData.z);
                     remoteCar.angle = pData.a;
                     remoteCar.speed = pData.s;
-                    // Interpolate visual steering
-                    remoteCar.frontWheels.forEach(w => { w.rotation.y = pData.st; });
+                    remoteCar.steerVisual = pData.st;
+                }
+            });
+
+            // Sync Powerup Claim
+            roomChannel.on('broadcast', { event: 'powerup_grab' }, payload => {
+                let { pIndex, carNum } = payload.payload;
+                let p = powerups[pIndex];
+                let car = cars.find(c => c.playerNum === carNum);
+                if (p && p.active && car) {
+                    p.active = false; p.mesh.visible = false; p.respawnTimer = 400; 
+                    applyPowerupToCar(car, p.type);
                 }
             });
             
@@ -993,31 +1064,25 @@
                 else if (st === 'playing' && gameState === 'paused') togglePause(true);
             });
 
-            roomChannel.on('broadcast', { event: 'player_left' }, payload => {
-                returnToMenu(true);
-            });
+            roomChannel.on('broadcast', { event: 'player_left' }, payload => { returnToMenu(true); });
 
-            // WebRTC Signaling
+            // WebRTC
             roomChannel.on('broadcast', { event: 'webrtc_offer' }, async payload => {
                 if (!peerConnection) await setupPeerConnection();
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
-                roomChannel.send({ type: 'broadcast', event: 'webrtc_answer', payload: answer });
+                roomChannel.send({ type: 'broadcast', event: 'webrtc_answer', payload: answer }).catch(e=>console.log(e));
             });
-
-            roomChannel.on('broadcast', { event: 'webrtc_answer' }, async payload => {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload));
-            });
-
-            roomChannel.on('broadcast', { event: 'webrtc_ice' }, async payload => {
-                if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(payload.payload));
-            });
+            roomChannel.on('broadcast', { event: 'webrtc_answer' }, async payload => { await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload)); });
+            roomChannel.on('broadcast', { event: 'webrtc_ice' }, async payload => { if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(payload.payload)); });
 
             roomChannel.subscribe((status) => {
-                if(status === 'SUBSCRIBED' && !isHost) {
-                    // Send joining ping back to Host with our vehicle selection
-                    roomChannel.send({ type: 'broadcast', event: 'player_joined', payload: { guestCar: p2SelectedCar } });
+                if(status === 'SUBSCRIBED') {
+                    channelConnected = true;
+                    if (!isHost) {
+                        roomChannel.send({ type: 'broadcast', event: 'player_joined', payload: { guestCar: p2SelectedCar } }).catch(e=>console.log(e));
+                    }
                 }
             });
         }
@@ -1029,7 +1094,7 @@
                 if(peerConnection) { peerConnection.close(); peerConnection = null; }
             } else {
                 if(isHost && remotePlayerReady) initiateWebRTC();
-                else if (!isHost && roomChannel) await setupPeerConnection(); // Get ready for offer
+                else if (!isHost && roomChannel) await setupPeerConnection(); 
             }
         }
 
@@ -1040,18 +1105,13 @@
                 
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-                peerConnection.ontrack = event => {
-                    document.getElementById('remote-audio').srcObject = event.streams[0];
-                };
-
+                peerConnection.ontrack = event => { document.getElementById('remote-audio').srcObject = event.streams[0]; };
                 peerConnection.onicecandidate = event => {
-                    if (event.candidate && roomChannel) {
-                        roomChannel.send({ type: 'broadcast', event: 'webrtc_ice', payload: event.candidate });
+                    if (event.candidate && roomChannel && channelConnected) {
+                        roomChannel.send({ type: 'broadcast', event: 'webrtc_ice', payload: event.candidate }).catch(e=>console.log(e));
                     }
                 };
-            } catch (err) {
-                console.error("Microphone access denied or error:", err);
-            }
+            } catch (err) { console.error("Mic access denied:", err); }
         }
 
         async function initiateWebRTC() {
@@ -1059,7 +1119,7 @@
             if(peerConnection) {
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
-                roomChannel.send({ type: 'broadcast', event: 'webrtc_offer', payload: offer });
+                roomChannel.send({ type: 'broadcast', event: 'webrtc_offer', payload: offer }).catch(e=>console.log(e));
             }
         }
 
@@ -1121,7 +1181,12 @@
             selectingPlayer = pNum;
             const modal = document.getElementById('selection-modal');
             const carousel = document.getElementById('modal-carousel');
-            document.getElementById('modal-title').innerText = `Select ${gameMode === '2p-dist' ? 'Your' : 'Player ' + pNum} Vehicle`;
+            
+            let titleStr = `Select Player ${pNum} Vehicle`;
+            if (gameMode === '2p-dist') {
+                titleStr = pNum === 1 ? "Select Host Vehicle" : "Select Guest Vehicle";
+            }
+            document.getElementById('modal-title').innerText = titleStr;
             
             carousel.innerHTML = '';
             const currentCar = pNum === 1 ? p1SelectedCar : p2SelectedCar;
@@ -1132,53 +1197,70 @@
                 card.className = `carousel-card ${currentCar === key ? 'active' : ''}`;
                 card.onclick = () => { selectCar(key); closeModal(); };
                 
-                let spdPct = (stat.max / 1.8) * 100;
-                let accPct = (stat.acc / 0.025) * 100;
-                let trnPct = (stat.turn / 0.065) * 100;
-                let mssPct = (stat.mass / 4.0) * 100;
+                let spdPct = (stat.max / 1.8) * 100; let accPct = (stat.acc / 0.025) * 100;
+                let trnPct = (stat.turn / 0.065) * 100; let mssPct = (stat.mass / 4.0) * 100;
                 
                 card.innerHTML = `
                     <img src="${carPreviews[key]}" class="car-3d-preview" alt="${stat.name}">
                     <h3>${stat.name}</h3>
-                    <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 15px; height: 40px;">${stat.desc}</p>
-                    <div class="stat-row"><span>Speed</span><div class="stat-bar"><div class="stat-fill" style="width:${spdPct}%; background:${stat.color};"></div></div></div>
-                    <div class="stat-row"><span>Accel</span><div class="stat-bar"><div class="stat-fill" style="width:${accPct}%; background:${stat.color};"></div></div></div>
-                    <div class="stat-row"><span>Handling</span><div class="stat-bar"><div class="stat-fill" style="width:${trnPct}%; background:${stat.color};"></div></div></div>
-                    <div class="stat-row"><span>Mass</span><div class="stat-bar"><div class="stat-fill" style="width:${mssPct}%; background:${stat.color};"></div></div></div>
+                    <p class="car-desc-text">${stat.desc}</p>
+                    <div class="stat-row"><span>Speed</span><div class="stat-bar"><div class="stat-fill stat-fill-dynamic" data-width="${spdPct}" data-bg="${stat.color}"></div></div></div>
+                    <div class="stat-row"><span>Accel</span><div class="stat-bar"><div class="stat-fill stat-fill-dynamic" data-width="${accPct}" data-bg="${stat.color}"></div></div></div>
+                    <div class="stat-row"><span>Handling</span><div class="stat-bar"><div class="stat-fill stat-fill-dynamic" data-width="${trnPct}" data-bg="${stat.color}"></div></div></div>
+                    <div class="stat-row"><span>Mass</span><div class="stat-bar"><div class="stat-fill stat-fill-dynamic" data-width="${mssPct}" data-bg="${stat.color}"></div></div></div>
                 `;
+                
+                // Process dynamic fills
+                let fills = card.querySelectorAll('.stat-fill-dynamic');
+                fills.forEach(f => {
+                    f.style.width = f.getAttribute('data-width') + '%';
+                    f.style.backgroundColor = f.getAttribute('data-bg');
+                });
+
                 carousel.appendChild(card);
             });
             
-            modal.classList.remove('hidden');
-            setTimeout(() => modal.classList.add('active'), 10);
+            modal.classList.remove('hidden'); setTimeout(() => modal.classList.add('active'), 10);
         }
 
         function selectCar(key) {
             if (selectingPlayer === 1) {
                 p1SelectedCar = key;
                 document.getElementById('p1-car-display').innerText = CAR_STATS[key].name;
+                if (gameMode === '2p-dist' && isHost && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'room_settings', payload: { track: currentTrackIndex, hostCar: p1SelectedCar } }).catch(e=>console.log(e));
+                }
             } else {
                 p2SelectedCar = key;
                 document.getElementById('p2-car-display').innerText = CAR_STATS[key].name;
+                if (gameMode === '2p-dist' && !isHost && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'guest_update', payload: { guestCar: p2SelectedCar } }).catch(e=>console.log(e));
+                }
+            }
+        }
+
+        function selectTrack(index) {
+            currentTrackIndex = index;
+            document.getElementById('track-name-display').innerText = TRACK_NAMES[index];
+            loadTrack(index);
+            if (gameMode === '2p-dist' && isHost && roomChannel && channelConnected) {
+                roomChannel.send({ type: 'broadcast', event: 'room_settings', payload: { track: currentTrackIndex, hostCar: p1SelectedCar } }).catch(e=>console.log(e));
             }
         }
 
         function closeModal() {
             const modal = document.getElementById('selection-modal');
-            modal.classList.remove('active');
-            setTimeout(() => modal.classList.add('hidden'), 300);
+            modal.classList.remove('active'); setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
         function openInstructionsModal() {
             const modal = document.getElementById('instructions-modal');
-            modal.classList.remove('hidden');
-            setTimeout(() => modal.classList.add('active'), 10);
+            modal.classList.remove('hidden'); setTimeout(() => modal.classList.add('active'), 10);
         }
 
         function closeInstructionsModal() {
             const modal = document.getElementById('instructions-modal');
-            modal.classList.remove('active');
-            setTimeout(() => modal.classList.add('hidden'), 300);
+            modal.classList.remove('active'); setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
         function updateInstructions() {
@@ -1194,7 +1276,7 @@
             } else if (mode === 'mobile') {
                 document.body.classList.add('mobile-ui');
                 inst.innerHTML = `<li><strong class="highlight">Touch Controls:</strong> Use the on-screen steering.</li>`;
-                if(gameMode === '2p-local') setPlayerMode('1p'); // No local split on mobile
+                if(gameMode === '2p-local') setPlayerMode('1p'); 
             }
         }
         
@@ -1206,26 +1288,20 @@
             el.addEventListener('touchcancel', (e) => { e.preventDefault(); touchState[key] = false; el.classList.remove('active'); }, {passive: false});
         }
 
-        bindTouch('btn-left', 'left');
-        bindTouch('btn-right', 'right');
-        bindTouch('btn-gas', 'fwd');
-        bindTouch('btn-brake', 'rev');
+        bindTouch('btn-left', 'left'); bindTouch('btn-right', 'right');
+        bindTouch('btn-gas', 'fwd'); bindTouch('btn-brake', 'rev');
 
         function setupSpeedometer(ticksContainerId) {
             const container = document.getElementById(ticksContainerId);
             container.innerHTML = ''; 
-            
             const minAngle = -120; const maxAngle = 120;
-            const range = maxAngle - minAngle;
-            const numTicks = 25; 
+            const range = maxAngle - minAngle; const numTicks = 25; 
             
             for(let i=0; i<numTicks; i++) {
                 let angle = minAngle + (i / (numTicks-1)) * range;
                 let val = i * 10;
                 
-                let tick = document.createElement('div');
-                tick.className = 'speed-tick';
-                
+                let tick = document.createElement('div'); tick.className = 'speed-tick';
                 let isMajor = i % 2 === 0;
                 if(isMajor) tick.classList.add('major');
                 if(val >= 160) tick.classList.add('red'); 
@@ -1234,25 +1310,16 @@
                 container.appendChild(tick);
                 
                 if (isMajor && val > 0 && val < 240) {
-                    let label = document.createElement('div');
-                    label.className = 'speed-label';
-                    label.innerText = val;
-                    if(val >= 160) label.style.color = '#f55';
-                    
+                    let label = document.createElement('div'); label.className = 'speed-label';
+                    label.innerText = val; if(val >= 160) label.style.color = '#f55';
                     let rad = (angle - 90) * (Math.PI/180);
-                    let radius = 55;
-                    let lx = 90 + Math.cos(rad) * radius - 10;
-                    let ly = 90 + Math.sin(rad) * radius - 8;
-                    
-                    label.style.left = `${lx}px`;
-                    label.style.top = `${ly}px`;
+                    label.style.left = `${90 + Math.cos(rad) * 55 - 10}px`;
+                    label.style.top = `${90 + Math.sin(rad) * 55 - 8}px`;
                     container.appendChild(label);
                 }
             }
         }
-        
-        setupSpeedometer('p1-ticks');
-        setupSpeedometer('p2-ticks');
+        setupSpeedometer('p1-ticks'); setupSpeedometer('p2-ticks');
 
         class Car {
             constructor(name, color, isPlayer, playerNum = 0, type = 'balanced', targetScene = scene) {
@@ -1260,8 +1327,7 @@
                 const stats = CAR_STATS[type];
                 
                 this.position = new THREE.Vector3(); this.velocity = new THREE.Vector3();
-                this.angle = 0; this.speed = 0;
-                this.steerVisual = 0;
+                this.angle = 0; this.speed = 0; this.steerVisual = 0;
                 
                 this.baseMaxSpeed = isPlayer ? stats.max : stats.max - 0.1 + (Math.random() * 0.1);
                 this.maxSpeed = this.baseMaxSpeed; this.acceleration = stats.acc;
@@ -1269,16 +1335,13 @@
                 this.baseMass = stats.mass; this.mass = this.baseMass;
                 
                 this.activePowerup = null; this.powerupTimer = 0;
-                
                 this.lap = 1; this.trackIndex = 0; this.distanceCovered = 0;
                 this.finished = false; this.finishTime = 0;
 
                 this.engineSynth = (isPlayer && soundEnabled) ? new EngineSynth() : null;
 
                 this.mesh = new THREE.Group();
-                this.wheels = []; 
-                this.frontWheels = []; 
-                this.taillights = [];
+                this.wheels = []; this.frontWheels = []; this.taillights = [];
                 
                 this.buildCarMesh(type, color, stats);
 
@@ -1312,19 +1375,15 @@
                 };
 
                 const yOff = type === 'bruiser' || type === 'tank' ? 0.8 : 0.5; 
-                const wR = type === 'tank' || type === 'bruiser' ? 0.6 : 0.45;
-                const wW = 0.5;
+                const wR = type === 'tank' || type === 'bruiser' ? 0.6 : 0.45; const wW = 0.5;
                 
-                let chassis = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.6, l), bodyMat);
-                chassis.position.y = yOff + h*0.3; chassis.castShadow = true; this.mesh.add(chassis);
+                let chassis = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.6, l), bodyMat); chassis.position.y = yOff + h*0.3; chassis.castShadow = true; this.mesh.add(chassis);
 
                 let cabW = w * 0.85, cabH = h * 0.5, cabL = l * 0.5;
                 let cabZ = type === 'speedster' ? -l*0.15 : (type === 'bruiser' ? l*0.1 : 0);
-                let cabin = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabL), glassMat);
-                cabin.position.set(0, yOff + h*0.6 + cabH/2, cabZ); cabin.castShadow = true; this.mesh.add(cabin);
+                let cabin = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabL), glassMat); cabin.position.set(0, yOff + h*0.6 + cabH/2, cabZ); cabin.castShadow = true; this.mesh.add(cabin);
 
-                let roof = new THREE.Mesh(new THREE.BoxGeometry(cabW + 0.05, 0.05, cabL + 0.05), roofMat);
-                roof.position.set(0, cabin.position.y + cabH/2, cabZ); roof.castShadow = true; this.mesh.add(roof);
+                let roof = new THREE.Mesh(new THREE.BoxGeometry(cabW + 0.05, 0.05, cabL + 0.05), roofMat); roof.position.set(0, cabin.position.y + cabH/2, cabZ); roof.castShadow = true; this.mesh.add(roof);
 
                 let hw = 0.4, hh = 0.15, hl = 0.1;
                 let hlL = new THREE.Mesh(new THREE.BoxGeometry(hw, hh, hl), hlMat); hlL.position.set(w/2 - 0.3, yOff + h*0.4, l/2 + 0.01);
@@ -1368,22 +1427,20 @@
                     if (this.powerupTimer <= 0) this.resetStats();
                 }
 
-                let steerVisual = 0;
                 let isBraking = false;
                 const inputMode = inputModeSelect.value;
-                
-                // Isolating Input Processes to fix the merging/disappearing bug
-                let processInputs = false;
-                let isRemote = false;
+                let processInputs = false; let isRemote = false;
 
                 if (gameMode === '1p' || gameMode === '2p-local') {
                     processInputs = this.isPlayer;
                 } else if (gameMode === '2p-dist') {
-                    if (isHost && this.playerNum === 1) processInputs = true;
-                    if (!isHost && this.playerNum === 2) processInputs = true;
-                    
-                    if (isHost && this.playerNum === 2) isRemote = true;
-                    if (!isHost && this.playerNum === 1) isRemote = true;
+                    if (isHost) {
+                        processInputs = (this.playerNum === 1);
+                        isRemote = (this.playerNum === 2);
+                    } else {
+                        processInputs = (this.playerNum === 2);
+                        isRemote = (this.playerNum === 1);
+                    }
                 }
 
                 if (this.finished) {
@@ -1409,8 +1466,7 @@
                             }
                         }
                     } else if (this.playerNum === 2 && gameMode === '2p-local') {
-                        fwd = keys.ArrowUp; rev = keys.ArrowDown;
-                        left = keys.ArrowLeft; right = keys.ArrowRight;
+                        fwd = keys.ArrowUp; rev = keys.ArrowDown; left = keys.ArrowLeft; right = keys.ArrowRight;
                         if (inputMode === 'gamepad') {
                             let gp = navigator.getGamepads()[1];
                             if (gp) {
@@ -1435,50 +1491,42 @@
                         if (right) this.angle += this.steerSpeed;
                     }
 
-                    if (left) steerVisual = 0.5;
-                    if (right) steerVisual = -0.5;
-                    this.steerVisual = steerVisual; // Store for syncing
+                    if (left) this.steerVisual = 0.5; else if (right) this.steerVisual = -0.5; else this.steerVisual = 0;
                     
                     // WRONG WAY DETECTION
                     let nextIdx = (this.trackIndex + 5) % trackPoints.length;
                     let pt1 = trackPoints[this.trackIndex]; let pt2 = trackPoints[nextIdx];
                     let dx = pt2.x - pt1.x; let dz = pt2.z - pt1.z;
                     let len = Math.sqrt(dx*dx + dz*dz) || 1;
-                    let tx = dx/len; let tz = dz/len; 
-                    let cx = Math.sin(this.angle); let cz = Math.cos(this.angle); 
-                    let dirMult = this.speed >= 0 ? 1 : -1; 
-                    let dot = (tx * cx + tz * cz) * dirMult;
+                    let dot = ((dx/len) * Math.sin(this.angle) + (dz/len) * Math.cos(this.angle)) * (this.speed >= 0 ? 1 : -1);
                     
                     let wwEl = this.playerNum === 1 ? p1WrongWay : p2WrongWay;
-                    if (gameMode === '2p-dist') wwEl = p1WrongWay; // UI is combined in distance mode
-                    
-                    if (dot < -0.2 && Math.abs(this.speed) > 0.1) wwEl.classList.remove('hidden');
-                    else wwEl.classList.add('hidden');
+                    if (gameMode === '2p-dist') wwEl = p1WrongWay; 
+                    if (dot < -0.2 && Math.abs(this.speed) > 0.1) wwEl.classList.remove('hidden'); else wwEl.classList.add('hidden');
                     
                 } else if (!this.isPlayer && gameMode !== '2p-dist') {
-                    // AI controlled (disabled in distance mode for simplicity)
+                    // AI controlled
                     this.speed += this.acceleration;
                     let lookAhead = Math.floor(10 + (this.speed * 15));
-                    let targetIndex = (this.trackIndex + lookAhead) % trackPoints.length;
-                    let targetPoint = trackPoints[targetIndex];
-                    let dx = targetPoint.x - this.position.x; let dz = targetPoint.z - this.position.z;
-                    let targetAngle = Math.atan2(dx, dz);
+                    let targetPoint = trackPoints[(this.trackIndex + lookAhead) % trackPoints.length];
+                    let targetAngle = Math.atan2(targetPoint.x - this.position.x, targetPoint.z - this.position.z);
                     let angleDiff = targetAngle - this.angle;
                     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
                     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                     this.angle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), this.steerSpeed);
-                    steerVisual = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * 5, 0.6); 
-                    this.steerVisual = steerVisual;
+                    this.steerVisual = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * 5, 0.6); 
                 }
 
-                // If remote controlled in distance mode, skip physics application entirely.
+                // Smooth Network Extrapolation + Local Physics
                 if(!isRemote) {
-                    if (this.activePowerup === 'oil') {
-                        this.speed *= 0.90; this.angle += (Math.random() - 0.5) * 0.1;
-                    } else {
-                        this.speed *= this.friction;
-                    }
+                    if (this.activePowerup === 'oil') { this.speed *= 0.90; this.angle += (Math.random() - 0.5) * 0.1; } 
+                    else { this.speed *= this.friction; }
                     this.speed = Math.max(Math.min(this.speed, this.maxSpeed), -this.maxSpeed / 2);
+                    this.position.x += Math.sin(this.angle) * this.speed;
+                    this.position.z += Math.cos(this.angle) * this.speed;
+                } else {
+                    // EXTRAPOLATE Remote cars between 10hz Network ticks so they smoothly glide forward
+                    this.speed *= this.friction;
                     this.position.x += Math.sin(this.angle) * this.speed;
                     this.position.z += Math.cos(this.angle) * this.speed;
                 }
@@ -1491,27 +1539,19 @@
                 this.wheels.forEach(w => { w.spin.rotation.x += this.speed / w.r; });
                 this.frontWheels.forEach(w => { w.rotation.y += (this.steerVisual - w.rotation.y) * 0.2; });
 
-                if (this.tlMat) this.tlMat.color.setHex(isBraking ? 0xff3333 : 0x550000);
-                if (this.tlMat) this.tlMat.emissive.setHex(isBraking ? 0xff3333 : 0x550000);
+                if (this.tlMat) { this.tlMat.color.setHex(isBraking ? 0xff3333 : 0x550000); this.tlMat.emissive.setHex(isBraking ? 0xff3333 : 0x550000); }
 
-                if (this.isPlayer) {
+                if (this.isPlayer && (gameMode !== '2p-dist' || processInputs)) {
                     let speedMph = Math.abs(this.speed) * 120; 
-                    let sAngle = -120 + (speedMph / 240) * 240;
-                    sAngle = Math.max(-120, Math.min(120, sAngle));
+                    let sAngle = Math.max(-120, Math.min(120, -120 + (speedMph / 240) * 240));
                     
                     let needle = this.playerNum === 1 ? p1Needle : p2Needle;
                     let gearEl = this.playerNum === 1 ? p1Gear : p2Gear;
                     
-                    if(gameMode === '2p-dist' && this.playerNum === 2 && !isHost) {
-                        needle = p1Needle; gearEl = p1Gear; // Use primary UI for guest
-                    }
+                    if(gameMode === '2p-dist' && this.playerNum === 2 && !isHost) { needle = p1Needle; gearEl = p1Gear; }
                     
                     if(needle) needle.style.transform = `rotate(${sAngle}deg)`;
-                    if(gearEl) {
-                        if(this.speed < -0.05) gearEl.innerText = "R";
-                        else if(this.speed < 0.1) gearEl.innerText = "N";
-                        else gearEl.innerText = Math.min(6, Math.floor(1 + speedMph/40));
-                    }
+                    if(gearEl) gearEl.innerText = this.speed < -0.05 ? "R" : (this.speed < 0.1 ? "N" : Math.min(6, Math.floor(1 + speedMph/40)));
                 }
 
                 if (this.engineSynth) {
@@ -1529,22 +1569,21 @@
             updateTrackProgress(trackPoints) {
                 let minDist = Infinity; let bestIndex = this.trackIndex;
                 for (let i = 0; i < trackPoints.length; i+=2) { 
-                    let pt = trackPoints[i]; let distSq = this.position.distanceToSquared(pt);
+                    let distSq = this.position.distanceToSquared(trackPoints[i]);
                     if (distSq < minDist) { minDist = distSq; bestIndex = i; }
                 }
 
-                let distToTrack = Math.sqrt(minDist);
                 let immune = (this.activePowerup === 'heavy' || this.activePowerup === 'invincible');
-                if (distToTrack > TRACK_WIDTH / 2 && !immune) this.speed *= 0.90; 
+                if (Math.sqrt(minDist) > TRACK_WIDTH / 2 && !immune) this.speed *= 0.90; 
 
                 if (this.trackIndex > trackPoints.length * 0.8 && bestIndex < trackPoints.length * 0.2) {
                     this.lap++;
-                    if (this.lap > TOTAL_LAPS && !this.finished) {
-                        this.finished = true; this.finishTime = Date.now(); checkRaceEnd();
-                    }
+                    if (this.lap > TOTAL_LAPS && !this.finished) { this.finished = true; this.finishTime = Date.now(); checkRaceEnd(); }
                     if (this.isPlayer) {
-                        if (gameMode === '2p-dist' && !isHost && this.playerNum === 2) {
-                            p1LapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
+                        if (gameMode === '2p-dist') {
+                            if ((isHost && this.playerNum === 1) || (!isHost && this.playerNum === 2)) {
+                                p1LapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
+                            }
                         } else {
                             if (this.playerNum === 1) p1LapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
                             if (this.playerNum === 2) p2LapEl.innerText = Math.min(this.lap, TOTAL_LAPS);
@@ -1612,9 +1651,7 @@
         function init() {
             const container = document.getElementById('game-container');
             
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB);
-            scene.fog = new THREE.Fog(0x87CEEB, 100, 400);
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB); scene.fog = new THREE.Fog(0x87CEEB, 100, 400);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1637,11 +1674,9 @@
             ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
             trackGroup = new THREE.Group(); scene.add(trackGroup);
-
             generateCarPreviews();
 
             if ('ontouchstart' in window || navigator.maxTouchPoints > 0) inputModeSelect.value = 'mobile';
-
             updateInstructions(); selectTrack(0);
             
             window.addEventListener('resize', onWindowResize);
@@ -1652,12 +1687,6 @@
             window.addEventListener('keyup', (e) => { if(keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
             animate();
-        }
-
-        function selectTrack(index) {
-            currentTrackIndex = index;
-            document.getElementById('track-name-display').innerText = TRACK_NAMES[index];
-            loadTrack(index);
         }
 
         function loadTrack(index) {
@@ -1736,11 +1765,8 @@
 
         function startGame() {
             if (gameMode === '2p-dist') {
-                if(!isHost || !remotePlayerReady) {
-                    alert("Waiting for opponent to join!"); return;
-                }
-                // Notify guest
-                roomChannel.send({ type: 'broadcast', event: 'start_game', payload: {} });
+                if(!isHost || !remotePlayerReady) { alert("Waiting for opponent to join!"); return; }
+                roomChannel.send({ type: 'broadcast', event: 'start_game', payload: {} }).catch(e=>console.log(e));
                 startGameDistance(true);
             } else {
                 startGameLocal();
@@ -1788,12 +1814,10 @@
             onWindowResize();
 
             cars.forEach(car => scene.remove(car.mesh)); cars = [];
-
-            const p1Type = p1SelectedCar; const p2Type = p2SelectedCar;
             const cpuTypes = ['balanced', 'speedster', 'bruiser', 'drifter', 'tank'];
 
-            cars.push(new Car("Player 1", 0xff4757, true, 1, p1Type));
-            if (gameMode === '2p-local') cars.push(new Car("Player 2", 0x1e90ff, true, 2, p2Type));
+            cars.push(new Car("Player 1", 0xff4757, true, 1, p1SelectedCar));
+            if (gameMode === '2p-local') cars.push(new Car("Player 2", 0x1e90ff, true, 2, p2SelectedCar));
             else cars.push(new Car("CPU 1", 0x1e90ff, false, 0, cpuTypes[Math.floor(Math.random() * cpuTypes.length)]));
 
             const cpuColors = [0xf1c40f, 0x2ed573, 0x9b59b6, 0xe67e22]; 
@@ -1813,7 +1837,6 @@
             setTimeout(() => { mainMenu.style.display = 'none'; mainMenu.style.opacity = '1'; }, 400);
             gameOverMenu.classList.remove('active'); gameOverMenu.classList.add('hidden');
             
-            // UI defaults to single screen layout for distance mode
             document.getElementById('pause-btn').classList.remove('hidden');
             p1Hud.classList.remove('hidden'); p1Pos.classList.remove('hidden'); p1LapEl.innerText = '1';
             minimapCanvasP1.classList.remove('hidden');
@@ -1831,16 +1854,12 @@
 
             cars.forEach(car => scene.remove(car.mesh)); cars = [];
 
-            // Spawn only the two players for distance mode to guarantee sync simplicity
+            // Spawn only the two players
             cars.push(new Car(isHost ? "You" : "Opponent", 0xff4757, true, 1, p1SelectedCar));
             cars.push(new Car(!isHost ? "You" : "Opponent", 0x1e90ff, true, 2, p2SelectedCar));
 
             positionCarsAtStart();
-            
-            if(isHost) {
-                // Update room to active
-                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
-            }
+            if(isHost) supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
         }
 
         function positionCarsAtStart() {
@@ -1859,13 +1878,13 @@
         function togglePause(isRemoteEvent = false) {
             if (gameState === 'playing') {
                 gameState = 'paused'; pauseMenu.classList.remove('hidden'); pauseMenu.classList.add('active');
-                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel) {
-                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'paused' } });
+                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'paused' } }).catch(e=>console.log(e));
                 }
             } else if (gameState === 'paused') {
                 gameState = 'playing'; pauseMenu.classList.add('hidden'); pauseMenu.classList.remove('active');
-                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel) {
-                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'playing' } });
+                if (gameMode === '2p-dist' && !isRemoteEvent && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'pause', payload: { state: 'playing' } }).catch(e=>console.log(e));
                 }
             }
         }
@@ -1887,16 +1906,19 @@
             cars.forEach((car, index) => {
                 let li = document.createElement('li');
                 let timeStr = car.finished ? "Finished" : "DNF";
-                if(car.isPlayer) li.innerHTML = `<span style="color:${car.playerNum===1?'#ff4757':'#1e90ff'}">${index + 1}. ${car.name}</span> <span style="float:right; font-size:0.8em; color:#ccc;">${timeStr}</span>`;
-                else li.innerHTML = `${index + 1}. ${car.name} <span style="float:right; font-size:0.8em; color:#ccc;">${timeStr}</span>`;
+                
+                let pClass = '';
+                if(car.playerNum === 1) pClass = 'player-one-color';
+                else if(car.playerNum === 2) pClass = 'player-two-color';
+
+                if(car.isPlayer) li.innerHTML = `<span class="${pClass}">${index + 1}. ${car.name}</span> <span class="time-str-span">${timeStr}</span>`;
+                else li.innerHTML = `${index + 1}. ${car.name} <span class="time-str-span">${timeStr}</span>`;
+                
                 standingsList.appendChild(li);
             });
 
             gameOverMenu.classList.remove('hidden'); gameOverMenu.classList.add('active');
-            
-            if(isDistanceMode && isHost && roomCode) {
-                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
-            }
+            if(isDistanceMode && isHost && roomCode) supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
         }
 
         async function returnToMenu(remoteTrigger = false) {
@@ -1908,29 +1930,19 @@
             p2Toast.classList.add('hidden'); p2Toast.classList.remove('show');
             document.getElementById('pause-btn').classList.add('hidden');
             document.getElementById('touch-controls').classList.add('hidden');
-            
-            // Re-enable settings just in case
-            document.getElementById('track-setup-container').style.opacity = '1';
-            document.getElementById('track-setup-container').style.pointerEvents = 'auto';
-            document.getElementById('p1-car-setup-btn').style.opacity = '1';
-            document.getElementById('p1-car-setup-btn').style.pointerEvents = 'auto';
+            document.getElementById('start-btn').style.display = ''; // Reset UI inline style override
             
             mainMenu.style.display = 'flex';
 
-            // Clean up DB Room
             if (gameMode === '2p-dist' && roomCode) {
-                if (!remoteTrigger && roomChannel) {
-                    roomChannel.send({ type: 'broadcast', event: 'player_left', payload: {} });
+                if (!remoteTrigger && roomChannel && channelConnected) {
+                    roomChannel.send({ type: 'broadcast', event: 'player_left', payload: {} }).catch(e=>console.log(e));
                 }
-                
-                if (isHost) { // Host permanently cleans up the room on exit
-                    await supabaseClient.schema('mateopolyracing').from('rooms').delete().eq('room_code', roomCode);
-                } else if (!remoteTrigger) { // Guest leaves on own accord
-                    await supabaseClient.schema('mateopolyracing').from('rooms').update({ guest_id: null }).eq('room_code', roomCode);
-                }
+                if (isHost) { await supabaseClient.schema('mateopolyracing').from('rooms').delete().eq('room_code', roomCode); } 
+                else if (!remoteTrigger) { await supabaseClient.schema('mateopolyracing').from('rooms').update({ guest_id: null }).eq('room_code', roomCode); }
             }
             
-            if(roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; }
+            if(roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; channelConnected = false;}
             if(peerConnection) { peerConnection.close(); peerConnection = null; }
             if(localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
             
@@ -1946,7 +1958,7 @@
             cars.forEach(car => { if (car.engineSynth) car.engineSynth.stop(); scene.remove(car.mesh); }); 
             cars = [];
             
-            setPlayerMode(gameMode); // Re-apply UI state
+            setPlayerMode(gameMode);
 
             if (remoteTrigger) {
                 const errorEl = document.getElementById('lobby-error');
@@ -1965,8 +1977,10 @@
                 cars.forEach((car, index) => {
                     if (car.isPlayer) {
                         let posStr = getOrdinal(index + 1);
-                        if(gameMode === '2p-dist' && !isHost && car.playerNum === 2) {
-                            p1Pos.innerText = posStr; // Re-use UI 1 for guest
+                        if (gameMode === '2p-dist') {
+                            if ((isHost && car.playerNum === 1) || (!isHost && car.playerNum === 2)) {
+                                p1Pos.innerText = posStr;
+                            }
                         } else {
                             if (car.playerNum === 1) p1Pos.innerText = posStr;
                             if (car.playerNum === 2) p2Pos.innerText = posStr;
@@ -1978,10 +1992,9 @@
 
         function showPowerupToast(playerNum, type) {
             let toast = playerNum === 1 ? p1Toast : p2Toast;
-            if (gameMode === '2p-dist') toast = p1Toast; // Always use primary toast in dist mode
+            if (gameMode === '2p-dist') toast = p1Toast; 
 
-            const name = type.toUpperCase();
-            const colorHex = POWERUP_COLORS[type];
+            const name = type.toUpperCase(); const colorHex = POWERUP_COLORS[type];
             const colorStr = '#' + colorHex.toString(16).padStart(6, '0');
 
             toast.innerText = name + "!";
@@ -1989,8 +2002,7 @@
             toast.style.textShadow = `0 0 15px ${colorStr}`;
             toast.style.boxShadow = `0 10px 30px rgba(0,0,0,0.6), inset 0 0 20px ${colorStr}40`;
 
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('show'), 10);
+            toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('show'), 10);
 
             if (playerNum === 1 || gameMode === '2p-dist') {
                 if (p1ToastTimeout) clearTimeout(p1ToastTimeout);
@@ -2001,29 +2013,44 @@
             }
         }
 
+        function applyPowerupToCar(car, pType) {
+            car.activePowerup = pType; car.powerupTimer = 240; 
+            car.aura.visible = true; car.auraMat.color.setHex(POWERUP_COLORS[pType]);
+            if (car.isPlayer) { showPowerupToast(car.playerNum, pType); playSound('powerup'); }
+            
+            if (pType === 'boost') { car.maxSpeed = car.baseMaxSpeed * 1.5; car.speed += 0.5; } 
+            else if (pType === 'heavy') car.mass = car.baseMass * 10;
+            else if (pType === 'shrink') { car.mesh.scale.set(0.5, 0.5, 0.5); car.mass = car.baseMass * 0.5; } 
+            else if (pType === 'invincible') { car.maxSpeed = car.baseMaxSpeed * 1.3; car.mass = car.baseMass * 100; }
+            else if (pType === 'ghost') { car.mesh.children.forEach(c => { if(c.material) { c.material.transparent=true; c.material.opacity=0.5; } }); }
+        }
+
         function handlePowerups() {
-            powerups.forEach(p => {
+            powerups.forEach((p, pIndex) => {
                 if (!p.active) {
                     p.respawnTimer--;
                     if (p.respawnTimer <= 0) { p.active = true; p.mesh.visible = true; }
                     return;
                 }
-                
                 p.mesh.rotation.x += 0.05; p.mesh.rotation.y += 0.05;
 
                 for (let car of cars) {
                     if (car.position.distanceToSquared(p.pos) < 20) {
-                        p.active = false; p.mesh.visible = false; p.respawnTimer = 400; 
-                        car.activePowerup = p.type; car.powerupTimer = 240; 
-                        car.aura.visible = true; car.auraMat.color.setHex(POWERUP_COLORS[p.type]);
-                        
-                        if (car.isPlayer) { showPowerupToast(car.playerNum, p.type); playSound('powerup'); }
-                        
-                        if (p.type === 'boost') { car.maxSpeed = car.baseMaxSpeed * 1.5; car.speed += 0.5; } 
-                        else if (p.type === 'heavy') car.mass = car.baseMass * 10;
-                        else if (p.type === 'shrink') { car.mesh.scale.set(0.5, 0.5, 0.5); car.mass = car.baseMass * 0.5; } 
-                        else if (p.type === 'invincible') { car.maxSpeed = car.baseMaxSpeed * 1.3; car.mass = car.baseMass * 100; }
-                        else if (p.type === 'ghost') { car.mesh.children.forEach(c => { if(c.material) { c.material.transparent=true; c.material.opacity=0.5; } }); }
+                        // Authoritative check so both remote sides don't claim double-hits
+                        let isLocalCar = false;
+                        if (gameMode !== '2p-dist') isLocalCar = true;
+                        else if (isHost && car.playerNum === 1) isLocalCar = true;
+                        else if (!isHost && car.playerNum === 2) isLocalCar = true;
+
+                        if (isLocalCar) {
+                            p.active = false; p.mesh.visible = false; p.respawnTimer = 400; 
+                            applyPowerupToCar(car, p.type);
+                            
+                            // Tell the remote screen we grabbed this
+                            if (gameMode === '2p-dist' && roomChannel && channelConnected) {
+                                roomChannel.send({ type: 'broadcast', event: 'powerup_grab', payload: { pIndex: pIndex, carNum: car.playerNum } }).catch(e=>console.log(e));
+                            }
+                        }
                         break;
                     }
                 }
@@ -2036,9 +2063,11 @@
                     let c1 = cars[i]; let c2 = cars[j];
                     if(c1.activePowerup === 'ghost' || c2.activePowerup === 'ghost') continue;
                     
+                    // Skip physics calculations for P1/P2 hits in distance mode to prevent sync freezing and magnetic merging
+                    if (gameMode === '2p-dist' && c1.isPlayer && c2.isPlayer) continue;
+
                     let dx = c1.position.x - c2.position.x; let dz = c1.position.z - c2.position.z;
                     let distSq = dx*dx + dz*dz;
-                    
                     let r1 = c1.activePowerup === 'shrink' ? 1.5 : 3.0; let r2 = c2.activePowerup === 'shrink' ? 1.5 : 3.0;
                     const minDistance = r1 + r2; 
                     
@@ -2049,11 +2078,8 @@
                     }
 
                     if (distSq < minDistance * minDistance) {
-                        // Skip Player-to-Player physics collision entirely in distance mode to prevent network infinite freeze loops
-                        if (gameMode === '2p-dist' && c1.isPlayer && c2.isPlayer) continue;
-
                         let dist = Math.sqrt(distSq) || 0.01;
-                        if (dist === 0.01 && distSq === 0) { dx = 0.01; dz = 0.01; } // Prevent 0/0 NaN Lock 
+                        if (dist === 0.01 && distSq === 0) { dx = 0.01; dz = 0.01; }
 
                         let nx = dx / dist; let nz = dz / dist;
                         let push = (minDistance - dist) * 0.5;
@@ -2078,9 +2104,7 @@
 
         function updateCameras() {
             const followDist = 12; const height = 5;
-            
-            // In distance mode, guest watches P2 using camera 1
-            const p1 = gameMode === '2p-dist' && !isHost ? cars.find(c => c.playerNum === 2) : cars.find(c => c.playerNum === 1);
+            const p1 = (gameMode === '2p-dist' && !isHost) ? cars.find(c => c.playerNum === 2) : cars.find(c => c.playerNum === 1);
             
             if (p1) {
                 let offset = new THREE.Vector3(-Math.sin(p1.angle) * followDist, height, -Math.cos(p1.angle) * followDist);
@@ -2100,7 +2124,6 @@
 
         function drawMap(ctx, pNum, scale, offX, offZ) {
             ctx.clearRect(0, 0, 180, 180);
-            
             ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.4)';
             ctx.lineWidth = Math.max(2, TRACK_WIDTH * scale * 0.8); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
             for(let i=0; i<trackPoints.length; i++) {
@@ -2123,31 +2146,29 @@
             if(gameMode === '2p-local') drawMap(ctxP2, 2, mapScale2, mapOffsetX2, mapOffsetZ2);
         }
 
-        // Throttle Network broadcasts
+        // Throttle to 10hz to stay below Supabase Broadcast Rate Limits (prevents getting disconnected!)
         let lastSyncTime = 0;
-        const SYNC_RATE = 50; // ms
+        const SYNC_RATE = 100; // ms 
 
         function update() {
             if (gameState === 'playing' || gameState === 'finished') {
                 cars.forEach(car => car.update(trackPoints));
                 handlePowerups(); handleCollisions(); updateStandings(); updateCameras(); drawMinimaps();
 
-                // Send network position in Distance Mode
-                if (gameMode === '2p-dist' && roomChannel && (Date.now() - lastSyncTime > SYNC_RATE)) {
-                    let myCar = isHost ? cars[0] : cars[1]; // P1 = Host, P2 = Guest
+                if (gameMode === '2p-dist' && roomChannel && channelConnected && (Date.now() - lastSyncTime > SYNC_RATE)) {
+                    let myCar = isHost ? cars[0] : cars[1]; 
                     if (myCar) {
                         roomChannel.send({
                             type: 'broadcast', event: 'sync_pos',
                             payload: { 
-                                sender: isHost ? 'host' : 'guest', // Identifier to prevent reading our own physics payload
+                                sender: isHost ? 'host' : 'guest', 
                                 x: myCar.position.x, y: myCar.position.y, z: myCar.position.z, 
                                 a: myCar.angle, s: myCar.speed, st: myCar.steerVisual 
                             }
-                        });
+                        }).catch(e => console.log("Network Frame Dropped: ", e));
                         lastSyncTime = Date.now();
                     }
                 }
-
             } else if (gameState === 'menu') {
                 let t = Date.now() * 0.0001; camera1.position.set(Math.sin(t)*150, 80, Math.cos(t)*150); camera1.lookAt(0,0,0);
             }
