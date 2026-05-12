@@ -788,7 +788,7 @@
                 isHost = true;
                 
                 // Insert room into DB
-                const { error } = await supabaseClient.schema('MateoPolyRacing').from('rooms').insert([{
+                const { error } = await supabaseClient.schema('mateopolyracing').from('rooms').insert([{
                     room_code: roomCode,
                     host_id: currentUser.id,
                     track_index: currentTrackIndex,
@@ -818,7 +818,7 @@
                 const codeInput = document.getElementById('join-room-code').value.toUpperCase();
                 if(!codeInput) { if(errorEl) errorEl.innerText = "Enter a room code!"; return; }
                 
-                const { data, error } = await supabaseClient.schema('MateoPolyRacing').from('rooms').select('*').eq('room_code', codeInput).single();
+                const { data, error } = await supabaseClient.schema('mateopolyracing').from('rooms').select('*').eq('room_code', codeInput).single();
                 if (error || !data) { if(errorEl) errorEl.innerText = "Room not found!"; return; }
                 if (data.status !== 'waiting') { if(errorEl) errorEl.innerText = "Game already in progress!"; return; }
 
@@ -828,7 +828,7 @@
                 document.getElementById('track-name-display').innerText = TRACK_NAMES[currentTrackIndex];
                 
                 // Update DB
-                const { error: updateErr } = await supabaseClient.schema('MateoPolyRacing').from('rooms').update({
+                const { error: updateErr } = await supabaseClient.schema('mateopolyracing').from('rooms').update({
                     guest_id: currentUser.id,
                     guest_car: p2SelectedCar
                 }).eq('room_code', roomCode);
@@ -1728,7 +1728,7 @@
             
             if(isHost) {
                 // Update room to active
-                supabaseClient.schema('MateoPolyRacing').from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
+                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
             }
         }
 
@@ -1778,7 +1778,7 @@
             gameOverMenu.classList.remove('hidden'); gameOverMenu.classList.add('active');
             
             if(isDistanceMode && isHost && roomCode) {
-                supabaseClient.schema('MateoPolyRacing').from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
+                supabaseClient.schema('mateopolyracing').from('rooms').update({ status: 'finished' }).eq('room_code', roomCode);
             }
         }
 
