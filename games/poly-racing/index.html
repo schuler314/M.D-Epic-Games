@@ -121,12 +121,6 @@
 
         .play-buttons { display: flex; margin-top: 30px; }
 
-        .info-text {
-            background: rgba(0,0,0,0.4); padding: 25px; border-radius: 12px;
-            border: 1px solid var(--border-light); font-size: 1rem; line-height: 1.7; margin-top: 20px;
-        }
-        .info-text ul { padding-left: 20px; margin: 10px 0 0 0; }
-        .info-text li { margin-bottom: 12px; }
         .highlight { color: var(--accent); font-weight: bold; }
 
         .track-grid {
@@ -429,25 +423,8 @@
                 </select>
             </div>
 
-            <div class="info-text">
-                <h3>Instructions</h3>
-                <ul id="instructions-list">
-                    <!-- Populated by JS -->
-                </ul>
-                <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                    <h3>Power-Ups</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85em;">
-                        <div><span style="color:#ffff00">★</span> <b>Nitro:</b> Speed boost</div>
-                        <div><span style="color:#ff00ff">★</span> <b>Heavy:</b> Mass x10</div>
-                        <div><span style="color:#00ffff">★</span> <b>Ghost:</b> Pass thru cars</div>
-                        <div><span style="color:#ff4444">★</span> <b>Bumper:</b> High bounce</div>
-                        <div><span style="color:#44ff44">★</span> <b>Magnet:</b> Pull others</div>
-                        <div><span style="color:#ff8800">★</span> <b>Oil:</b> Spin out competitors</div>
-                        <div><span style="color:#4444ff">★</span> <b>Shrink:</b> Make others small</div>
-                        <div><span style="color:#ffffff">★</span> <b>Invincible:</b> Max speed + immune</div>
-                    </div>
-                </div>
-            </div>
+            <!-- New dynamic Instructions Modal Button -->
+            <button class="btn-blue" style="width: 100%; margin: 20px 0 0 0; font-size: 1.1rem; padding: 15px;" onclick="openInstructionsModal()">📖 How to Play & Power-Ups</button>
         </div>
         
         <div class="menu-right">
@@ -469,7 +446,7 @@
             </div>
 
             <h3>3. Choose Vehicles</h3>
-            <div class="setup-btn" onclick="openCarModal(1)">
+            <div class="setup-btn" id="p1-car-setup-btn" onclick="openCarModal(1)">
                 <span>Player 1 Class</span>
                 <strong id="p1-car-display">Balanced</strong>
             </div>
@@ -522,6 +499,28 @@
             </div>
 
             <button id="start-btn" class="btn-blue" style="width: 100%; margin: 0; font-size: 1.5rem; padding: 20px; box-shadow: 0 10px 30px rgba(30, 144, 255, 0.4);" onclick="startGame()">START RACE</button>
+        </div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="instructions-modal" class="overlay-center hidden">
+        <div class="box-panel modal-panel" style="max-width: 600px; text-align: left;">
+            <h2 style="border-bottom: 1px solid var(--border-light); padding-bottom: 10px; font-family: 'Rajdhani', sans-serif;">Instructions</h2>
+            <ul id="instructions-list" style="font-size: 1rem; line-height: 1.6; margin-bottom: 20px; color: #fff; padding-left: 20px;">
+                <!-- Populated by JS -->
+            </ul>
+            <h3 style="margin-top: 10px; color: var(--accent);">POWER-UPS</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.9em;">
+                <div><span style="color:#ffff00">★</span> <b>Nitro:</b> Speed boost</div>
+                <div><span style="color:#ff00ff">★</span> <b>Heavy:</b> Mass x10</div>
+                <div><span style="color:#00ffff">★</span> <b>Ghost:</b> Pass thru cars</div>
+                <div><span style="color:#ff4444">★</span> <b>Bumper:</b> High bounce</div>
+                <div><span style="color:#44ff44">★</span> <b>Magnet:</b> Pull others</div>
+                <div><span style="color:#ff8800">★</span> <b>Oil:</b> Spin out competitors</div>
+                <div><span style="color:#4444ff">★</span> <b>Shrink:</b> Make others small</div>
+                <div><span style="color:#ffffff">★</span> <b>Invincible:</b> Max speed + immune</div>
+            </div>
+            <button class="btn-blue" onclick="closeInstructionsModal()" style="margin: 25px auto 0 auto; width: 100%;">Got it!</button>
         </div>
     </div>
 
@@ -767,22 +766,35 @@
             document.getElementById('btn-2p-local').classList.toggle('active', mode === '2p-local');
             document.getElementById('btn-2p-dist').classList.toggle('active', mode === '2p-dist');
             
-            const isLocal2P = mode === '2p-local';
-            document.getElementById('p2-car-setup-btn').style.display = (mode === '1p') ? 'none' : 'flex';
+            const p1Btn = document.getElementById('p1-car-setup-btn');
+            const p2Btn = document.getElementById('p2-car-setup-btn');
+            const p1Span = p1Btn.querySelector('span');
             
             const distUi = document.getElementById('distance-lobby-ui');
             const trackSetup = document.getElementById('track-setup-container');
             const startBtn = document.getElementById('start-btn');
             
-            if (isDistanceMode) {
-                distUi.classList.remove('hidden');
-                trackSetup.classList.add('hidden'); // Track chosen by host in lobby
-                startBtn.classList.add('hidden'); // Start controlled by host when ready
-            } else {
+            if (mode === '1p') {
+                p1Span.innerText = "Player 1 Class";
+                p2Btn.style.display = 'none';
                 distUi.classList.add('hidden');
                 trackSetup.classList.remove('hidden');
                 startBtn.classList.remove('hidden');
-                
+            } else if (mode === '2p-local') {
+                p1Span.innerText = "Player 1 Class";
+                p2Btn.style.display = 'flex';
+                distUi.classList.add('hidden');
+                trackSetup.classList.remove('hidden');
+                startBtn.classList.remove('hidden');
+            } else if (mode === '2p-dist') {
+                p1Span.innerText = "Your Vehicle Class";
+                p2Btn.style.display = 'none'; // Only pick own car before joining
+                distUi.classList.remove('hidden');
+                trackSetup.classList.remove('hidden'); // Leave visible for host to pick before creating
+                startBtn.classList.add('hidden'); 
+            }
+            
+            if (!isDistanceMode) {
                 // Disconnect if returning from distance lobby
                 if (roomChannel) { supabaseClient.removeChannel(roomChannel); roomChannel = null; }
                 if (peerConnection) { peerConnection.close(); peerConnection = null; }
@@ -812,12 +824,24 @@
             document.body.removeChild(textArea);
         }
 
+        // Auto clean rooms older than 2 hours to keep database fresh
+        async function cleanupOldRooms() {
+            try {
+                const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+                await supabaseClient.schema('mateopolyracing').from('rooms').delete().lt('created_at', twoHoursAgo);
+            } catch (e) {
+                console.warn("Cleanup skipped or failed:", e);
+            }
+        }
+
         async function hostDistanceGame() {
             const errorEl = document.getElementById('lobby-error');
             if(errorEl) errorEl.innerText = "Connecting...";
 
             try {
                 if (!currentUser) await initAuth();
+                await cleanupOldRooms(); // Run DB maintenance 
+                
                 roomCode = generateRoomCode();
                 isHost = true;
                 
@@ -826,7 +850,7 @@
                     room_code: roomCode,
                     host_id: currentUser.id,
                     track_index: currentTrackIndex,
-                    host_car: p1SelectedCar
+                    host_car: p1SelectedCar // Used as player 1
                 }]);
                 
                 if(error) { 
@@ -852,6 +876,9 @@
                 const codeInput = document.getElementById('join-room-code').value.toUpperCase();
                 if(!codeInput) { if(errorEl) errorEl.innerText = "Enter a room code!"; return; }
                 
+                // Map the guest UI selection to the P2 variable
+                p2SelectedCar = p1SelectedCar; 
+
                 const { data, error } = await supabaseClient.schema('mateopolyracing').from('rooms').select('*').eq('room_code', codeInput).single();
                 if (error || !data) { if(errorEl) errorEl.innerText = "Room not found!"; return; }
                 if (data.status !== 'waiting') { if(errorEl) errorEl.innerText = "Game already in progress!"; return; }
@@ -862,7 +889,10 @@
                 // Grab Host's preferences to display immediately
                 currentTrackIndex = data.track_index;
                 document.getElementById('track-name-display').innerText = TRACK_NAMES[currentTrackIndex];
+                
+                // Overwrite P1 variable with the Host's car
                 p1SelectedCar = data.host_car || 'balanced';
+                document.getElementById('p1-car-display').innerText = CAR_STATS[p1SelectedCar].name;
                 
                 // Update DB with guest
                 const { error: updateErr } = await supabaseClient.schema('mateopolyracing').from('rooms').update({
@@ -891,6 +921,14 @@
             document.getElementById('lobby-status-text').innerText = isHost ? "Waiting for opponent to join..." : "Joined! Waiting for Host to start.";
             document.getElementById('start-btn').classList.remove('hidden');
             if(!isHost) document.getElementById('start-btn').style.display = 'none'; // Only host starts
+
+            // Lock settings once in a lobby to avoid syncing complexity
+            if (!isHost) {
+                document.getElementById('track-setup-container').style.opacity = '0.5';
+                document.getElementById('track-setup-container').style.pointerEvents = 'none';
+            }
+            document.getElementById('p1-car-setup-btn').style.opacity = '0.5';
+            document.getElementById('p1-car-setup-btn').style.pointerEvents = 'none';
         }
 
         function joinRealtimeChannel() {
@@ -922,6 +960,7 @@
                     currentTrackIndex = payload.payload.track;
                     selectTrack(currentTrackIndex); // load track early
                     p1SelectedCar = payload.payload.hostCar;
+                    document.getElementById('p1-car-display').innerText = CAR_STATS[p1SelectedCar].name;
                 }
             });
 
@@ -933,6 +972,10 @@
             // Sync Positional Physics Payload
             roomChannel.on('broadcast', { event: 'sync_pos' }, payload => {
                 let pData = payload.payload;
+                
+                // IMPORTANT: Filter out our OWN broadcast to prevent the cars from merging/snapping
+                if ((isHost && pData.sender === 'host') || (!isHost && pData.sender === 'guest')) return;
+                
                 let remoteCar = isHost ? cars[1] : cars[0]; // Host's remote is P2, Guest's remote is P1
                 if(remoteCar) {
                     remoteCar.position.set(pData.x, pData.y, pData.z);
@@ -1078,7 +1121,7 @@
             selectingPlayer = pNum;
             const modal = document.getElementById('selection-modal');
             const carousel = document.getElementById('modal-carousel');
-            document.getElementById('modal-title').innerText = `Select Player ${pNum} Vehicle`;
+            document.getElementById('modal-title').innerText = `Select ${gameMode === '2p-dist' ? 'Your' : 'Player ' + pNum} Vehicle`;
             
             carousel.innerHTML = '';
             const currentCar = pNum === 1 ? p1SelectedCar : p2SelectedCar;
@@ -1122,6 +1165,18 @@
 
         function closeModal() {
             const modal = document.getElementById('selection-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function openInstructionsModal() {
+            const modal = document.getElementById('instructions-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function closeInstructionsModal() {
+            const modal = document.getElementById('instructions-modal');
             modal.classList.remove('active');
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
@@ -1854,6 +1909,12 @@
             document.getElementById('pause-btn').classList.add('hidden');
             document.getElementById('touch-controls').classList.add('hidden');
             
+            // Re-enable settings just in case
+            document.getElementById('track-setup-container').style.opacity = '1';
+            document.getElementById('track-setup-container').style.pointerEvents = 'auto';
+            document.getElementById('p1-car-setup-btn').style.opacity = '1';
+            document.getElementById('p1-car-setup-btn').style.pointerEvents = 'auto';
+            
             mainMenu.style.display = 'flex';
 
             // Clean up DB Room
@@ -2077,7 +2138,11 @@
                     if (myCar) {
                         roomChannel.send({
                             type: 'broadcast', event: 'sync_pos',
-                            payload: { x: myCar.position.x, y: myCar.position.y, z: myCar.position.z, a: myCar.angle, s: myCar.speed, st: myCar.steerVisual }
+                            payload: { 
+                                sender: isHost ? 'host' : 'guest', // Identifier to prevent reading our own physics payload
+                                x: myCar.position.x, y: myCar.position.y, z: myCar.position.z, 
+                                a: myCar.angle, s: myCar.speed, st: myCar.steerVisual 
+                            }
                         });
                         lastSyncTime = Date.now();
                     }
