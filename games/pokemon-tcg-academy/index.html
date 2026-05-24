@@ -115,8 +115,11 @@
             { cat: "Playing the Game", modules: [ { id: 5, title: "Setting Up to Play" }, { id: 6, title: "Parts of a Turn" }, { id: 7, title: "Attacking" }, { id: 8, title: "Special Conditions" } ]},
             { cat: "Advanced Rules", modules: [ { id: 9, title: "Mulligans & Decks" }, { id: 10, title: "Full Details of Attacking" }, { id: 11, title: "Ties, Names & Leagues" } ]},
             { cat: "The Vault", modules: [ { id: 12, title: "Special Cards Vault 1" }, { id: 13, title: "Special Cards Vault 2" } ]},
-            { cat: "Mastery", modules: [ { id: 14, title: "Deck Building Rules" }, { id: 15, title: "🏆 The Final Boss Test" } ]}
+            { cat: "Mastery", modules: [ { id: 14, title: "Deck Building Rules" }, { id: 15, title: "🏆 The Final Boss Test" } ]},
+            { cat: "Additional Information", modules: [ { id: 16, title: "44-page Official Rule Book" } ]}
         ];
+
+        const ruleBookUrl = "https://drive.google.com/file/d/1vnWYi-fEw4HbAeD2zwravXIbarsX66EA/view?usp=sharing";
 
         // --- GLOBAL STATE ---
         const isBossUnlocked = () => state.completed.slice(0, 15).every(v => v);
@@ -127,7 +130,7 @@
             xp: 0,
             level: 1,
             unlocked: [true, ...Array(15).fill(false)], // Unlock linearly
-            completed: Array(16).fill(false),
+            completed: Array(17).fill(false),
             isAnimating: false,
             quizStates: {}, // Track quiz completions
             activeVault1: 'v1',
@@ -319,6 +322,7 @@
                 case 9: html += mod9(); break; case 10: html += mod10(); break; case 11: html += mod11(); break;
                 case 12: html += modVault(1); break; case 13: html += modVault(2); break;
                 case 14: html += mod14(); break; case 15: html += modBoss(); break;
+                case 16: html += mod16(); break;
             }
 
             // Progression Button Logic
@@ -772,6 +776,31 @@
             ${renderTeacher("The official rulebook has 28 Appendixes covering years of unique card mechanics! Click around to explore the Vault.")}
             ${page === 1 ? renderVaultGrid(vault1Data, 'activeVault1') : renderVaultGrid(vault2Data, 'activeVault2')}
             <div class="mt-8 flex justify-end"><button onclick="triggerComplete(${page===1?12:13})" class="btn-action px-8 py-3 rounded-xl bg-purple-600 border-purple-800 shadow-[0_0_15px_rgba(147,51,234,0.5)]">I Understand These Cards! ✨</button></div>
+        `;
+
+        const mod16 = () => `
+            ${renderTeacher("This official rule book is the full reference for advanced rules, edge cases, and tournament details.")}
+            <div class="interactive-section">
+                <div class="interactive-header">📘 ADDITIONAL INFORMATION</div>
+                <div class="mt-8 bg-slate-950 rounded-3xl border-2 border-slate-700 shadow-2xl overflow-hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-slate-900 border-b border-slate-700">
+                        <div>
+                            <h3 class="text-white font-black text-2xl oswald">44-page Official Rule Book</h3>
+                            <p class="text-slate-400 font-semibold text-sm mt-1">Open the PDF below or launch it in a new tab.</p>
+                        </div>
+                        <a href="${ruleBookUrl}" target="_blank" rel="noopener noreferrer" class="btn-action inline-flex items-center justify-center px-5 py-3 rounded-xl text-sm shadow-lg">
+                            Open in New Tab
+                        </a>
+                    </div>
+                    <div class="bg-slate-800 p-3">
+                        <iframe
+                            src="${ruleBookUrl}"
+                            title="44-page Official Rule Book"
+                            class="w-full h-[75vh] rounded-2xl bg-white"
+                        ></iframe>
+                    </div>
+                </div>
+            </div>
         `;
 
         // Mod 14: Deck Building
