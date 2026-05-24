@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon TCG Pro Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #e2e8f0;
+            user-select: none;
+        }
+
+        .shake-animation { animation: shake 0.4s; }
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-5px, 0px) rotate(2deg); }
+            40% { transform: translate(5px, 0px) rotate(-2deg); }
+            60% { transform: translate(-5px, 0px) rotate(2deg); }
+            80% { transform: translate(5px, 0px) rotate(-2deg); }
+        }
+
+        .bounce-animation { animation: bounce 1s infinite; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .glow { box-shadow: 0 0 15px 5px rgba(59, 130, 246, 0.5); }
+
+        /* Floating Damage Animation */
+        .dmg-fly {
+            position: fixed;
+            font-weight: 900;
+            font-size: 4rem;
+            color: #ef4444;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5), 3px 3px 0 #fff, -3px -3px 0 #fff, 3px -3px 0 #fff, -3px 3px 0 #fff;
+            z-index: 100;
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+            transform: translate(-50%, -50%) scale(0.2);
+            opacity: 0;
+        }
+
+        /* TCG Card Styles */
+        .tcg-card {
+            width: 220px;
+            height: 310px;
+            background: #fff;
+            border-radius: 12px;
+            border: 8px solid #fbbf24;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: transform 0.2s;
+            background-image: linear-gradient(to bottom right, #ffffff, #f3f4f6);
+        }
+        .tcg-card.mini { width: 150px; height: 210px; padding: 4px; border-width: 4px; }
+        .tcg-card.trainer { border-color: #94a3b8; }
+        .tcg-card.supporter { border-color: #f43f5e; background-image: linear-gradient(to bottom right, #fff1f2, #ffe4e6); }
+        .tcg-card.pokemon-stage1 { border-color: #cbd5e1; }
+        .tcg-card.vmax { border-color: #1e1b4b; background-image: linear-gradient(to bottom right, #e0e7ff, #fbcfe8, #fef08a); border-image: linear-gradient(to bottom right, #3b82f6, #ec4899, #eab308) 1; }
+        
+        .tcg-art {
+            height: 110px;
+            background: #e5e7eb;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            margin-bottom: 8px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .mini .tcg-art { height: 60px; font-size: 2rem; margin-bottom: 4px; }
+        
+        .energy-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+            box-shadow: inset 0 0 2px rgba(0,0,0,0.5);
+        }
+        .energy-light { background-color: #eab308; color: black; }
+        .energy-fire { background-color: #ef4444; }
+        .energy-water { background-color: #3b82f6; }
+        .energy-grass { background-color: #22c55e; }
+        .energy-colorless { background-color: #9ca3af; }
+
+        .attached-energy-container {
+            position: absolute;
+            top: -10px;
+            right: -15px;
+            display: flex;
+            flex-direction: column;
+            gap: -15px;
+            z-index: 10;
+        }
+        .attached-energy {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            border: 3px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .status-token-container {
+            position: absolute;
+            top: 30%;
+            left: -15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 15;
+        }
+
+        .status-token {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: black;
+            font-size: 1.2rem;
+            border: 2px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+        .status-poison { background-color: #9333ea; color: white; }
+        .status-asleep { background-color: #64748b; color: white; transform: rotate(-90deg); }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .category-header {
+            background-color: #1e293b;
+            color: #cbd5e1;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 10px 16px;
+            font-weight: 900;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            border-top: 1px solid #334155;
+        }
+
+        .zone-info-box {
+            background: white;
+            border-left: 4px solid #0d9488;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body class="text-gray-800 h-screen overflow-hidden flex flex-col md:flex-row">
+
+    <!-- Sidebar Navigation -->
+    <div class="w-full md:w-80 bg-slate-900 shadow-2xl flex flex-col z-20 h-auto md:h-full shrink-0">
+        <div class="p-5 bg-gradient-to-r from-red-600 to-red-700 text-white font-black text-2xl text-center shadow-md flex items-center justify-center gap-3 border-b-4 border-yellow-400">
+            <span class="text-3xl">🎴</span> TCG Academy
+        </div>
+        <div class="flex-1 overflow-y-auto pb-4 custom-scrollbar" id="nav-container">
+            <!-- Navigation rendered by JS -->
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-full bg-slate-100 relative overflow-y-auto">
+        <div id="main-content" class="p-4 md:p-8 max-w-6xl mx-auto w-full h-full flex flex-col">
+            <!-- Dynamic Content goes here -->
+        </div>
+    </div>
+
+    <!-- Animation Overlay -->
+    <div id="card-fly-overlay" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <script>
+        // --- DATA & STATE ---
+        const categories = [
+            { id: 'c1', title: 'Pokémon TCG Basic Concepts', modules: [0, 1] },
+            { id: 'c2', title: 'Parts of a Pokémon Card', modules: [2, 3] },
+            { id: 'c3', title: 'Zones of the Pokémon TCG', modules: [4] },
+            { id: 'c4', title: 'Playing the Game', modules: [5, 6, 7] },
+            { id: 'c5', title: 'Special Cards', modules: [8] },
+            { id: 'c6', title: 'Advanced Rules', modules: [9, 10, 11] },
+            { id: 'c7', title: 'Deck Building & Final Test', modules: [12, 13] }
+        ];
+
+        const modules = [
+            { id: 0, title: "How to Win" },
+            { id: 1, title: "Energy Types" },
+            { id: 2, title: "Anatomy of a Card" },
+            { id: 3, title: "The 3 Card Types" },
+            { id: 4, title: "The Playmat Zones" },
+            { id: 5, title: "Setting Up to Play" },
+            { id: 6, title: "Turn Actions & Attacking" },
+            { id: 7, title: "Special Conditions" },
+            { id: 8, title: "EX, VMAX, & TAG TEAM" },
+            { id: 9, title: "Adv: Mulligans & Decking Out" },
+            { id: 10, title: "Adv: Full Details of Attacking" },
+            { id: 11, title: "Adv: Ties & Name Rules" },
+            { id: 12, title: "Deck Building Rules" },
+            { id: 13, title: "🏆 The Final Test" }
+        ];
+
+        let state = {
+            activeModule: 0,
+            unlocked: Array(14).fill(true), // Unlocked for viewing
+            isAnimating: false,
+            
+            // Interactive States
+            m5: { phase: 0 }, 
+            m6: { enemyHp: 60, playerHp: 60, energyAttached: 0 }, 
+            m7: { enemyHp: 60, pikaHp: 10, snorlaxHp: 100, activeId: 'pika', isPoisoned: true, isAsleep: true }, 
+            
+            // Boss Battle State
+            boss: {
+                phase: 'start', 
+                turnActionTaken: { energy: false, supporter: false },
+                player: {
+                    active: { name: 'Pikachu', emoji: '⚡🐁', hp: 60, maxHp: 60, energy: 0, attacks: [{name: 'Thunder Jolt', cost: 2, type: '⚡', dmg: 40}], stage: 'BASIC' },
+                    bench: [{ name: 'Charmander', emoji: '🔥🦎', hp: 60, maxHp: 60, energy: 0, attacks: [{name: 'Ember', cost: 1, type: '🔥', dmg: 30}], stage: 'BASIC' }],
+                    hand: ['Energy-⚡', 'Item-Potion'], prizes: 2
+                },
+                enemy: {
+                    active: { name: 'Bidoof', emoji: '🦫', hp: 60, maxHp: 60, energy: 1, attacks: [{name: 'Tackle', cost: 1, type: '⚪', dmg: 20}], stage: 'BASIC' },
+                    bench: [{ name: 'Squirtle', emoji: '💧🐢', hp: 60, maxHp: 60, energy: 0, attacks: [{name: 'Bubble', cost: 1, type: '💧', dmg: 20}], stage: 'BASIC' }],
+                    prizes: 2
+                },
+                logs: ["Champion Red challenges you!"]
+            }
+        };
+
+        const $ = (id) => document.getElementById(id);
+
+        // --- UI HELPERS ---
+        const renderTeacher = (message) => `
+            <div class="flex items-start gap-4 mb-4 bg-white p-5 rounded-2xl shadow-md border-l-8 border-blue-500">
+                <div class="text-6xl bounce-animation">👨‍🔬</div>
+                <div class="flex-1">
+                    <p class="font-black text-blue-800 text-sm uppercase tracking-widest mb-2 border-b-2 border-blue-100 pb-1 inline-block">Prof. Oak says:</p>
+                    <p class="text-gray-800 text-lg font-bold leading-relaxed">"${message}"</p>
+                </div>
+            </div>
+        `;
+
+        const renderRuleBox = (title, emoji, color, text) => `
+            <div class="bg-${color}-50 border-l-4 border-${color}-500 p-4 rounded-lg my-3 shadow-sm">
+                <h4 class="font-black text-${color}-800 flex items-center gap-2 mb-1 text-lg">
+                    <span>${emoji}</span> ${title}
+                </h4>
+                <p class="text-${color}-900 text-sm font-medium leading-relaxed">${text}</p>
+            </div>
+        `;
+
+        const renderCard = (props) => {
+            let energyIcons = '';
+            for(let i=0; i<props.energyAttached; i++) {
+                let eType = props.eType || 'light'; let symbol = props.eSymbol || '⚡';
+                let bg = eType === 'light' ? 'bg-yellow-400' : (eType === 'water' ? 'bg-blue-500' : 'bg-red-500');
+                energyIcons += `<div class="attached-energy energy-${eType} ${bg} text-black font-black">${symbol}</div>`;
+            }
+
+            let statusTokens = '';
+            if (props.isPoisoned) statusTokens += `<div class="status-token status-poison border-4 border-white shadow-xl">☠️</div>`;
+            if (props.isAsleep) statusTokens += `<div class="status-token status-asleep border-4 border-white shadow-xl">Zzz</div>`;
+
+            let miniClass = props.mini ? 'mini' : '';
+            let textClass = props.mini ? 'text-sm' : 'text-xl';
+            let hpClass = props.mini ? 'text-sm' : 'text-xl';
+
+            let effectText = props.effect ? `<div class="text-[10px] italic leading-tight text-gray-600 mt-1">${props.effect}</div>` : '';
+
+            return `
+            <div id="${props.id}" class="tcg-card ${miniClass} ${props.isEnemy ? '' : 'glow'} ${props.stage && props.stage !== 'BASIC' ? 'pokemon-stage1' : ''} ${props.isVmax ? 'vmax' : ''} mx-auto transform transition ${props.isEnemy ? 'scale-90' : 'hover:-translate-y-2'}">
+                <div class="flex justify-between items-end mb-1 px-1">
+                    <span class="text-[9px] font-black text-gray-500 uppercase">${props.stage || 'BASIC'}</span>
+                    <span class="font-black ${hpClass} text-red-600">${props.hp ? props.hp + ' HP' : ''}</span>
+                </div>
+                <div class="font-black ${textClass} mb-1 leading-none text-gray-800 tracking-tight">${props.name}</div>
+                <div class="tcg-art shadow-inner">${props.emoji}</div>
+                
+                <div class="flex-1 flex flex-col gap-1 mt-1 justify-center">
+                    ${props.attacks ? props.attacks.map(atk => `
+                        <div class="flex justify-between items-center bg-gray-50 p-1 rounded border border-gray-200 shadow-sm">
+                            <div class="flex gap-0.5">${Array(atk.cost).fill(`<span class="energy-icon ${atk.type === '⚡' ? 'energy-light' : atk.type === '⚪' ? 'energy-colorless' : 'energy-fire'}">${atk.type}</span>`).join('')}</div>
+                            <span class="font-bold text-[11px] text-gray-800 ml-1">${atk.name}</span>
+                            <span class="font-black text-sm ml-auto">${atk.dmg || ''}</span>
+                        </div>
+                    `).join('') : ''}
+                    ${effectText}
+                </div>
+                ${props.energyAttached > 0 ? `<div class="attached-energy-container">${energyIcons}</div>` : ''}
+                ${statusTokens !== '' ? `<div class="status-token-container">${statusTokens}</div>` : ''}
+            </div>`;
+        };
+
+        const renderTrainerCard = (name, type, effect, isMini) => `
+            <div class="tcg-card ${isMini ? 'mini' : ''} ${type === 'SUPPORTER' ? 'supporter' : 'trainer'} mx-auto transform transition hover:-translate-y-2">
+                <div class="text-[9px] font-black text-gray-500 mb-1">TRAINER - ${type}</div>
+                <div class="font-black ${isMini ? 'text-sm' : 'text-xl'} mb-2">${name}</div>
+                <div class="tcg-art ${type === 'SUPPORTER' ? 'bg-rose-100 text-rose-500' : 'bg-blue-100 text-blue-500'}">${type === 'SUPPORTER' ? '🧑‍🏫' : '🎒'}</div>
+                <div class="flex-1 bg-white/80 p-2 rounded border border-gray-200 text-[11px] font-bold text-gray-700 mt-1 shadow-sm leading-tight">${effect}</div>
+            </div>`;
+
+        const renderEnergyCard = (type, label, isMini) => {
+            let bg = type === '⚡' ? 'bg-yellow-400' : type === '🔥' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white';
+            return `
+            <div class="tcg-card ${isMini ? 'mini' : ''} energy-card mx-auto transform transition hover:-translate-y-2 flex flex-col p-1 border-4 ${bg}">
+                <div class="flex-1 border-2 border-white/50 rounded-lg flex flex-col items-center justify-center shadow-inner relative overflow-hidden">
+                    <div class="absolute inset-0 bg-white/20 rounded-full blur-xl scale-150"></div>
+                    <div class="${isMini ? 'text-4xl' : 'text-6xl'} drop-shadow-md z-10">${type}</div>
+                    <div class="font-black tracking-widest text-[8px] uppercase mt-2 z-10 bg-black/20 px-2 rounded-full text-white">${label} ENERGY</div>
+                </div>
+            </div>`;
+        };
+
+        // --- ANIMATIONS ---
+        function animateAttackDmg(attackerId, defenderId, amount) {
+            const attacker = $(attackerId); const defender = $(defenderId);
+            if (!attacker || !defender) return;
+            const aRect = attacker.getBoundingClientRect(); const dRect = defender.getBoundingClientRect();
+            const flyEl = document.createElement('div');
+            flyEl.innerText = `-${amount}`; flyEl.className = 'dmg-fly';
+            flyEl.style.left = (aRect.left + aRect.width/2) + 'px'; flyEl.style.top = (aRect.top + aRect.height/2) + 'px';
+            $('card-fly-overlay').appendChild(flyEl);
+            void flyEl.offsetWidth; 
+            flyEl.style.opacity = '1'; flyEl.style.transform = 'translate(-50%, -50%) scale(1)';
+            flyEl.style.left = (dRect.left + dRect.width/2) + 'px'; flyEl.style.top = (dRect.top + 40) + 'px';
+            setTimeout(() => {
+                flyEl.style.opacity = '0'; flyEl.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                defender.classList.remove('shake-animation'); void defender.offsetWidth; defender.classList.add('shake-animation');
+                setTimeout(() => flyEl.remove(), 200);
+            }, 500);
+        }
+
+        function animateCardMove(startRect, endRect, contentHtml, callback) {
+            const flyEl = document.createElement('div'); flyEl.innerHTML = contentHtml;
+            flyEl.style.position = 'fixed'; flyEl.style.zIndex = '1000'; flyEl.style.transition = 'all 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            flyEl.style.left = startRect.left + 'px'; flyEl.style.top = startRect.top + 'px';
+            flyEl.style.width = startRect.width + 'px'; flyEl.style.height = startRect.height + 'px';
+            flyEl.style.pointerEvents = 'none';
+            $('card-fly-overlay').appendChild(flyEl); void flyEl.offsetWidth;
+            flyEl.style.left = endRect.left + 'px'; flyEl.style.top = endRect.top + 'px';
+            flyEl.style.width = endRect.width + 'px'; flyEl.style.height = endRect.height + 'px'; flyEl.style.opacity = '0.2';
+            setTimeout(() => { flyEl.remove(); if(callback) callback(); }, 600);
+        }
+
+        // --- NAVIGATION ---
+        function setModule(id) { state.activeModule = id; updateApp(); }
+        function updateApp() {
+            let navHtml = '';
+            categories.forEach(cat => {
+                navHtml += `<div class="category-header">${cat.title}</div>`;
+                cat.modules.forEach(modId => {
+                    const m = modules[modId];
+                    navHtml += `<button onclick="setModule(${m.id})" class="w-full text-left px-5 py-3 font-bold transition-all duration-200 border-l-4 text-sm ${state.activeModule === m.id ? 'bg-blue-600 text-white border-blue-400 shadow-inner' : 'text-slate-300 border-transparent hover:bg-slate-800 hover:text-white'}">${m.title}</button>`;
+                });
+            });
+            $('nav-container').innerHTML = navHtml;
+            const content = $('main-content'); content.innerHTML = ''; content.scrollTop = 0;
+            switch(state.activeModule) {
+                case 0: renderMod0(content); break; case 1: renderMod1(content); break; case 2: renderMod2(content); break;
+                case 3: renderMod3(content); break; case 4: renderMod4(content); break; case 5: renderMod5(content); break;
+                case 6: renderMod6(content); break; case 7: renderMod7(content); break; case 8: renderMod8(content); break;
+                case 9: renderMod9(content); break; case 10: renderMod10(content); break; case 11: renderMod11(content); break;
+                case 12: renderMod12(content); break; case 13: renderBossBattle(content); break;
+            }
+        }
+
+        // ==========================================
+        // MODULE RENDERS
+        // ==========================================
+
+        function renderMod0(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">How to Win</h2>
+                ${renderTeacher("In the Pokémon TCG, your Pokémon battle your opponent's Pokémon. There are 3 official ways to win the game!")}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border-t-8 border-green-500"><div class="text-6xl text-center mb-4">🎁</div><h3 class="font-black text-xl text-center mb-2">1. Take All Prizes</h3><p class="text-gray-600 font-medium text-sm text-center">The first player to take all 6 of their Prize cards by Knocking Out opponent Pokémon wins!</p></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border-t-8 border-red-500"><div class="text-6xl text-center mb-4">💥</div><h3 class="font-black text-xl text-center mb-2">2. Knock Out All Pokémon</h3><p class="text-gray-600 font-medium text-sm text-center">If your opponent has no Pokémon left in play (Active or Bench), you win instantly!</p></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border-t-8 border-blue-500"><div class="text-6xl text-center mb-4">🎴</div><h3 class="font-black text-xl text-center mb-2">3. Deck Out</h3><p class="text-gray-600 font-medium text-sm text-center">If your opponent has no cards left in their deck to draw at the start of their turn, you win!</p></div>
+                </div>
+            `;
+        }
+
+        function renderMod1(container) {
+            container.innerHTML = `<h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Energy Types</h2>${renderTeacher("Pokémon need Energy to attack! There are 11 types. Let's look at 4 common ones.")}
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <div class="bg-green-100 p-4 rounded-xl border-2 border-green-500 flex flex-col items-center text-center"><div class="energy-icon energy-grass w-12 h-12 text-2xl mb-2">🌿</div><h4 class="font-black text-green-800">Grass</h4><p class="text-xs font-bold text-green-900 mt-1">Often heal themselves or Poison opponents.</p></div>
+                    <div class="bg-red-100 p-4 rounded-xl border-2 border-red-500 flex flex-col items-center text-center"><div class="energy-icon energy-fire w-12 h-12 text-2xl mb-2">🔥</div><h4 class="font-black text-red-800">Fire</h4><p class="text-xs font-bold text-red-900 mt-1">Big attacks! Can Burn opponents.</p></div>
+                    <div class="bg-blue-100 p-4 rounded-xl border-2 border-blue-500 flex flex-col items-center text-center"><div class="energy-icon energy-water w-12 h-12 text-2xl mb-2">💧</div><h4 class="font-black text-blue-800">Water</h4><p class="text-xs font-bold text-blue-900 mt-1">Manipulate energy and move Pokémon around.</p></div>
+                    <div class="bg-yellow-100 p-4 rounded-xl border-2 border-yellow-500 flex flex-col items-center text-center"><div class="energy-icon energy-light w-12 h-12 text-2xl mb-2">⚡</div><h4 class="font-black text-yellow-800">Lightning</h4><p class="text-xs font-bold text-yellow-900 mt-1">Bring back energy and Paralyze opponents.</p></div>
+                </div>`;
+        }
+
+        function renderMod2(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Anatomy of a Card</h2>
+                ${renderTeacher("As shown on Page 5 of the rulebook, every card has specific parts you need to read carefully.")}
+                <div class="flex flex-col md:flex-row justify-center items-center gap-16 mt-8">
+                    <div class="relative">${renderCard({ id: 'anatomy-poke', name: 'Inteleon', emoji: '💧🦎', hp: 150, stage: 'STAGE 2', attacks: [{name: 'Bring Down', cost: 1, type: '⚪', dmg: ''}, {name: 'Water Shot', cost: 2, type: '💧', dmg: 110}], isEnemy: false, energyAttached: 0 })}
+                        <div class="absolute font-black bg-white px-2 border-2 border-black rounded text-[10px]" style="top:-15px; left:-10px;">Evolution Stage</div>
+                        <div class="absolute font-black bg-white px-2 border-2 border-black rounded text-[10px]" style="top:-15px; right:-10px;">HP & Type</div>
+                        <div class="absolute font-black bg-white px-2 border-2 border-black rounded text-[10px]" style="top:180px; left:-20px;">Attack Cost & Damage</div>
+                    </div>
+                    <div class="relative mt-12 md:mt-0">${renderTrainerCard('Switch', 'ITEM', 'Switch your Active Pokémon with 1 of your Benched Pokémon.')}
+                        <div class="absolute font-black bg-white px-2 border-2 border-black rounded text-[10px]" style="top:-15px; left:-10px;">Trainer Type</div>
+                        <div class="absolute font-black bg-white px-2 border-2 border-black rounded text-[10px]" style="top:150px; right:-20px;">Rule Text Box</div>
+                    </div>
+                </div>`;
+        }
+
+        function renderMod3(container) {
+            container.innerHTML = `<h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">The 3 Card Types</h2>${renderTeacher("Your deck is built from three main types of cards.")}
+                <div class="flex flex-col md:flex-row justify-center items-center gap-8 mt-8">
+                    <div class="flex flex-col items-center w-64 text-center">${renderCard({ id: 'type-poke', name: 'Chikorita', emoji: '🌿🦕', hp: 70, stage: 'BASIC', attacks: [{name: 'Razor Leaf', cost: 1, type: '🌿', dmg: 20}], isEnemy: false, energyAttached: 0, mini: true })}<h3 class="font-black text-lg mt-2 bg-green-200 px-4 py-1 rounded-full text-green-900">1. Pokémon</h3><p class="text-xs mt-1 text-gray-600 font-bold">The fighters! Basic, Stage 1, Stage 2.</p></div>
+                    <div class="flex flex-col items-center w-64 text-center">${renderEnergyCard('🔥', 'FIRE', true)}<h3 class="font-black text-lg mt-2 bg-red-200 px-4 py-1 rounded-full text-red-900">2. Energy</h3><p class="text-xs mt-1 text-gray-600 font-bold">The fuel to pay for attacks.</p></div>
+                    <div class="flex flex-col items-center w-64 text-center">${renderTrainerCard("Prof. Research", "SUPPORTER", "Discard your hand and draw 7 cards.", true)}<h3 class="font-black text-lg mt-2 bg-blue-200 px-4 py-1 rounded-full text-blue-900">3. Trainers</h3><p class="text-xs mt-1 text-gray-600 font-bold">Items, Supporters, and Stadiums.</p></div>
+                </div>`;
+        }
+
+        function renderMod4(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">The Playmat Zones</h2>
+                ${renderTeacher("This is where your cards go during a game. Let's break down the 6 key zones.")}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="zone-info-box"><b>1. Deck (60 cards):</b> You draw from here. If you can't draw at the start of your turn, you lose!</div>
+                    <div class="zone-info-box"><b>2. Discard Pile:</b> Face-up. Knocked Out Pokémon and used Trainers go here. Anyone can look at it.</div>
+                    <div class="zone-info-box"><b>3. Active Spot (1 max):</b> The Pokémon currently battling. Only Active Pokémon can attack!</div>
+                    <div class="zone-info-box"><b>4. Bench (up to 5):</b> Your backup Basic Pokémon. You can attach energy to them safely.</div>
+                    <div class="zone-info-box"><b>5. Prize Cards (6 cards):</b> Face-down. Take 1 when you KO an opponent. Take all 6 to win!</div>
+                    <div class="zone-info-box"><b>6. Hand:</b> The cards you hold. You can have <b>any number</b> of cards in your hand!</div>
+                </div>
+
+                <div class="bg-teal-600 p-6 rounded-3xl shadow-2xl border-8 border-teal-800 relative h-[300px] flex flex-col justify-between overflow-hidden">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 w-20 h-28 border-4 border-dashed border-teal-400 rounded-xl flex flex-col items-center justify-center bg-teal-700/50"><span class="text-white font-black text-sm text-center">PRIZES</span></div>
+                    <div class="absolute left-1/2 top-4 -translate-x-1/2 w-24 h-32 border-4 border-white rounded-xl flex flex-col items-center justify-center bg-blue-500/80 shadow-lg"><span class="text-white font-black text-sm text-center">ACTIVE</span></div>
+                    <div class="absolute left-1/2 bottom-4 -translate-x-1/2 w-[300px] h-24 border-4 border-dashed border-white/50 rounded-xl flex items-center justify-center bg-teal-500/30 gap-2"><span class="text-white font-black text-sm absolute -top-3 bg-teal-600 px-2 rounded">BENCH</span>${Array(5).fill('<div class="w-10 h-16 bg-teal-800/50 border-2 border-teal-400 rounded"></div>').join('')}</div>
+                    <div class="absolute right-4 top-4 w-20 h-28 border-4 border-dashed border-teal-400 rounded-xl flex items-center justify-center bg-teal-700/50"><span class="text-white font-black text-sm">DECK</span></div>
+                    <div class="absolute right-4 bottom-4 w-20 h-28 border-4 border-dashed border-teal-400 rounded-xl flex items-center justify-center bg-teal-700/50"><span class="text-white font-black text-sm">DISCARD</span></div>
+                </div>
+            `;
+        }
+
+        // Interactive Setup
+        function handleM5Action(action) {
+            state.m5.phase = action; 
+            if(action === 3) {
+                const deckRect = $('setup-deck').getBoundingClientRect(); const prizeRect = $('setup-prizes').getBoundingClientRect();
+                for(let i=0; i<6; i++) { setTimeout(() => { animateCardMove(deckRect, prizeRect, `<div class="w-full h-full bg-blue-800 border-2 border-white rounded-lg shadow-lg"></div>`); }, i * 150); }
+                setTimeout(() => { updateApp(); }, 1200);
+            } else { updateApp(); }
+        }
+
+        function renderMod5(container) {
+            let msg = "First, shuffle your 60-card deck and <b>Draw 7 cards</b> to form your starting Hand.";
+            if(state.m5.phase === 1) msg = "Next, place exactly ONE Basic Pokémon face down in the <b>Active Spot</b>. You can put up to 5 more on your <b>Bench</b>.";
+            if(state.m5.phase === 2) msg = "Finally, deal the top 6 cards of your deck face-down as your <b>Prize Cards</b>. This is the official Setup rule!";
+            if(state.m5.phase === 3) msg = "Setup Complete! Active, Bench, and 6 Prizes are ready. Let's learn how to take a turn!";
+
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Setting Up to Play</h2>
+                ${renderTeacher(msg)}
+                ${renderRuleBox('The Prize Card Rule', '🎁', 'blue', 'Prize cards are NOT extra cards from outside the game. They are exactly the top 6 cards taken from your own 60-card deck right after you draw your starting hand.')}
+                
+                <div class="bg-teal-700 p-8 rounded-3xl shadow-inner border-8 border-teal-800 h-[320px] relative flex mt-4">
+                    <div id="setup-prizes" class="w-1/4 flex flex-col justify-center border-r-2 border-white/20 pr-4">
+                        <span class="text-white font-bold text-xs bg-black/50 px-2 rounded mb-2 w-max">Prize Cards</span>
+                        <div class="grid grid-cols-2 gap-2">${Array(6).fill(`<div class="w-12 h-16 bg-blue-800 border-2 border-blue-900 rounded shadow-md ${state.m5.phase === 3 ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300"></div>`).join('')}</div>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center justify-between py-2 relative">
+                        <div class="w-24 h-32 border-4 border-dashed ${state.m5.phase >= 2 ? 'border-transparent' : 'border-white/40'} rounded-xl flex items-center justify-center">
+                            ${state.m5.phase >= 2 ? renderCard({ id: 'setup-active', name: 'Pikachu', emoji: '⚡', hp: 60, attacks: [], isEnemy: false, energyAttached: 0, mini: true }) : '<span class="text-white/60 font-bold text-xs">Active</span>'}
+                        </div>
+                        <div class="w-[80%] h-20 border-4 border-dashed border-white/40 rounded-xl flex items-center justify-center gap-2 px-2">
+                            ${state.m5.phase >= 2 ? `<div class="w-12 h-16 bg-blue-800 border-2 border-white rounded shadow-md flex items-center justify-center"><span class="text-white font-black text-xs">Poké</span></div>` : '<span class="text-white/60 font-bold text-xs">Bench</span>'}
+                        </div>
+                    </div>
+                    <div class="w-1/4 flex flex-col items-center justify-center border-l-2 border-white/20 pl-4">
+                        <span class="text-white font-bold text-xs bg-black/50 px-2 rounded mb-1">Deck</span>
+                        <div id="setup-deck" class="w-20 h-28 bg-blue-800 border-4 border-blue-900 rounded-xl shadow-2xl relative"><div class="absolute inset-0 bg-blue-700 translate-x-1 -translate-y-1 rounded-xl -z-10"></div><div class="absolute inset-0 flex items-center justify-center text-white font-black text-xl italic">Poké</div></div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-center h-16">
+                    ${state.m5.phase === 0 ? `<button onclick="handleM5Action(1)" class="bg-blue-500 hover:bg-blue-600 border-b-4 border-blue-700 text-white font-black text-xl px-12 py-3 rounded-xl shadow-lg transition transform active:translate-y-1">1. Draw 7 Cards</button>` : ''}
+                    ${state.m5.phase === 1 ? `<button onclick="handleM5Action(2)" class="bg-yellow-500 hover:bg-yellow-600 border-b-4 border-yellow-700 text-white font-black text-xl px-12 py-3 rounded-xl shadow-lg transition transform active:translate-y-1">2. Place Active & Bench</button>` : ''}
+                    ${state.m5.phase === 2 ? `<button onclick="handleM5Action(3)" class="bg-purple-500 hover:bg-purple-600 border-b-4 border-purple-700 text-white font-black text-xl px-12 py-3 rounded-xl shadow-lg transition transform active:translate-y-1">3. Set 6 Prize Cards</button>` : ''}
+                </div>
+            `;
+        }
+
+        function handleM6Attack() {
+            if(state.m6.energyAttached < 2) { alert("Rule: You must match the attack cost!"); return; }
+            if(state.isAnimating) return; state.isAnimating = true;
+            animateAttackDmg('m6-player', 'm6-enemy', 30);
+            setTimeout(() => {
+                state.m6.enemyHp = 0; updateApp();
+                setTimeout(() => {
+                    const eRect = $('m6-enemy').getBoundingClientRect(); const dRect = $('m6-discard').getBoundingClientRect();
+                    $('m6-enemy').style.opacity = '0';
+                    animateCardMove(eRect, dRect, `<div class="w-full h-full bg-white border-4 border-yellow-400 rounded-xl"></div>`, () => {
+                        state.isAnimating = false; updateApp();
+                    });
+                }, 400);
+            }, 500);
+        }
+
+        function renderMod6(container) {
+            const isDone = state.m6.enemyHp <= 0; const needsEnergy = state.m6.energyAttached < 2;
+            let msg = "Every turn, you DRAW 1 card. Then you take actions (attach 1 energy, play items, evolve, retreat). Finally, you ATTACK. <br/><br/>Spark requires ⚡ and ⚪. Attach your ⚡ Energy, then Attack!";
+            if(isDone) msg = "Knock Out! Notice how Bidoof AND its attached energy went straight to the Discard Pile. You would now take 1 Prize Card and end your turn!";
+
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Turn Actions & Attacking</h2>
+                ${renderTeacher(msg)}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    ${renderRuleBox('Energy Matching', '⚡', 'yellow', 'You MUST match the symbol of the attack cost. ⚪ (Colorless) can be paid with ANY energy type.')}
+                    ${renderRuleBox('Attacking Ends Turn', '🛑', 'red', 'The moment you attack, your turn is immediately over. You cannot play cards or retreat afterward.')}
+                </div>
+                <div class="bg-green-700 p-8 rounded-3xl shadow-inner border-8 border-green-800 h-[360px] relative flex justify-between items-center mt-4">
+                    <div id="m6-discard" class="absolute left-4 bottom-4 w-24 h-32 border-4 border-dashed border-white/40 rounded-xl flex flex-col items-center justify-center bg-black/20"><span class="text-white/80 font-black text-sm text-center">Opponent<br/>Discard</span>${isDone ? `<div class="absolute inset-0 bg-white border-4 border-yellow-400 rounded-lg shadow-xl flex items-center justify-center text-4xl">🦫</div>` : ''}</div>
+                    <div class="flex-1 flex justify-center gap-12 ml-20">
+                        ${renderCard({ id: 'm6-player', name: 'Pikachu', emoji: '⚡🐁', hp: state.m6.playerHp, attacks: [{name: 'Spark', cost: 2, type: '⚡', dmg: 30}], isEnemy: false, energyAttached: 1 + state.m6.energyAttached, eType: 'light', eSymbol: '⚡' })}
+                        <div class="text-4xl font-black text-white italic drop-shadow-md self-center">VS</div>
+                        <div class="${isDone ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300">${renderCard({ id: 'm6-enemy', name: 'Bidoof', emoji: '🦫', hp: state.m6.enemyHp, attacks: [{name: 'Tackle', cost: 1, type: '⚪', dmg: 10}], isEnemy: true, energyAttached: 1 })}</div>
+                    </div>
+                </div>
+                <div class="mt-4 flex flex-col items-center">
+                    <h3 class="font-black text-gray-500 mb-2 uppercase tracking-widest text-sm bg-gray-200 px-4 py-1 rounded-full">Your Hand / Actions</h3>
+                    <div class="flex gap-4 h-24 items-center">
+                        ${needsEnergy ? `<div onclick="state.m6.energyAttached++; updateApp();"><button class="bg-yellow-400 text-black font-black px-6 py-3 rounded-xl shadow-lg border-b-4 border-yellow-600">Attach ⚡ Energy</button></div>` : ''}
+                        ${!needsEnergy && !isDone ? `<button onclick="handleM6Attack()" class="bg-red-500 hover:bg-red-600 border-b-4 border-red-700 text-white font-black text-xl px-10 py-4 rounded-xl shadow-lg transition transform active:translate-y-1 glow">⚡ Use Spark (30)</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleM7Retreat() { state.m7.activeId = 'snorlax'; state.m7.isAsleep = false; state.m7.isPoisoned = false; updateApp(); }
+        function handleM7Attack() {
+            if(state.isAnimating) return; state.isAnimating = true;
+            animateAttackDmg('m7-player', 'm7-enemy', 60);
+            setTimeout(() => { state.m7.enemyHp = 0; updateApp(); setTimeout(() => { state.isAnimating = false; updateApp(); }, 500); }, 500);
+        }
+
+        function renderMod7(container) {
+            const isDone = state.m7.enemyHp <= 0; const hasRetreated = state.m7.activeId === 'snorlax';
+            let msg = "Last turn, Ekans used an attack that causes Status Effects! Pikachu is now <span class='text-purple-600 font-bold'>Poisoned</span> (takes damage between turns) AND <span class='text-slate-500 font-bold'>Asleep</span> (cannot attack or retreat normally).<br/><br/>Click 'Play Switch Item' to force a retreat to Snorlax!";
+            if (hasRetreated && state.m7.enemyHp > 0) msg = "Pikachu is safe on the Bench! Moving to the bench CURES all Special Conditions instantly! Now smash Ekans with Snorlax!";
+
+            const pikaProps = { id: 'm7-pika', name: 'Pikachu', emoji: '⚡🐁', hp: state.m7.pikaHp, attacks: [{name: 'Spark', cost: 2, type: '⚡', dmg: 30}], isEnemy: false, energyAttached: 2, isAsleep: state.m7.isAsleep && !hasRetreated, isPoisoned: state.m7.isPoisoned && !hasRetreated };
+            const snorProps = { id: 'm7-snorlax', name: 'Snorlax', emoji: '🐻💤', hp: state.m7.snorlaxHp, attacks: [{name: 'Body Slam', cost: 3, type: '⚪', dmg: 60}], isEnemy: false, energyAttached: 3 };
+            let activeProps = hasRetreated ? snorProps : pikaProps; let benchProps = hasRetreated ? pikaProps : snorProps;
+            activeProps.id = 'm7-player';
+
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Special Conditions</h2>
+                ${renderTeacher(msg)}
+                ${renderRuleBox('Curing Conditions', '🏥', 'purple', 'When a Pokémon is moved to the Bench (by retreating or an Item card), it recovers from ALL Special Conditions: Asleep, Burned, Confused, Paralyzed, and Poisoned. Evolution also cures them!')}
+                <div class="flex justify-between items-end bg-green-700 p-8 rounded-3xl shadow-inner border-8 border-green-800 h-[380px] mt-4">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex gap-4 items-end">
+                            <div class="flex flex-col items-center"><span class="text-white font-bold mb-1 bg-blue-600 px-3 rounded text-sm shadow">Active</span>${renderCard(activeProps)}</div>
+                            <div class="flex flex-col items-center opacity-70 transform scale-75 origin-bottom-left"><span class="text-white font-bold mb-1 bg-slate-600 px-3 rounded text-sm shadow">Bench</span>${renderCard(benchProps)}</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center"><span class="text-white font-bold mb-1 bg-black/50 px-3 rounded text-sm">Opponent</span>${renderCard({ id: 'm7-enemy', name: 'Ekans', emoji: '🐍', hp: state.m7.enemyHp, attacks: [{name: 'Toxic Spores', cost: 1, type: '🌿', dmg: 10, effect: 'Defending Pokémon is now Asleep and Poisoned.'}], isEnemy: true, energyAttached: 1 })}</div>
+                </div>
+                <div class="mt-6 flex justify-center h-20 gap-4 items-center">
+                    ${!hasRetreated ? `<button onclick="handleM7Retreat()" class="bg-blue-100 hover:bg-blue-200 border-2 border-blue-500 text-blue-900 font-black text-xl px-8 py-4 rounded-xl shadow-md transition transform active:scale-95 glow">🔄 Play 'Switch' Item</button>` : ''}
+                    ${hasRetreated && !isDone ? `<button onclick="handleM7Attack()" class="bg-gray-700 hover:bg-gray-800 border-b-4 border-gray-900 text-white font-black text-2xl px-12 py-5 rounded-2xl shadow-lg transition transform active:translate-y-1">⚪ Body Slam (60)</button>` : ''}
+                </div>
+            `;
+        }
+
+        // Module 8: Special Cards
+        function renderMod8(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Special Cards (Appendixes)</h2>
+                ${renderTeacher("Over the years, the TCG has introduced ultra-powerful cards like EX, GX, V, and VMAX. They have huge HP and attacks, but they come with a high risk!")}
+                
+                <div class="flex flex-col md:flex-row justify-center items-center gap-12 mt-8">
+                    <div class="flex flex-col items-center w-72 text-center">
+                        ${renderCard({ id: 'sp-tag', name: 'Pikachu & Zekrom GX', emoji: '⚡🐉', hp: 240, stage: 'BASIC', attacks: [{name: 'Full Blitz', cost: 3, type: '⚡', dmg: 150}, {name: 'Tag Bolt GX', cost: 4, type: '⚡', dmg: 200}], isEnemy: false, energyAttached: 0, isTagTeam: true })}
+                        <p class="text-sm mt-4 bg-yellow-100 p-3 rounded-lg border-2 border-yellow-400 font-bold text-yellow-900"><b>TAG TEAM RULE:</b> Very powerful Basic Pokémon. Gives up <span class="text-red-600 font-black">3 Prize Cards</span> when KO'd!</p>
+                    </div>
+                    <div class="flex flex-col items-center w-72 text-center mt-12 md:mt-0">
+                        ${renderCard({ id: 'sp-vmax', name: 'Lapras VMAX', emoji: '💧🦕', hp: 320, stage: 'VMAX', attacks: [{name: 'G-Max Pump', cost: 3, type: '💧', dmg: 90}], isEnemy: false, energyAttached: 0, isVmax: true })}
+                        <p class="text-sm mt-4 bg-purple-100 p-3 rounded-lg border-2 border-purple-400 font-bold text-purple-900"><b>VMAX RULE:</b> Evolves from Pokémon V. Massive HP! Gives up <span class="text-red-600 font-black">3 Prize Cards</span> when KO'd!</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Module 9: Mulligans
+        function renderMod9(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Adv: Mulligans & Decking Out</h2>
+                ${renderTeacher("Let's look at advanced edge cases you will encounter in tournaments.")}
+                
+                <div class="bg-white p-8 rounded-2xl shadow-lg border-t-8 border-indigo-500 mt-6">
+                    <h3 class="text-2xl font-black text-indigo-900 mb-4">Taking a Mulligan (Start of Game)</h3>
+                    <p class="mb-4 text-gray-700 font-medium">What happens if you draw your opening 7 cards and you don't have any Basic Pokémon?</p>
+                    <ul class="space-y-4 text-lg font-medium text-gray-700">
+                        <li class="flex items-start gap-3"><span class="text-indigo-500 font-black">1.</span> Reveal your hand to your opponent to prove you have no Basic Pokémon.</li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-500 font-black">2.</span> Shuffle your hand back into your deck and draw 7 new cards. Repeat until you get a Basic.</li>
+                        <li class="flex items-start gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-200 mt-2"><span class="text-indigo-600 text-2xl">⚠️</span> <b>The Penalty:</b> For every time you take a mulligan, your opponent gets to draw 1 extra card!</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl shadow-lg border-t-8 border-orange-500 mt-6">
+                    <h3 class="text-2xl font-black text-orange-900 mb-2">Draw Rules & Decking Out</h3>
+                    <ul class="space-y-4 text-lg font-medium text-gray-700 mt-4">
+                        <li><b>Drawing more than you have:</b> If an attack says "Draw 5 cards" but you only have 3 in your deck, you just draw the 3. You don't lose yet.</li>
+                        <li class="bg-orange-50 p-4 rounded-xl border border-orange-200"><b>Losing by Decking Out:</b> You ONLY lose if you cannot draw a card <b>at the very beginning of your turn</b>.</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Module 10: Attacking Details
+        function renderMod10(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Adv: Full Details of Attacking</h2>
+                ${renderTeacher("What exactly counts as an attack? Any text written in the attack box! It doesn't have to do damage.")}
+                
+                <div class="flex flex-col md:flex-row gap-6 mt-6">
+                    <div class="w-full md:w-1/3">
+                        ${renderCard({ id: 'adv-atk', name: 'Jigglypuff', emoji: '🐈', hp: 60, attacks: [{name: 'Sing', cost: 1, type: '⚪', dmg: '', effect: 'The Defending Pokémon is now Asleep.'}], isEnemy: false, energyAttached: 0 })}
+                        <p class="text-sm mt-4 text-gray-600 font-bold text-center">Even though "Sing" does 0 damage, it is an attack! Your turn ends after you use it.</p>
+                    </div>
+                    <div class="w-full md:w-2/3 bg-white p-6 rounded-2xl shadow-md border-2 border-gray-200">
+                        <h3 class="font-black text-xl mb-4 text-red-700">The Exact Attack Sequence</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-sm font-bold text-gray-700">
+                            <li>Check you have the correct Energy attached.</li>
+                            <li>Announce the attack name.</li>
+                            <li>Make any choices required by the attack (e.g., choosing a Benched target).</li>
+                            <li>Apply effects that alter damage on the Attacking Pokémon.</li>
+                            <li>Apply Weakness (x2 damage).</li>
+                            <li>Apply Resistance (-30 damage).</li>
+                            <li>Apply effects on the Defending Pokémon that alter damage.</li>
+                            <li>Place damage counters (10 damage = 1 counter).</li>
+                            <li>Apply any other effects (like Poison or Asleep).</li>
+                            <li>Check for a Knock Out!</li>
+                        </ol>
+                    </div>
+                </div>
+
+                ${renderRuleBox('"Up to" vs "Any Amount"', '❓', 'blue', 'If a card says "Discard <b>any amount</b> of Energy", you must discard at least 1. If a card says "Attach <b>up to</b> 3 Energy", you are legally allowed to choose 0 (though you usually wouldn\'t!).')}
+            `;
+        }
+
+        // Module 11: Ties and Names
+        function renderMod11(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Adv: Ties & Name Rules</h2>
+                ${renderTeacher("What happens if both players take their last Prize card at the exact same time?")}
+                
+                <div class="bg-red-50 border-2 border-red-500 p-6 rounded-2xl shadow-md mt-6">
+                    <h3 class="text-2xl font-black text-red-900 mb-2">Sudden Death (Tiebreaker Game)</h3>
+                    <p class="text-lg font-medium text-gray-700 mb-4">If both players win at the same time (e.g., an attack Knocks Out both Active Pokémon and both players take their last Prize card), you play a Tiebreaker Game.</p>
+                    <p class="bg-white p-4 rounded-xl font-bold text-red-800 shadow-sm">You set up a brand new game exactly like normal, except you only put out <b>1 Prize Card</b> instead of 6. The first to take that single prize wins!</p>
+                </div>
+
+                <h3 class="text-3xl font-black text-gray-800 mt-8 mb-4">What counts as a Pokémon's Name?</h3>
+                <p class="text-lg font-medium text-gray-700 mb-4">You can only have 4 cards with the exact same name in your deck. But names are very specific!</p>
+                
+                <div class="flex gap-4">
+                    <div class="flex-1 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                        <span class="font-black text-lg">Pikachu</span>
+                        <p class="text-sm text-gray-500">You can have 4 of these.</p>
+                    </div>
+                    <div class="flex-1 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                        <span class="font-black text-lg text-blue-700">Surfing Pikachu</span>
+                        <p class="text-sm text-gray-500">Different name! You can have 4 of these too.</p>
+                    </div>
+                    <div class="flex-1 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                        <span class="font-black text-lg text-purple-700">Pikachu V</span>
+                        <p class="text-sm text-gray-500">Different name! You can have 4 of these as well.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Module 12: Deck Building
+        function renderMod12(container) {
+            container.innerHTML = `
+                <h2 class="text-4xl font-black text-gray-800 mb-6 drop-shadow-sm">Deck Building Rules</h2>
+                ${renderTeacher("Ready to build your own deck from booster packs? Here are the golden rules!")}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-700 p-6 rounded-3xl shadow-xl text-white">
+                        <div class="text-6xl mb-2 text-center font-black">60</div>
+                        <h3 class="text-xl font-black text-center mb-4 uppercase tracking-widest">Exact Deck Size</h3>
+                        <p class="text-center font-bold text-blue-100">Your deck must be exactly 60 cards. Not 59. Not 61. Exactly 60!</p>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-red-500 to-red-700 p-6 rounded-3xl shadow-xl text-white">
+                        <div class="text-6xl mb-2 text-center font-black">4</div>
+                        <h3 class="text-xl font-black text-center mb-4 uppercase tracking-widest">The Rule of 4</h3>
+                        <p class="text-center font-bold text-red-100">You can only have up to 4 cards with the exact same name in your deck (except for Basic Energy, you can have 50 of those if you want!).</p>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-white p-6 rounded-2xl shadow-md border-2 border-gray-200">
+                    <h3 class="font-black text-xl text-gray-800 mb-2">A Good Starter Deck Recipe:</h3>
+                    <div class="flex h-12 rounded-full overflow-hidden shadow-inner mt-4">
+                        <div class="w-1/3 bg-green-500 flex items-center justify-center text-white font-black text-sm">20 POKÉMON</div>
+                        <div class="w-1/3 bg-blue-500 flex items-center justify-center text-white font-black text-sm">25 TRAINERS</div>
+                        <div class="w-1/3 bg-yellow-500 flex items-center justify-center text-black font-black text-sm">15 ENERGY</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Module 13: Final Boss
+        function bossLog(msg) { state.boss.logs.push(msg); if(state.boss.logs.length > 5) state.boss.logs.shift(); }
+        function handleBossHand(itemIndex) {
+            let b = state.boss; if (b.phase !== 'playerTurn') return;
+            let item = b.player.hand[itemIndex];
+            if (item.startsWith('Energy')) {
+                if (b.turnActionTaken.energy) { alert("RULE: You can only attach 1 Energy per turn!"); return; }
+                b.player.active.energy++; b.turnActionTaken.energy = true; bossLog(`Attached an Energy.`);
+            } else if (item.startsWith('Item')) {
+                b.player.active.hp = Math.min(b.player.active.maxHp, b.player.active.hp + 30); bossLog(`Played Potion. (Moved to Discard)`);
+            }
+            b.player.hand.splice(itemIndex, 1); updateApp();
+        }
+
+        function bossEnemyTurn() {
+            let b = state.boss; b.phase = 'enemyTurn'; updateApp();
+            setTimeout(() => {
+                let atk = b.enemy.active.attacks[0]; bossLog(`Opponent used ${atk.name}!`);
+                animateAttackDmg('boss-enemy', 'boss-player', atk.dmg);
+                setTimeout(() => {
+                    b.player.active.hp -= atk.dmg; updateApp();
+                    setTimeout(() => {
+                        if (b.player.active.hp <= 0) {
+                            bossLog(`Your Pokémon was Knocked Out!`);
+                            if (b.player.bench.length > 0) { b.player.active = b.player.bench.shift(); b.enemy.prizes--; if (b.enemy.prizes <= 0) { b.phase = 'lose'; updateApp(); return; } } else { b.phase = 'lose'; updateApp(); return; }
+                        }
+                        b.phase = 'playerTurn'; b.turnActionTaken = { energy: false, supporter: false }; bossLog("Your turn!"); updateApp();
+                    }, 500);
+                }, 500);
+            }, 1000);
+        }
+
+        function handleBossAttack() {
+            let b = state.boss; if (b.phase !== 'playerTurn') return;
+            let atk = b.player.active.attacks[0];
+            if (b.player.active.energy < atk.cost) { alert("RULE: Not enough Energy attached!"); return; }
+            b.phase = 'animating'; bossLog(`You used ${atk.name}!`);
+            animateAttackDmg('boss-player', 'boss-enemy', atk.dmg);
+            setTimeout(() => {
+                b.enemy.active.hp -= atk.dmg; updateApp();
+                setTimeout(() => {
+                    if (b.enemy.active.hp <= 0) {
+                        bossLog(`Opponent Knocked Out! Took 1 Prize!`);
+                        b.player.prizes--;
+                        if (b.player.prizes <= 0) { b.phase = 'win'; updateApp(); return; }
+                        if (b.enemy.bench.length > 0) { b.enemy.active = b.enemy.bench.shift(); }
+                    }
+                    bossEnemyTurn();
+                }, 500);
+            }, 500);
+        }
+
+        function resetBoss() {
+            state.boss = {
+                phase: 'playerTurn', turnActionTaken: { energy: false, supporter: false },
+                player: { active: { name: 'Pikachu', emoji: '⚡🐁', hp: 60, maxHp: 60, energy: 1, attacks: [{name: 'Thunder Jolt', cost: 2, type: '⚡', dmg: 40}], stage: 'BASIC', eType: 'light', eSymbol: '⚡' }, bench: [], hand: ['Energy-⚡', 'Energy-⚡', 'Item-Potion'], prizes: 2 },
+                enemy: { active: { name: 'Bidoof', emoji: '🦫', hp: 60, maxHp: 60, energy: 1, attacks: [{name: 'Tackle', cost: 1, type: '⚪', dmg: 20}], stage: 'BASIC' }, bench: [{ name: 'Squirtle', emoji: '💧🐢', hp: 60, maxHp: 60, energy: 1, attacks: [{name: 'Bubble', cost: 1, type: '💧', dmg: 20}], stage: 'BASIC' }], prizes: 2 },
+                logs: ["Battle started! Your turn."]
+            }; updateApp();
+        }
+
+        function renderBossBattle(container) {
+            let b = state.boss;
+            if (b.phase === 'start') {
+                container.innerHTML = `<div class="flex-1 flex flex-col items-center justify-center text-center"><h2 class="text-5xl font-black text-gray-800 mb-6">🏆 Final TCG Match 🏆</h2>${renderTeacher("This is a real match! Put all the Advanced Rules into practice. Good luck!")}<button onclick="resetBoss()" class="mt-8 bg-red-600 hover:bg-red-700 text-white font-black text-3xl px-12 py-6 rounded-full shadow-xl transform transition hover:scale-105">DRAW CARDS & BATTLE!</button></div>`; return;
+            }
+            if (b.phase === 'win' || b.phase === 'lose') {
+                container.innerHTML = `<div class="flex-1 flex flex-col items-center justify-center text-center"><div class="text-9xl mb-4 bounce-animation">${b.phase==='win'?'🏆🎉':'😵'}</div><h2 class="text-5xl font-black ${b.phase==='win'?'text-yellow-500':'text-gray-800'} mb-6">${b.phase==='win'?'TCG MASTER!':'You lost...'}</h2><button onclick="resetBoss()" class="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold text-xl px-8 py-4 rounded-xl shadow-md">Play Again</button></div>`; return;
+            }
+
+            let logsHtml = b.logs.map(l => `<p class="border-b border-slate-600 py-1 last:border-0 last:font-bold ${l.includes('Your turn') ? 'text-green-400' : 'text-slate-200'}">${l}</p>`).join('');
+
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-3xl font-black text-gray-800">Final Test: Take 2 Prizes!</h2>
+                    <div class="flex gap-4">
+                        <div class="bg-red-100 border-2 border-red-400 px-4 py-2 rounded-xl text-red-900 font-black text-lg shadow-sm">Opponent Prizes: ${b.enemy.prizes}</div>
+                        <div class="bg-blue-100 border-2 border-blue-400 px-4 py-2 rounded-xl text-blue-900 font-black text-lg shadow-sm">Your Prizes: ${b.player.prizes}</div>
+                    </div>
+                </div>
+                
+                <div class="bg-green-700 rounded-3xl p-6 shadow-inner border-8 border-green-800 relative flex flex-col h-[420px]">
+                    <div class="flex justify-between items-start">
+                        <div class="opacity-50 scale-50 origin-top-left">${b.enemy.bench.length > 0 ? renderCard({ id: 'dummy', ...b.enemy.bench[0], isEnemy: true }) : ''}</div>
+                        <div class="transform scale-90">${renderCard({ id: 'boss-enemy', ...b.enemy.active, isEnemy: true, energyAttached: b.enemy.active.energy })}</div>
+                    </div>
+                    <div class="flex justify-center mt-auto">${renderCard({ id: 'boss-player', ...b.player.active, isEnemy: false, energyAttached: b.player.active.energy })}</div>
+                </div>
+                
+                <div class="mt-4 flex flex-col md:flex-row gap-4 h-64">
+                    <div class="flex-1 bg-white rounded-2xl shadow-md border-2 border-gray-200 p-4 flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-black text-gray-500 text-sm uppercase tracking-widest">Your Hand</h4>
+                            <button onclick="handleBossAttack()" ${b.phase !== 'playerTurn' ? 'disabled' : ''} class="${b.phase === 'playerTurn' ? 'bg-red-500 hover:bg-red-600 glow' : 'bg-gray-300 cursor-not-allowed'} text-white font-black px-6 py-3 rounded-xl transition">⚔️ ATTACK & END TURN</button>
+                        </div>
+                        <div class="flex gap-2 overflow-x-auto pb-2 h-full items-center">
+                            ${b.player.hand.map((item, i) => `<div onclick="handleBossHand(${i})" class="${b.phase === 'playerTurn' ? 'cursor-pointer hover:-translate-y-2' : 'opacity-50'} transition transform scale-[0.6] origin-top">${item.startsWith('Energy') ? renderEnergyCard('⚡', 'LIGHTNING') : renderTrainerCard('Potion', 'ITEM', 'Heal 30 damage.')}</div>`).join('')}
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/3 bg-slate-900 rounded-2xl shadow-md border-4 border-slate-700 p-4 log-container overflow-y-auto flex flex-col justify-end text-white font-mono text-sm leading-relaxed">${logsHtml}</div>
+                </div>
+            `;
+            setTimeout(() => { const logBox = document.querySelector('.log-container'); if(logBox) logBox.scrollTop = logBox.scrollHeight; }, 50);
+        }
+
+        // Start
+        updateApp();
+    </script>
+</body>
+</html>
