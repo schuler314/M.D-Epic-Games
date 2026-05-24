@@ -119,6 +119,8 @@
         ];
 
         // --- GLOBAL STATE ---
+        const isBossUnlocked = () => state.completed.slice(0, 15).every(v => v);
+
         let state = {
             activeId: 0,
             lastActiveId: -1, // UX Tracker to prevent scroll jump on interaction updates
@@ -150,8 +152,8 @@
             
             // Boss Battle State
             boss: {
-                phase: 'start', turnActionTaken: { energy: false, supporter: false },
-                player: { active: { name: 'Pikachu', emoji: '⚡', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Thunder Jolt', c: 2, d: 40}], aslp: false, psn: false }, bench: [{ name: 'Snorlax', emoji: '🐻', hp: 100, maxHp: 100, e: 0, attacks: [{n: 'Body Slam', c: 3, d: 60}] }], hand: ['Energy-⚡', 'Item-Potion', 'Item-Switch'], prizes: 2 },
+                phase: 'playerTurn', turnActionTaken: { energy: false, supporter: false },
+                player: { active: { name: 'Pikachu', emoji: '⚡', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Thunder Jolt', c: 2, d: 40}], aslp: true, psn: true }, bench: [{ name: 'Snorlax', emoji: '🐻', hp: 100, maxHp: 100, e: 0, attacks: [{n: 'Body Slam', c: 3, d: 60}] }], hand: ['Energy-⚡', 'Item-Potion', 'Item-Switch'], prizes: 2 },
                 enemy: { active: { name: 'Ekans', emoji: '🐍', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Toxic Spores', c: 1, d: 10}] }, bench: [{ name: 'Bidoof', emoji: '🦫', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Tackle', c: 1, d: 20}] }], prizes: 2 },
                 logs: ["Battle started! Opponent Ekans used Toxic Spores. Pikachu took 10 damage, is Asleep and Poisoned! Your turn."]
             }
@@ -193,7 +195,7 @@
         // --- RENDER ENGINES ---
         function renderNav() {
             let html = '';
-            const allComplete = state.completed.slice(0, 15).every(v=>v); // Check if 0-14 are done
+            const allComplete = isBossUnlocked(); // Check if 0-14 are done
             
             structure.forEach(group => {
                 html += `<div class="text-slate-400 text-[10px] font-black uppercase tracking-widest px-6 mt-6 mb-2">${group.cat}</div>`;
@@ -289,6 +291,12 @@
 
         // --- MAIN RENDERER (UX ENHANCED) ---
         function renderContent() {
+            if (state.activeId === 15 && !isBossUnlocked()) {
+                const firstIncomplete = state.completed.slice(0, 15).findIndex(v => !v);
+                state.activeId = firstIncomplete === -1 ? 14 : firstIncomplete;
+                showToast("Final Boss unlocks after mastering all lessons first.", "error");
+            }
+
             renderNav();
             const scrollArea = $('main-scroll-area');
             const currentScroll = scrollArea ? scrollArea.scrollTop : 0;
@@ -884,7 +892,7 @@
         function resetBoss() {
             state.boss = {
                 phase: 'playerTurn', turnActionTaken: { energy: false, supporter: false },
-                player: { active: { name: 'Pikachu', emoji: '⚡', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Thunder Jolt', c: 2, d: 40}], aslp: false, psn: false }, bench: [{ name: 'Snorlax', emoji:'🐻', hp: 100, maxHp: 100, e: 0, attacks: [{n: 'Body Slam', c: 3, d: 60}] }], hand: ['Energy-⚡', 'Item-Potion', 'Item-Switch'], prizes: 2 },
+                player: { active: { name: 'Pikachu', emoji: '⚡', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Thunder Jolt', c: 2, d: 40}], aslp: true, psn: true }, bench: [{ name: 'Snorlax', emoji:'🐻', hp: 100, maxHp: 100, e: 0, attacks: [{n: 'Body Slam', c: 3, d: 60}] }], hand: ['Energy-⚡', 'Item-Potion', 'Item-Switch'], prizes: 2 },
                 enemy: { active: { name: 'Ekans', emoji:'🐍', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Toxic Spores', c: 1, d: 10}] }, bench: [{ name: 'Bidoof', emoji:'🦫', hp: 60, maxHp: 60, e: 1, attacks: [{n: 'Tackle', c: 1, d: 20}] }], prizes: 2 },
                 logs: ["Battle started! Opponent Ekans used Toxic Spores. Pikachu is Asleep and Poisoned! Your turn."]
             }; renderContent();
@@ -918,7 +926,7 @@
                         <button onclick="bossAtk()" ${b.phase !== 'playerTurn' ? 'disabled' : ''} class="btn-action ${b.phase === 'playerTurn' ? 'bg-gradient-to-b from-red-500 to-red-700 border-red-800 shadow-[0_0_20px_rgba(220,38,38,0.4)]' : ''} text-white font-black px-8 py-3 rounded-xl shadow-lg text-lg hover:scale-105 active:scale-95 transition-all">⚔️ ATTACK</button>
                     </div>
                     <div class="flex gap-4 h-full items-center overflow-x-auto custom-scrollbar pb-2">
-                        ${b.player.hand.map((item, i) => `<div onclick="bossHand(${i})" class="${b.phase === 'playerTurn' ? 'cursor-pointer hover:-translate-y-4' : 'opacity-50'} transition-all transform scale-75 origin-top shadow-xl">${item.startsWith('Energy') ? renderEnergyCard('⚡', 'LIGHTNING') : item.includes('Potion') ? renderTrainerCard('Potion', 'ITEM', 'Heal 30 damage.') : renderTrainerCard('Switch', 'ITEM', 'Swap Active with Bench.')}</div>`).join('')}
+                        ${b.player.hand.map((item, i) => `<div onclick="bossHand(${i})" class="${b.phase === 'playerTurn' ? 'cursor-pointer hover:-translate-y-4' : 'opacity-50'} transition-all transform scale-75 origin-top shadow-xl">${item.startsWith('Energy') ? renderECard('⚡', 'LIGHTNING') : item.includes('Potion') ? renderTCard('Potion', 'ITEM', 'Heal 30 damage.') : renderTCard('Switch', 'ITEM', 'Swap Active with Bench.')}</div>`).join('')}
                     </div>
                 </div>
                 <div class="w-1/3 bg-black/60 rounded-3xl border-2 border-slate-700 p-6 overflow-y-auto custom-scrollbar flex flex-col justify-end text-slate-300 font-mono text-sm leading-relaxed shadow-inner">
