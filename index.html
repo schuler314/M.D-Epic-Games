@@ -66,6 +66,21 @@
             flex-shrink: 0;
             transition: transform 0.3s ease;
         }
+
+        .game-info {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .game-title {
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            overflow-wrap: anywhere;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
         .game-card:hover .game-icon {
             transform: scale(1.1);
         }
@@ -499,7 +514,7 @@
                         ${game.icon}
                     </div>
                     <div class="game-info flex flex-col flex-1 min-w-0 h-full">
-                        <h3 class="game-title font-bold text-white truncate">${game.title}</h3>
+                        <h3 class="game-title font-bold text-white">${game.title}</h3>
                         <p class="game-desc text-white/70 font-semibold flex-grow">${game.description}</p>
                         <div class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block w-full">
                             Play Now!
