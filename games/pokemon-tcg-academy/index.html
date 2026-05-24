@@ -121,6 +121,10 @@
 
         const ruleBookUrl = "https://drive.google.com/file/d/1vnWYi-fEw4HbAeD2zwravXIbarsX66EA/view?usp=sharing";
 
+        function openRuleBookInNewTab() {
+            window.open(ruleBookUrl, '_blank', 'noopener,noreferrer');
+        }
+
         // --- GLOBAL STATE ---
         const isBossUnlocked = () => state.completed.slice(0, 15).every(v => v);
 
@@ -209,7 +213,11 @@
                     if(m.id === 15 && !allComplete) { locked = 'disabled'; title = '🔒 Locked (Finish All)'; }
                     else if(m.id === 15 && allComplete) { title = '🔓 ' + m.title; }
                     
-                    html += `<button onclick="state.activeId=${m.id}; renderContent();" ${locked} class="nav-button w-full text-left px-6 py-3 text-sm font-bold ${active}">${check}${title}</button>`;
+                    const clickHandler = m.id === 16
+                        ? `state.activeId=${m.id}; renderContent(); openRuleBookInNewTab();`
+                        : `state.activeId=${m.id}; renderContent();`;
+
+                    html += `<button onclick="${clickHandler}" ${locked} class="nav-button w-full text-left px-6 py-3 text-sm font-bold ${active}">${check}${title}</button>`;
                 });
             });
             $('nav-container').innerHTML = html;
@@ -779,27 +787,18 @@
         `;
 
         const mod16 = () => `
-            ${renderTeacher("This official rule book is the full reference for advanced rules, edge cases, and tournament details.")}
+            ${renderTeacher("This official rule book is the full reference for advanced rules, edge cases, and tournament details. It will open in a new tab for the best experience.")}
             <div class="interactive-section">
                 <div class="interactive-header">📘 ADDITIONAL INFORMATION</div>
-                <div class="mt-8 bg-slate-950 rounded-3xl border-2 border-slate-700 shadow-2xl overflow-hidden">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-slate-900 border-b border-slate-700">
-                        <div>
-                            <h3 class="text-white font-black text-2xl oswald">44-page Official Rule Book</h3>
-                            <p class="text-slate-400 font-semibold text-sm mt-1">Open the PDF below or launch it in a new tab.</p>
+                <button onclick="openRuleBookInNewTab()" class="mt-8 bg-slate-950 rounded-3xl border-2 border-slate-700 shadow-2xl overflow-hidden p-6 sm:p-8 flex flex-col items-start gap-4 text-left w-full hover:border-yellow-400 transition-all">
+                    <div class="flex items-start gap-4 w-full">
+                        <div class="text-5xl sm:text-6xl">📘</div>
+                        <div class="flex-1">
+                            <h3 class="text-white font-black text-2xl sm:text-3xl oswald">44-page Official Rule Book</h3>
+                            <p class="text-slate-400 font-semibold text-sm sm:text-base mt-1">Click anywhere on this card to open the PDF in a new tab.</p>
                         </div>
-                        <a href="${ruleBookUrl}" target="_blank" rel="noopener noreferrer" class="btn-action inline-flex items-center justify-center px-5 py-3 rounded-xl text-sm shadow-lg">
-                            Open in New Tab
-                        </a>
                     </div>
-                    <div class="bg-slate-800 p-3">
-                        <iframe
-                            src="${ruleBookUrl}"
-                            title="44-page Official Rule Book"
-                            class="w-full h-[75vh] rounded-2xl bg-white"
-                        ></iframe>
-                    </div>
-                </div>
+                </button>
             </div>
         `;
 
