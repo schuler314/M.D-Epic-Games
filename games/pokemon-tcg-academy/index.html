@@ -66,12 +66,70 @@
         .interactive-header { position: absolute; top: 0; left: 0; background: #fbbf24; color: #78350f; font-family: 'Oswald'; font-weight: 900; padding: 4px 16px; border-bottom-right-radius: 16px; font-size: 1.2rem; display: flex; gap: 8px; align-items: center; }
 
         .hotspot { position: absolute; width: 30px; height: 30px; background: #ef4444; border: 3px solid white; border-radius: 50%; cursor: pointer; animation: pulseGlow 1.5s infinite; z-index: 20; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+
+        /* View Mode Toggle */
+        .view-toggle-btn { transition: all 0.2s ease; border: 1px solid #475569; }
+        .view-toggle-btn.active { background: #2563eb; color: #fff; border-color: #3b82f6; }
+
+        /* Secondary layout for phone-landscape simulation */
+        body.view-mobile {
+            flex-direction: row !important;
+        }
+
+        body.view-mobile #sidebar-panel {
+            width: 42vw !important;
+            min-width: 190px;
+            max-width: 240px;
+        }
+
+        body.view-mobile #sidebar-panel .p-6 {
+            padding: 0.8rem;
+        }
+
+        body.view-mobile #sidebar-panel h1 {
+            font-size: 1.15rem;
+            line-height: 1rem;
+        }
+
+        body.view-mobile .nav-button {
+            padding: 0.55rem 0.8rem;
+            font-size: 0.78rem;
+        }
+
+        body.view-mobile #main-content > div {
+            max-width: none;
+            padding: 0.8rem;
+            gap: 0.8rem;
+        }
+
+        body.view-mobile #main-content h2 {
+            font-size: 1.4rem;
+        }
+
+        body.view-mobile .interactive-section {
+            padding: 14px;
+            border-radius: 14px;
+        }
+
+        body.view-mobile .interactive-header {
+            font-size: 0.95rem;
+            padding: 3px 10px;
+        }
+
+        body.view-mobile .tcg-card {
+            width: 145px;
+            height: 220px;
+        }
+
+        body.view-mobile .playmat {
+            border-width: 2px;
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row h-screen">
 
     <!-- Sidebar -->
-    <div class="w-full md:w-80 bg-slate-900 shadow-2xl flex flex-col z-20 shrink-0 border-r border-slate-800 relative">
+    <div id="sidebar-panel" class="w-full md:w-80 bg-slate-900 shadow-2xl flex flex-col z-20 shrink-0 border-r border-slate-800 relative">
         <div class="p-6 bg-[#1b263b] border-b-4 border-[#ffcb05] flex items-center gap-4 shadow-md relative overflow-hidden">
             <div class="w-14 h-14 bg-gradient-to-br from-red-500 to-white rounded-full border-4 border-slate-800 shadow-inner flex items-center justify-center relative z-10">
                 <div class="absolute w-full h-1.5 bg-slate-800"></div>
@@ -82,6 +140,8 @@
             </div>
             <div class="absolute right-[-10px] top-[-10px] text-7xl opacity-10">⚡</div>
         </div>
+
+        <div class="px-4 py-3 bg-slate-900 border-b border-slate-800" id="view-toggle"></div>
         
         <!-- Gamification Progress -->
         <div class="px-6 py-5 bg-slate-800 border-b border-slate-700 shadow-inner">
@@ -131,6 +191,7 @@
         let state = {
             activeId: 0,
             lastActiveId: -1, // UX Tracker to prevent scroll jump on interaction updates
+            viewMode: 'desktop',
             xp: 0,
             level: 1,
             unlocked: [true, ...Array(15).fill(false)], // Unlock linearly
@@ -197,6 +258,25 @@
                     if (id < 15) { state.activeId = id + 1; renderContent(); }
                 }, 1500);
             }
+        }
+
+        function setViewMode(mode) {
+            state.viewMode = mode;
+            document.body.classList.toggle('view-mobile', mode === 'mobile');
+            renderViewToggle();
+        }
+
+        function renderViewToggle() {
+            const isMobile = state.viewMode === 'mobile';
+            $('view-toggle').innerHTML = `
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[10px] font-black tracking-widest uppercase text-slate-400">View Mode</span>
+                    <div class="flex rounded-lg bg-slate-800 p-1 gap-1 border border-slate-700">
+                        <button onclick="setViewMode('desktop')" class="view-toggle-btn px-3 py-1 rounded-md text-xs font-black ${!isMobile ? 'active' : 'bg-slate-900 text-slate-300'}">Desktop</button>
+                        <button onclick="setViewMode('mobile')" class="view-toggle-btn px-3 py-1 rounded-md text-xs font-black ${isMobile ? 'active' : 'bg-slate-900 text-slate-300'}">Mobile (Landscape)</button>
+                    </div>
+                </div>
+            `;
         }
 
         // --- RENDER ENGINES ---
@@ -964,6 +1044,8 @@
         };
 
         // Boot
+        renderViewToggle();
+        setViewMode('desktop');
         renderContent();
     </script>
 </body>
