@@ -117,8 +117,9 @@
         </div>
     </div>
 
-    <div id="menu-start" class="absolute inset-0 flex items-center justify-center z-30 bg-black/80 backdrop-blur-md">
-        <div class="cyber-panel p-6 rounded-2xl max-w-lg w-full mx-4 flex flex-col items-center">
+    <!-- Menus modified with p-2 outer, max-h-[95vh] and overflow-y-auto to allow scrolling on short landscape screens -->
+    <div id="menu-start" class="absolute inset-0 flex items-center justify-center z-30 bg-black/80 backdrop-blur-md p-2">
+        <div class="cyber-panel p-4 md:p-6 rounded-2xl max-w-lg w-full flex flex-col items-center max-h-[95vh] overflow-y-auto no-scrollbar">
             <h1 class="text-4xl text-cyan-400 mb-1 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] font-bold text-center">CITY<br><span class="text-fuchsia-500 text-5xl">RUSH</span></h1>
             
             <div class="text-yellow-400 font-bold mb-4">HIGH SCORE: <span id="high-score-display">0</span></div>
@@ -152,39 +153,39 @@
             </div>
 
             <div class="flex flex-wrap gap-4 w-full">
-                <button id="btn-instructions" class="flex-1 cyber-panel hover:bg-gray-800 text-white font-bold py-3 rounded-xl transition text-sm sm:text-base">
+                <button id="btn-instructions" class="flex-1 cyber-panel hover:bg-gray-800 text-white font-bold py-3 rounded-xl transition text-sm sm:text-base shrink-0">
                     HOW TO PLAY
                 </button>
-                <button id="btn-leaderboard" class="flex-1 cyber-panel hover:bg-gray-800 text-white font-bold py-3 rounded-xl transition text-sm sm:text-base">
+                <button id="btn-leaderboard" class="flex-1 cyber-panel hover:bg-gray-800 text-white font-bold py-3 rounded-xl transition text-sm sm:text-base shrink-0">
                     SCORES
                 </button>
-                <button id="btn-start" class="w-full cyber-btn text-white font-bold text-xl py-3 rounded-xl mt-2">
+                <button id="btn-start" class="w-full cyber-btn text-white font-bold text-xl py-3 rounded-xl mt-2 shrink-0">
                     RACE
                 </button>
             </div>
         </div>
     </div>
 
-    <div id="menu-leaderboard" class="absolute inset-0 flex items-center justify-center z-40 hidden bg-black/80 backdrop-blur-md">
-        <div class="cyber-panel p-6 rounded-2xl max-w-sm w-full mx-4">
-            <h2 class="text-3xl text-yellow-400 font-bold mb-4 text-center drop-shadow-[0_0_10px_rgba(255,255,0,0.8)]">TOP DRIVERS</h2>
-            <div id="leaderboard-list" class="space-y-2 mb-6 text-lg font-bold">
+    <div id="menu-leaderboard" class="absolute inset-0 flex items-center justify-center z-40 hidden bg-black/80 backdrop-blur-md p-2">
+        <div class="cyber-panel p-6 rounded-2xl max-w-sm w-full flex flex-col max-h-[95vh] overflow-y-auto no-scrollbar">
+            <h2 class="text-3xl text-yellow-400 font-bold mb-4 text-center drop-shadow-[0_0_10px_rgba(255,255,0,0.8)] shrink-0">TOP DRIVERS</h2>
+            <div id="leaderboard-list" class="space-y-2 mb-6 text-lg font-bold shrink-0">
                 </div>
-            <button id="btn-close-leaderboard" class="cyber-btn w-full text-white font-bold py-2 rounded-xl">CLOSE</button>
+            <button id="btn-close-leaderboard" class="cyber-btn w-full text-white font-bold py-2 rounded-xl shrink-0">CLOSE</button>
         </div>
     </div>
 
-    <div id="menu-instructions" class="absolute inset-0 flex items-center justify-center z-40 hidden bg-black/80 backdrop-blur-md">
-        <div class="cyber-panel p-6 rounded-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto no-scrollbar">
-            <h2 class="text-2xl text-fuchsia-500 font-bold mb-4 text-center">RACING RULES</h2>
+    <div id="menu-instructions" class="absolute inset-0 flex items-center justify-center z-40 hidden bg-black/80 backdrop-blur-md p-2">
+        <div class="cyber-panel p-6 rounded-2xl max-w-md w-full flex flex-col max-h-[95vh] overflow-y-auto no-scrollbar">
+            <h2 class="text-2xl text-fuchsia-500 font-bold mb-4 text-center shrink-0">RACING RULES</h2>
             
-            <div id="dynamic-instructions" class="text-sm space-y-3 text-cyan-100 bg-gray-900/50 p-4 rounded border border-cyan-900 mb-4"></div>
+            <div id="dynamic-instructions" class="text-sm space-y-3 text-cyan-100 bg-gray-900/50 p-4 rounded border border-cyan-900 mb-4 shrink-0"></div>
 
-            <div class="bg-orange-900/50 p-3 rounded border border-orange-500 mb-4 text-sm text-orange-200">
+            <div class="bg-orange-900/50 p-3 rounded border border-orange-500 mb-4 text-sm text-orange-200 shrink-0">
                 🏎️ <strong>RIVALS:</strong> Watch out for the Orange sports cars! If they reach the beacon before you do, they steal the point! They can also use powerups!
             </div>
 
-            <div class="space-y-2 mb-6 text-sm">
+            <div class="space-y-2 mb-6 text-sm shrink-0">
                 <h3 class="font-bold text-yellow-400 border-b border-gray-700 pb-1">POWERUPS (+50 POINTS)</h3>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-yellow-400"></div> <strong>BOOST:</strong> Speed multiplier + Shield</div>
                 <div class="flex items-center gap-2"><div class="w-4 h-4 bg-blue-400"></div> <strong>SHIELD:</strong> No crash damage</div>
@@ -193,25 +194,25 @@
                 <div class="flex items-center gap-2 mt-2"><span class="text-green-400 font-bold">✓</span> <strong>DELIVERY:</strong> Completing a drop-off restores 50% health!</div>
             </div>
 
-            <button id="btn-close-instructions" class="cyber-btn w-full text-white font-bold py-2 rounded-xl">GOT IT</button>
+            <button id="btn-close-instructions" class="cyber-btn w-full text-white font-bold py-2 rounded-xl shrink-0">GOT IT</button>
         </div>
     </div>
 
-    <div id="menu-overlay" class="absolute inset-0 flex items-center justify-center z-40 hidden bg-black/80 backdrop-blur-md">
-        <div class="cyber-panel p-8 rounded-2xl max-w-sm w-full mx-4 flex flex-col items-center text-center">
-            <h2 id="overlay-title" class="text-5xl text-fuchsia-500 mb-6 drop-shadow-[0_0_10px_rgba(255,0,255,0.8)] font-bold">PAUSED</h2>
-            <p id="overlay-msg" class="text-xl text-cyan-300 mb-6 hidden"></p>
+    <div id="menu-overlay" class="absolute inset-0 flex items-center justify-center z-40 hidden bg-black/80 backdrop-blur-md p-2">
+        <div class="cyber-panel p-6 rounded-2xl max-w-sm w-full flex flex-col items-center text-center max-h-[95vh] overflow-y-auto no-scrollbar">
+            <h2 id="overlay-title" class="text-5xl text-fuchsia-500 mb-6 drop-shadow-[0_0_10px_rgba(255,0,255,0.8)] font-bold shrink-0">PAUSED</h2>
+            <p id="overlay-msg" class="text-xl text-cyan-300 mb-6 hidden shrink-0"></p>
             
-            <div id="new-high-score-section" class="w-full mb-6 hidden flex flex-col items-center">
+            <div id="new-high-score-section" class="w-full mb-6 hidden flex-col items-center shrink-0">
                 <p class="text-yellow-400 font-bold mb-2 animate-pulse text-xl">NEW HIGH SCORE!</p>
                 <div class="flex gap-2 w-full">
                     <input id="input-initials" type="text" maxlength="12" placeholder="PLAYER NAME" class="w-full bg-gray-900 border-2 border-cyan-500 text-white text-center text-2xl font-bold rounded-xl outline-none uppercase" style="text-transform: uppercase;">
-                    <button id="btn-submit-score" class="cyber-btn px-6 rounded-xl font-bold text-white">SAVE</button>
+                    <button id="btn-submit-score" class="cyber-btn px-6 rounded-xl font-bold text-white shrink-0">SAVE</button>
                 </div>
             </div>
 
-            <button id="btn-resume" class="cyber-btn text-white text-2xl py-3 px-8 rounded-xl w-full mb-4">RESUME</button>
-            <button id="btn-restart" class="cyber-panel hover:bg-gray-800 text-white text-xl py-3 px-8 rounded-xl w-full transition border-gray-500">QUIT TO MENU</button>
+            <button id="btn-resume" class="cyber-btn text-white text-2xl py-3 px-8 rounded-xl w-full mb-4 shrink-0">RESUME</button>
+            <button id="btn-restart" class="cyber-panel hover:bg-gray-800 text-white text-xl py-3 px-8 rounded-xl w-full transition border-gray-500 shrink-0">QUIT TO MENU</button>
         </div>
     </div>
 
@@ -1143,7 +1144,8 @@
             UI.btnRestart.classList.remove('hidden');
         });
 
-        window.addEventListener('resize', () => { 
+        // Better resize handling with delays so mobile orientation changes finish before recalculating
+        function handleResize() {
             renderer.setSize(window.innerWidth, window.innerHeight);
             if (STATE.numPlayers === 2) {
                 cameraP1.aspect = (window.innerWidth / 2) / window.innerHeight; cameraP1.updateProjectionMatrix();
@@ -1151,7 +1153,9 @@
             } else {
                 camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); 
             }
-        });
+        }
+        window.addEventListener('resize', () => { setTimeout(handleResize, 100); });
+        window.addEventListener('orientationchange', () => { setTimeout(handleResize, 300); });
 
         /* =========================================================================
            8. ANIMATION LOOP & RENDERER 
@@ -1218,6 +1222,13 @@
             } else {
                 renderer.setViewport(0, 0, window.innerWidth, window.innerHeight); renderer.setScissorTest(false); renderer.render(scene, camera);
             }
+        }
+
+        // Auto-detect mobile devices instantly upon script load
+        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isTouch) {
+            document.getElementById('select-device').value = 'phone';
+            document.body.classList.add('is-mobile');
         }
 
         camera.position.set(0, 50, 50); camera.lookAt(0, 0, 0); generateCity(); updateInstructions(); requestAnimationFrame(animate);
