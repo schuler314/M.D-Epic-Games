@@ -250,23 +250,21 @@
     </main>
 
     <!-- ========================================================== -->
-    <!-- Supabase SDK & Game Logic                                  -->
+    <!-- Supabase SDK & Game Logic                                  -->
     <!-- ========================================================== -->
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
         // =====================================================
-        // >>>  PASTE YOUR SUPABASE CREDENTIALS HERE  <<<
+        // >>>  PASTE YOUR SUPABASE CREDENTIALS HERE  <<<
         // =====================================================
-        const SUPABASE_URL  = 'https://apgfskdxexlyyavmhdlg.supabase.co';
+        const SUPABASE_URL  = 'https://apgfskdxexlyyavmhdlg.supabase.co';
         const SUPABASE_ANON = 'sb_publishable_rvwuan8wg1tyegGFSt2jMA_E1CJaM5L';
 
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-            db: { schema: 'mini_games' },
-            realtime: {
-                params: { eventsPerSecond: 10 }
-            }
-        });
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+            db: { schema: 'mini_games' },
+            realtime: { params: { eventsPerSecond: 10 } }
+        });
 
         // --- Data & Constants (EXPANDED THEME ITEM BANKS 70-100 each) ---
         const THEMES = {
@@ -656,7 +654,7 @@
         }
 
         function goHome() {
-            if (realtimeChannel) {
+            if (realtimeChannel && supabase) {
                 supabase.removeChannel(realtimeChannel);
                 realtimeChannel = null;
             }
@@ -674,10 +672,27 @@
         }
 
         // =====================================================
-        // Supabase Initialization
+        // App Initialization with Safety Watchdog
         // =====================================================
         async function initApp() {
+            let isStarted = false;
+
+            const startApp = () => {
+                if (isStarted) return;
+                isStarted = true;
+                if (!currentUser) currentUser = { id: 'local-user-' + Date.now() };
+                handleInitialRouting();
+            };
+
+            // Force unlock after 3 seconds if network/Supabase hangs on Samsung browser
+            const watchdog = setTimeout(() => {
+                console.warn("Network taking too long. Starting in offline mode.");
+                startApp();
+            }, 3000);
+
             try {
+                if (!supabase) throw new Error("Supabase library unavailable");
+
                 const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
 
                 if (authError) {
@@ -697,12 +712,13 @@
                     }
                 });
 
-                handleInitialRouting();
+                clearTimeout(watchdog);
+                startApp();
 
             } catch (err) {
                 console.error("Supabase init failed:", err);
-                currentUser = { id: 'local-user-' + Date.now() };
-                handleInitialRouting();
+                clearTimeout(watchdog);
+                startApp();
             }
         }
 
@@ -793,7 +809,6 @@
             }
         }
 
-        // [FIX 3] renderMultiplayerStatus — now shows 👑 HOST badge and icon in-game
         function renderMultiplayerStatus() {
             if (gameState.mode !== 'multi' || !remoteGameState) {
                 document.getElementById('multiplayer-status').classList.add('hidden');
@@ -861,7 +876,10 @@
 
         document.getElementById('btn-stop-game').onclick = () => {
             showDialog("Stop Game?", "This will end the game for everyone. Are you sure?", true, async () => {
-                if (!currentUser || !gameState.gameId) return;
+                if (!currentUser || !gameState.gameId || !supabase) {
+                    goHome();
+                    return;
+                }
                 await supabase
                     .from('bingo_games')
                     .update({ status: 'ended' })
@@ -905,7 +923,6 @@
             if (isFreeSpace && gameState.marks[index]) return;
             gameState.marks[index] = !gameState.marks[index];
             
-            // Toggle cell visually immediately without re-rendering the whole board
             const cell = document.getElementById(`cell-${index}`);
             if (cell) {
                 if (gameState.marks[index]) {
@@ -917,7 +934,7 @@
 
             const won = checkBingo(gameState.marks);
 
-            if (gameState.mode === 'multi' && currentUser && gameState.gameId) {
+            if (gameState.mode === 'multi' && currentUser && gameState.gameId && supabase) {
                 try {
                     const { data: gameRow } = await supabase
                         .from('bingo_games')
@@ -960,6 +977,10 @@
 
         async function createMultiplayerGame() {
             if (!currentUser) return;
+            if (!supabase) {
+                showDialog("Offline", "Multiplayer requires a connection.");
+                return;
+            }
             showScreen('loading');
 
             gameState.board = generateBoardItems(gameState.theme);
@@ -1002,6 +1023,10 @@
 
         async function joinExistingGame() {
             if (!currentUser || !gameState.gameId) return;
+            if (!supabase) {
+                showDialog("Offline", "Cannot join multiplayer games right now.");
+                return;
+            }
 
             try {
                 const { data: gameRow, error } = await supabase
@@ -1073,15 +1098,12 @@
             qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareUrl)}&color=0284c7&bgcolor=ffffff`;
         }
 
-        // [FIX 2] Single renderLobbyUI function — handles role banner, player list with host indicator,
-        // and reliably shows/hides the start button using classList (not style.display)
         function renderLobbyUI(gameData) {
             if (!gameData || gameData.status !== 'lobby') return;
 
             const isHost = gameData.host_uid === currentUser.id;
             gameState.isHost = isHost;
 
-            // ── Role Banner ──
             const banner = document.getElementById('lobby-role-banner');
             if (isHost) {
                 banner.className = 'relative z-10 mb-4 inline-block px-5 py-2 rounded-full text-sm font-black tracking-wide bg-fuchsia-500 text-white';
@@ -1091,7 +1113,6 @@
                 banner.innerHTML = '🎮 You are a GUEST';
             }
 
-            // ── Player List with host indicator ──
             const list = document.getElementById('lobby-player-list');
             list.innerHTML = '';
             const players = gameData.players || {};
@@ -1109,7 +1130,6 @@
                 list.appendChild(li);
             });
 
-            // ── Start button (host only) vs waiting message (guest only) ──
             const btnStart = document.getElementById('btn-start-multiplayer');
             const guestWait = document.getElementById('lobby-guest-waiting');
             if (isHost) {
@@ -1121,8 +1141,8 @@
             }
         }
 
-        // [FIX 2] Supabase Realtime subscription — uses renderLobbyUI instead of duplicated inline logic
         function subscribeToGame(gameId) {
+            if (!supabase) return;
             if (realtimeChannel) {
                 supabase.removeChannel(realtimeChannel);
                 realtimeChannel = null;
@@ -1145,7 +1165,6 @@
                         remoteGameState = data;
                         gameState.isHost = (data.host_uid === currentUser.id);
 
-                        // ── Handle "ended" status ──
                         if (data.status === 'ended') {
                             showDialog("Game Over 🛑", "The host has ended this game.", false, () => {
                                 goHome();
@@ -1153,18 +1172,15 @@
                             return;
                         }
 
-                        // ── Lobby UI update ──
                         if (data.status === 'lobby') {
                             renderLobbyUI(data);
                         }
 
-                        // ── Transition Lobby → Game ──
                         if (data.status === 'playing' && !document.getElementById('screen-lobby').classList.contains('hidden')) {
                             renderBingoBoard();
                             showScreen('game');
                         }
 
-                        // ── In-game status update ──
                         if (data.status === 'playing') {
                             renderMultiplayerStatus();
                             let anyoneWon = false;
@@ -1185,7 +1201,6 @@
                 )
                 .subscribe();
 
-            // Initial fetch so we have data before first realtime event
             (async () => {
                 const { data } = await supabase
                     .from('bingo_games')
