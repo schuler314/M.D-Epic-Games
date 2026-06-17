@@ -6,6 +6,8 @@
     <title>Adventure Bingo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Load Supabase as a standard script to prevent mobile module blocking -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
             font-family: 'Fredoka', sans-serif;
@@ -170,7 +172,7 @@
             </div>
         </div>
 
-        <!-- [FIX 1] Lobby Screen — Added role banner, hidden start button, guest waiting message -->
+        <!-- Lobby Screen -->
         <div id="screen-lobby" class="hidden w-full flex-col items-center space-y-6">
             <div class="glass-panel p-8 rounded-[3rem] w-full text-center relative overflow-hidden">
                 <div class="absolute -top-10 -right-10 w-32 h-32 bg-amber-200 rounded-full opacity-50 z-0"></div>
@@ -211,9 +213,9 @@
             <div class="w-full flex justify-between items-center mb-4 px-2 bg-white/50 p-3 rounded-2xl border-2 border-white/60 backdrop-blur-sm">
                 <h2 id="game-theme-title" class="text-2xl font-black text-sky-900 drop-shadow-sm flex items-center gap-2">Theme</h2>
                 <div class="flex gap-2">
-                    <!-- [NEW] Stop Game button (host only, hidden by default) -->
+                    <!-- Stop Game button (host only, hidden by default) -->
                     <button id="btn-stop-game" class="btn-chunky bg-orange-400 border-orange-600 text-white font-black px-4 py-2 rounded-xl text-sm hidden">STOP 🛑</button>
-                    <!-- [NEW] Leave Game button (guest only, hidden by default) -->
+                    <!-- Leave Game button (guest only, hidden by default) -->
                     <button id="btn-leave-game" class="btn-chunky bg-yellow-400 border-yellow-600 text-yellow-900 font-black px-4 py-2 rounded-xl text-sm hidden">LEAVE 👋</button>
                     <button id="btn-quit" class="btn-chunky bg-red-400 border-red-600 text-white font-black px-4 py-2 rounded-xl text-sm">QUIT</button>
                 </div>
@@ -252,19 +254,24 @@
     <!-- ========================================================== -->
     <!-- Supabase SDK & Game Logic                                  -->
     <!-- ========================================================== -->
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
+    <script>
         // =====================================================
         // >>>  PASTE YOUR SUPABASE CREDENTIALS HERE  <<<
         // =====================================================
         const SUPABASE_URL  = 'https://apgfskdxexlyyavmhdlg.supabase.co';
         const SUPABASE_ANON = 'sb_publishable_rvwuan8wg1tyegGFSt2jMA_E1CJaM5L';
 
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-            db: { schema: 'mini_games' },
-            realtime: { params: { eventsPerSecond: 10 } }
-        });
+        let supabaseClient = null;
+        try {
+            if (window.supabase) {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+                    db: { schema: 'mini_games' },
+                    realtime: { params: { eventsPerSecond: 10 } }
+                });
+            }
+        } catch (e) {
+            console.warn("Supabase init failed. Falling back to local mode.", e);
+        }
 
         // --- Data & Constants (EXPANDED THEME ITEM BANKS 70-100 each) ---
         const THEMES = {
@@ -654,8 +661,8 @@
         }
 
         function goHome() {
-            if (realtimeChannel && supabase) {
-                supabase.removeChannel(realtimeChannel);
+            if (realtimeChannel && supabaseClient) {
+                supabaseClient.removeChannel(realtimeChannel);
                 realtimeChannel = null;
             }
             try {
@@ -691,12 +698,12 @@
             }, 3000);
 
             try {
-                if (!supabase) throw new Error("Supabase library unavailable");
+                if (!supabaseClient) throw new Error("Supabase library unavailable");
 
-                const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+                const { data: authData, error: authError } = await supabaseClient.auth.signInAnonymously();
 
                 if (authError) {
-                    const { data: sessionData } = await supabase.auth.getSession();
+                    const { data: sessionData } = await supabaseClient.auth.getSession();
                     if (sessionData?.session?.user) {
                         currentUser = sessionData.session.user;
                     } else {
@@ -706,7 +713,7 @@
                     currentUser = authData.user;
                 }
 
-                supabase.auth.onAuthStateChange((event, session) => {
+                supabaseClient.auth.onAuthStateChange((event, session) => {
                     if (session?.user) {
                         currentUser = session.user;
                     }
@@ -854,7 +861,17 @@
             const input = document.getElementById('share-link-input');
             input.select();
             input.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(input.value).catch(() => document.execCommand("copy"));
+            
+            try {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(input.value);
+                } else {
+                    document.execCommand("copy");
+                }
+            } catch (err) {
+                console.warn("Clipboard access denied/failed", err);
+            }
+
             const btn = document.getElementById('btn-copy-link');
             btn.innerText = 'COPIED!';
             btn.classList.replace('bg-sky-500', 'bg-emerald-500');
@@ -868,7 +885,7 @@
 
         document.getElementById('btn-start-multiplayer').onclick = async () => {
             if (!currentUser || !gameState.gameId) return;
-            await supabase
+            await supabaseClient
                 .from('bingo_games')
                 .update({ status: 'playing' })
                 .eq('id', gameState.gameId);
@@ -876,11 +893,11 @@
 
         document.getElementById('btn-stop-game').onclick = () => {
             showDialog("Stop Game?", "This will end the game for everyone. Are you sure?", true, async () => {
-                if (!currentUser || !gameState.gameId || !supabase) {
+                if (!currentUser || !gameState.gameId || !supabaseClient) {
                     goHome();
                     return;
                 }
-                await supabase
+                await supabaseClient
                     .from('bingo_games')
                     .update({ status: 'ended' })
                     .eq('id', gameState.gameId);
@@ -907,6 +924,8 @@
             btn.disabled = true;
             btn.innerText = 'Joining...';
             await joinExistingGame();
+            btn.disabled = false;
+            btn.innerText = 'Join the Party! 🎉';
         };
 
         document.getElementById('btn-cancel-join').onclick = () => {
@@ -934,9 +953,9 @@
 
             const won = checkBingo(gameState.marks);
 
-            if (gameState.mode === 'multi' && currentUser && gameState.gameId && supabase) {
+            if (gameState.mode === 'multi' && currentUser && gameState.gameId && supabaseClient) {
                 try {
-                    const { data: gameRow } = await supabase
+                    const { data: gameRow } = await supabaseClient
                         .from('bingo_games')
                         .select('players')
                         .eq('id', gameState.gameId)
@@ -948,7 +967,7 @@
                             players[currentUser.id].marks = gameState.marks;
                             players[currentUser.id].hasBingo = won;
                         }
-                        await supabase
+                        await supabaseClient
                             .from('bingo_games')
                             .update({ players })
                             .eq('id', gameState.gameId);
@@ -977,7 +996,7 @@
 
         async function createMultiplayerGame() {
             if (!currentUser) return;
-            if (!supabase) {
+            if (!supabaseClient) {
                 showDialog("Offline", "Multiplayer requires a connection.");
                 return;
             }
@@ -1002,7 +1021,7 @@
                 }
             };
 
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('bingo_games')
                 .insert(newGameData)
                 .select()
@@ -1023,13 +1042,13 @@
 
         async function joinExistingGame() {
             if (!currentUser || !gameState.gameId) return;
-            if (!supabase) {
+            if (!supabaseClient) {
                 showDialog("Offline", "Cannot join multiplayer games right now.");
                 return;
             }
 
             try {
-                const { data: gameRow, error } = await supabase
+                const { data: gameRow, error } = await supabaseClient
                     .from('bingo_games')
                     .select('*')
                     .eq('id', gameState.gameId)
@@ -1068,7 +1087,7 @@
                         hasBingo: false
                     };
 
-                    await supabase
+                    await supabaseClient
                         .from('bingo_games')
                         .update({ players })
                         .eq('id', gameState.gameId);
@@ -1142,13 +1161,13 @@
         }
 
         function subscribeToGame(gameId) {
-            if (!supabase) return;
+            if (!supabaseClient) return;
             if (realtimeChannel) {
-                supabase.removeChannel(realtimeChannel);
+                supabaseClient.removeChannel(realtimeChannel);
                 realtimeChannel = null;
             }
 
-            realtimeChannel = supabase
+            realtimeChannel = supabaseClient
                 .channel(`bingo-game-${gameId}`)
                 .on(
                     'postgres_changes',
@@ -1166,7 +1185,8 @@
                         gameState.isHost = (data.host_uid === currentUser.id);
 
                         if (data.status === 'ended') {
-                            showDialog("Game Over 🛑", "The host has ended this game.", false, () => {
+                            const msg = gameState.isHost ? "You have ended the game." : "The host has ended this game.";
+                            showDialog("Game Over 🛑", msg, false, () => {
                                 goHome();
                             });
                             return;
@@ -1202,7 +1222,7 @@
                 .subscribe();
 
             (async () => {
-                const { data } = await supabase
+                const { data } = await supabaseClient
                     .from('bingo_games')
                     .select('*')
                     .eq('id', gameId)
@@ -1210,7 +1230,12 @@
                 if (data) {
                     remoteGameState = data;
                     gameState.isHost = (data.host_uid === currentUser.id);
-                    renderLobbyUI(data);
+                    
+                    if (data.status === 'lobby') {
+                        renderLobbyUI(data);
+                    } else if (data.status === 'playing') {
+                        renderMultiplayerStatus();
+                    }
                 }
             })();
         }
