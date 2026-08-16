@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M.D Epic Games</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base page styling */
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a; /* Slate 900 */
+            color: white;
+            font-family: 'Fredoka', sans-serif;
+            overflow-x: hidden; /* Prevent horizontal scrolling entirely */
+        }
+
+        /* Fun animated background blobs */
+        .blob {
+            position: absolute;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 10s infinite ease-in-out alternate;
+        }
+        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #ff0080; }
+        .blob-2 { bottom: -10%; right: -10%; width: 600px; height: 600px; background: #7928ca; animation-delay: -5s; }
+        .blob-3 { top: 40%; left: 40%; width: 400px; height: 400px; background: #00d2ff; animation-duration: 15s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* Header animation */
+        .title-glow {
+            animation: pulse-glow 2s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { filter: drop-shadow(0 0 10px rgba(0, 210, 255, 0.8)); }
+            to { filter: drop-shadow(0 0 25px rgba(255, 0, 128, 0.9)); }
+        }
+
+        /* ========================================================== */
+        /* GAME CARD COMPONENT (Shared Styles)                        */
+        /* ========================================================== */
+        .game-card {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            display: flex;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .game-card:hover {
+            border-color: #00d2ff;
+            box-shadow: 0 20px 40px rgba(0, 210, 255, 0.2);
+        }
+
+        .game-icon {
+            border-radius: 1rem;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+        .game-card:hover .game-icon {
+            transform: scale(1.1);
+        }
+
+        .play-btn {
+            transition: all 0.2s ease;
+            background: linear-gradient(45deg, #ff0080, #ff8c00);
+            background-size: 200% auto;
+            width: 100%;
+            border: none;
+            outline: none;
+            pointer-events: none;
+        }
+        .game-card:hover .play-btn {
+            background-position: right center;
+            transform: scale(1.05) rotate(-2deg);
+        }
+
+        /* ----------------------------------------------------------------- */
+        /* VIEW MODES (Applied by Toggle Buttons - Forces Layout Style)      */
+        /* ----------------------------------------------------------------- */
+        #device-container {
+            transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 0 auto;
+        }
+        
+        /* --- DESKTOP MODE (Vertical Cards) --- */
+        .view-desktop { width: 100%; max-width: 100%; }
+        .view-desktop .responsive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+        .view-desktop .game-card {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 1.5rem;
+        }
+        .view-desktop .game-card:hover { transform: translateY(-15px) scale(1.03); }
+        .view-desktop .game-icon { width: 6rem; height: 6rem; font-size: 3rem; margin-bottom: 1.5rem; }
+        .view-desktop .game-title { font-size: 1.5rem; margin-bottom: 0.75rem; }
+        .view-desktop .game-desc { font-size: 1rem; margin-bottom: 1.5rem; }
+        .view-desktop .play-btn { padding: 0.75rem; font-size: 1.125rem; border-radius: 0.75rem; margin-top: auto; }
+
+        /* --- TABLET MODE (Compact Horizontal Cards, 2 Columns) --- */
+        .view-pad { width: 100%; max-width: 850px; }
+        .view-pad .responsive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+        .view-pad .game-card {
+            flex-direction: row;
+            align-items: center;
+            text-align: left;
+            padding: 1.25rem;
+            gap: 1rem;
+        }
+        .view-pad .game-card:hover { transform: translateY(-5px) scale(1.02); }
+        .view-pad .game-icon { width: 5rem; height: 5rem; font-size: 2.25rem; margin-bottom: 0; }
+        .view-pad .game-title { font-size: 1.25rem; margin-bottom: 0.25rem; }
+        .view-pad .game-desc { font-size: 0.85rem; margin-bottom: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .view-pad .play-btn { padding: 0.5rem; font-size: 0.95rem; border-radius: 0.75rem; margin-top: auto; }
+
+        /* --- PHONE MODE (Compact Horizontal Cards, 1 Column) --- */
+        .view-phone { width: 100%; max-width: 500px; }
+        .view-phone .responsive-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .view-phone .game-card {
+            flex-direction: row;
+            align-items: center;
+            text-align: left;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        .view-phone .game-card:hover { transform: translateY(-3px) scale(1.01); }
+        .view-phone .game-icon { width: 4.5rem; height: 4.5rem; font-size: 2rem; margin-bottom: 0; }
+        .view-phone .game-title { font-size: 1.15rem; margin-bottom: 0.25rem; }
+        .view-phone .game-desc { font-size: 0.85rem; margin-bottom: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .view-phone .play-btn { padding: 0.5rem; font-size: 0.9rem; border-radius: 0.75rem; margin-top: auto; }
+    </style>
+</head>
+<body class="relative">
+
+    <!-- LOCKED BACKGROUND LAYER -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+        
+    <!-- HUB VIEW -->
+    <div id="hub-view" class="relative w-full min-h-screen">
+        
+        <!-- Device View Switcher UI -->
+        <div class="fixed top-4 right-4 sm:right-6 z-[100] flex gap-1 sm:gap-2 bg-black/60 p-1.5 rounded-full backdrop-blur-md border border-white/20 shadow-xl">
+            <button id="btn-desktop" onclick="switchView('desktop')" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-white text-xs sm:text-sm font-bold bg-white/20 transition-colors">🖥️ Desktop</button>
+            <button id="btn-pad" onclick="switchView('pad')" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-white/60 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors"><span class="inline-block -rotate-90">📱</span> Tablet</button>
+            <button id="btn-phone" onclick="switchView('phone')" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-white/60 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors">📱 Phone</button>
+        </div>
+
+        <!-- Scalable Device Container -->
+        <div id="device-container" class="view-desktop">
+            <!-- Navigation / Header -->
+            <nav class="p-6 text-center pt-24 md:pt-28">
+                <h1 class="text-[clamp(2.2rem,8vw,4.5rem)] font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 title-glow mb-2 leading-tight">
+                    M.D Epic Games
+                </h1>
+                <p class="text-[clamp(1rem,4vw,1.5rem)] text-cyan-100 font-semibold tracking-wide">
+                    The Ultimate Gaming Hub! 🎮✨
+                </p>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="w-full px-4 sm:px-6 py-12 max-w-7xl mx-auto">
+                
+                <!-- Search and Filter -->
+                <div class="flex justify-center mb-12">
+                    <div class="relative w-full max-w-md">
+                        <input type="text" id="searchInput" placeholder="Search for a game..." 
+                               class="w-full px-6 py-4 rounded-full bg-white/10 border-2 border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-pink-500 focus:bg-white/20 transition-all text-lg font-semibold shadow-lg">
+                        <span class="absolute right-6 top-4 text-2xl">🔍</span>
+                    </div>
+                </div>
+
+                <!-- Game Grid -->
+                <div id="gamesContainer" class="responsive-grid">
+                    <!-- Games will be injected here by JavaScript -->
+                </div>
+
+            </main>
+
+            <!-- Footer -->
+            <footer class="text-center py-8 text-white/60 font-semibold">
+                <p>© 2026 M.D Epic Games. Ready, Set, PLAY!</p>
+            </footer>
+        </div> <!-- End Device Container -->
+    </div> <!-- End Hub View -->
+
+    <!-- GAME PLAYER VIEW -->
+    <div id="game-view" class="hidden fixed inset-0 z-[200] bg-black">
+        <!-- Iframe Container takes full screen now -->
+        <iframe id="game-frame" class="absolute inset-0 w-full h-full border-0" src="" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        
+        <!-- Floating Compact Player Toolbar (Pill) -->
+        <div id="player-toolbar" class="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 bg-gray-900/80 hover:bg-gray-900/95 backdrop-blur-md pl-2 pr-3 py-1.5 sm:pl-3 sm:pr-4 sm:py-2 flex items-center gap-2 sm:gap-3 text-white border border-white/20 shadow-2xl rounded-full transition-all duration-300 z-10 max-w-[95%]">
+            <button onclick="closeGame()" class="bg-pink-600 hover:bg-pink-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full font-bold transition-transform hover:scale-105 shadow-[0_0_10px_rgba(219,39,119,0.4)] flex items-center justify-center shrink-0" title="Back to Hub">
+                <span class="text-sm sm:text-lg leading-none -ml-0.5">⬅️</span>
+            </button>
+            <span id="playing-title" class="font-bold text-sm sm:text-base text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 truncate cursor-default">Game Title</span>
+            
+            <div class="w-px h-5 sm:h-6 bg-white/20 mx-1"></div>
+            
+            <!-- Hide Toolbar Button -->
+            <button onclick="toggleToolbar()" class="text-white/50 hover:text-white transition-colors focus:outline-none p-1" title="Hide Header">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Hidden Tab to show toolbar again -->
+        <button id="show-toolbar-btn" onclick="toggleToolbar()" class="absolute top-0 left-1/2 -translate-x-1/2 bg-gray-900/60 hover:bg-gray-900/90 backdrop-blur-md px-6 py-1 sm:py-1.5 rounded-b-xl border-x border-b border-white/20 shadow-lg text-white/70 hover:text-white transition-all duration-300 z-10 -translate-y-full opacity-0" title="Show Header">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+        </button>
+    </div> <!-- End Game View -->
+
+    <script>
+        // --- View Switcher Logic ---
+        function switchView(view) {
+            const container = document.getElementById('device-container');
+            const btns = {
+                desktop: document.getElementById('btn-desktop'),
+                pad: document.getElementById('btn-pad'),
+                phone: document.getElementById('btn-phone')
+            };
+
+            container.className = `view-${view}`;
+
+            Object.keys(btns).forEach(key => {
+                const btnClassBase = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ";
+                if(key === view) {
+                    btns[key].className = btnClassBase + "text-white bg-white/20";
+                } else {
+                    btns[key].className = btnClassBase + "text-white/60 hover:bg-white/10";
+                }
+            });
+        }
+
+        // --- Auto Detect Optimal View on Load ---
+        function initView() {
+            const width = window.innerWidth;
+            if (width < 600) {
+                switchView('phone');
+            } else if (width < 900) {
+                switchView('pad');
+            } else {
+                switchView('desktop');
+            }
+        }
+
+        // --- Game Player Logic ---
+        let toolbarVisible = true;
+
+        function toggleToolbar() {
+            const toolbar = document.getElementById('player-toolbar');
+            const showBtn = document.getElementById('show-toolbar-btn');
+            toolbarVisible = !toolbarVisible;
+            
+            if (toolbarVisible) {
+                toolbar.classList.remove('-translate-y-[150%]', 'opacity-0', 'pointer-events-none');
+                showBtn.classList.add('-translate-y-full', 'opacity-0');
+            } else {
+                toolbar.classList.add('-translate-y-[150%]', 'opacity-0', 'pointer-events-none');
+                showBtn.classList.remove('-translate-y-full', 'opacity-0');
+            }
+        }
+
+        function openGame(url, title) {
+            document.body.style.overflow = 'hidden'; 
+            document.getElementById('game-view').classList.remove('hidden');
+            document.getElementById('playing-title').innerText = title;
+            const gameFrame = document.getElementById('game-frame');
+            gameFrame.src = url;
+            
+            // Ensure toolbar is visible when a new game opens
+            toolbarVisible = false;
+            toggleToolbar();
+
+            setTimeout(() => { gameFrame.focus(); }, 100);
+        }
+
+        function closeGame() {
+            document.body.style.overflow = ''; 
+            document.getElementById('game-view').classList.add('hidden');
+            document.getElementById('game-frame').src = ""; 
+        }
+
+        const gamesData = [
+            {
+                title: "Adventure Bingo",
+                description: "Turn everyday car rides and shopping trips into an exciting, real-time scavenger hunt where kids can play solo or race against friends to get the first BINGO!",
+                icon: "🗺️",
+                bgColor: "from-emerald-500 to-teal-700",
+                url: "./games/bingo/index.html"
+            },
+            {
+                title: "Memory Flash",
+                description: "This is a Simon Says inspired game to test your memory and add some big successes to your day.",
+                icon: "🧠",
+                bgColor: "from-rose-500 to-pink-700",
+                url: "./games/memory-flash/index.html"
+            },
+            {
+                title: "M.D Super Poly Racing",
+                description: "Race a car, race a tank - sit side-by-side or play from different countries.",
+                icon: "🏁",
+                bgColor: "from-amber-500 to-red-600",
+                url: "./games/poly-racing/index.html"
+            },
+            {
+                title: "Inky's Ocean Escape",
+                description: "Launch your stretchy purple octopus through an endless, deep-sea obstacle course by grappling glowing pearls and bouncing off squishy anemones!",
+                icon: "🐙",
+                bgColor: "from-indigo-600 to-purple-800",
+                url: "./games/inkys-ocean-escape/index.html"
+            },
+            {
+                title: "City Rush",
+                description: "You drive a high-speed delivery vehicle through a maze-like Cyber-City. Racing is legal and mandatory.",
+                icon: "🏙️",
+                bgColor: "from-fuchsia-700 to-blue-900",
+                url: "./games/city-rush/index.html"
+            },
+            {
+                title: "Spelling Searcher",
+                description: "Snap a picture of your spelling words and instantly unlock a customized, interactive word search world packed with stickers, streaks, and trophies!",
+                icon: "🔍",
+                bgColor: "from-violet-500 to-purple-700",
+                url: "./games/SpellingSearcher/index.html"
+            },
+            {
+                title: "Project M.O.Z.Z.A.R.E.L.L.A.",
+                description: "Play as 'Agent 8' testing a classified multi-terrain prototype in this high-speed evasion game!",
+                icon: "🕵️‍♂️",
+                bgColor: "from-slate-700 to-gray-900",
+                url: "./games/project-mozzarella/index.html"
+            },
+            {
+                title: "Race cars",
+                description: "Zoom around the track and build the ultimate racing base!",
+                icon: "🏎️",
+                bgColor: "from-red-500 to-orange-500",
+                url: "./games/race-cars/index.html"
+            },
+            {
+                title: "Gravity Run",
+                description: "Defy physics! Use your antigravity boots to run on the ceiling and dodge deadly gaps.",
+                icon: `<svg viewBox="0 0 100 100" class="w-16 h-16 sm:w-20 sm:h-20" fill="currentColor">
+                    <rect x="10" y="15" width="80" height="4" rx="2" fill="white" opacity="0.4"/>
+                    <rect x="10" y="81" width="80" height="4" rx="2" fill="white" opacity="0.4"/>
+                    <path d="M50 35 L65 50 L35 50 Z" fill="white" opacity="0.8"/>
+                    <path d="M50 65 L65 50 L35 50 Z" fill="white" opacity="0.8" transform="rotate(180 50 57.5)"/>
+                    <text x="50" y="60" font-size="32" text-anchor="middle">👟</text>
+                </svg>`,
+                bgColor: "from-indigo-500 to-purple-600",
+                url: "./games/gravity-run/index.html"
+            },
+            {
+                title: "Retro Traffic Game",
+                description: "Dodge cars and cross the busy retro streets!",
+                icon: "🚦",
+                bgColor: "from-yellow-400 to-amber-600",
+                url: "./games/retro-traffic/index.html"
+            },
+            {
+                title: "Snakes",
+                description: "Slither around, eat apples, and grow your snake!",
+                icon: "🐍",
+                bgColor: "from-lime-400 to-green-600",
+                url: "./games/snakes/index.html"
+            },
+            {
+                title: "Sonic the Hedgehog",
+                description: "Gotta go fast! Spin dash through loops and collect rings.",
+                icon: "🦔",
+                bgColor: "from-blue-400 to-blue-600",
+                url: "./games/sonic/index.html"
+            },
+            {
+                title: "Neon Pac Mac",
+                description: "Chomp the dots and dodge ghosts in glowing neon!",
+                icon: "👻",
+                bgColor: "from-fuchsia-500 to-pink-600",
+                url: "./games/pacman/index.html"
+            },
+            {
+                title: "Mountain Bike EXTREME",
+                description: "Pedal to the metal! Pull off crazy tricks on the mountain.",
+                icon: "🚵‍♂️",
+                bgColor: "from-green-500 to-emerald-700",
+                url: "./games/mountain-bike/index.html"
+            },
+            {
+                title: "Battleship 3D",
+                description: "Command your fleet and sink enemy ships in 3D!",
+                icon: "🚢",
+                bgColor: "from-cyan-500 to-blue-700",
+                url: "./games/battleship/index.html"
+            },
+            {
+                title: "Deep Sea Catch",
+                description: "Dive deep and catch the rarest, coolest ocean fish!",
+                icon: "🎣",
+                bgColor: "from-teal-400 to-cyan-600",
+                url: "./games/deep-sea-catch/index.html"
+            },
+            {
+                title: "Sky Defender",
+                description: "Take to the skies and defend your base from invaders!",
+                icon: "✈️",
+                bgColor: "from-sky-400 to-blue-600",
+                url: "./games/sky-defender/index.html"
+            },
+            {
+                title: "3D Building",
+                description: "Stack blocks high into the sky to build massive towers!",
+                icon: "🏗️",
+                bgColor: "from-orange-400 to-amber-600",
+                url: "./games/3d-building/index.html"
+            },
+            {
+                title: "3D Basketball",
+                description: "Shoot hoops and score spectacular three-pointers!",
+                icon: "🏀",
+                bgColor: "from-orange-500 to-red-500",
+                url: "./games/3d-basketball/index.html"
+            },
+            {
+                title: "Tetris",
+                description: "The classic block-stacking puzzle game!",
+                icon: "🧱",
+                bgColor: "from-blue-500 to-indigo-600",
+                url: "./games/tetris/index.html"
+            },
+            {
+                title: "Paper Plane Extreme",
+                description: "You're a paper plane flying down a school hallway dodging projectors, students, and fans!",
+                icon: `<svg viewBox="0 0 24 24" class="w-12 h-12 sm:w-16 sm:h-16" fill="white" opacity="0.9">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>`,
+                bgColor: "from-slate-400 to-gray-600",
+                url: "./games/paper-plane/index.html"
+            }
+        ];
+
+        const gamesContainer = document.getElementById('gamesContainer');
+        const searchInput = document.getElementById('searchInput');
+
+        function renderGames(games) {
+            gamesContainer.innerHTML = ''; 
+            if (games.length === 0) {
+                gamesContainer.innerHTML = `<p class="col-span-full text-center text-2xl text-white/60 mt-8">No games found!</p>`;
+                return;
+            }
+            games.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'game-card group';
+                card.onclick = () => openGame(game.url, game.title);
+                card.innerHTML = `
+                    <div class="game-icon bg-gradient-to-br ${game.bgColor} flex items-center justify-center shadow-lg">
+                        ${game.icon}
+                    </div>
+                    <div class="game-info flex flex-col flex-1 min-w-0 h-full">
+                        <h3 class="game-title font-bold text-white truncate">${game.title}</h3>
+                        <p class="game-desc text-white/70 font-semibold flex-grow">${game.description}</p>
+                        <div class="play-btn rounded-xl text-white font-bold shadow-lg uppercase tracking-wider text-center block w-full">
+                            Play Now!
+                        </div>
+                    </div>
+                `;
+                gamesContainer.appendChild(card);
+            });
+        }
+
+        initView();
+        renderGames(gamesData);
+
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredGames = gamesData.filter(game => 
+                game.title.toLowerCase().includes(searchTerm) || 
+                game.description.toLowerCase().includes(searchTerm)
+            );
+            renderGames(filteredGames);
+        });
+    </script>
+</body>
+</html>
