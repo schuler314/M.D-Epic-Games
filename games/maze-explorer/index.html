@@ -2,998 +2,991 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Realistic Maze Explorer V4</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#020617">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Maze Explorer">
+    
+    <title>Realistic Maze Explorer</title>
+    
+    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-        
-        :root {
-            --neon-blue: #3b82f6;
-            --neon-cyan: #06b6d4;
-            --neon-green: #22c55e;
-            --neon-purple: #a855f7;
-            --neon-red: #ef4444;
-            --glass-bg: rgba(15, 23, 42, 0.75);
-            --glass-border: rgba(255, 255, 255, 0.08);
-        }
-
         body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            background-color: #020617;
-            color: white;
-            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #020617; 
             overflow: hidden;
-            touch-action: none;
+            font-family: 'Inter', sans-serif;
+            touch-action: none; 
             user-select: none;
             -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        #game-container {
-            position: relative;
-            width: 100%; height: 100%;
-        }
-
-        /* 3D & 2D Canvas Layers */
-        #canvas-container {
+        #game-canvas, #three-canvas {
             position: absolute;
-            inset: 0;
-            z-index: 1;
-            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
-            box-shadow: inset 0 0 100px rgba(0,0,0,1);
-            transition: transform 0.1s;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
-        
-        .shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
-        @keyframes shake {
-            10%, 90% { transform: translate3d(-2px, 0, 0); }
-            20%, 80% { transform: translate3d(4px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
-            40%, 60% { transform: translate3d(6px, 0, 0); }
-        }
-
-        canvas { display: block; width: 100%; height: 100%; }
-        #three-canvas { position: absolute; inset: 0; display: none; }
-
-        /* UI Overlays */
-        .ui-layer {
-            position: absolute;
-            z-index: 10;
-            pointer-events: none;
-        }
-        .interactive { pointer-events: auto; }
 
         .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* Top Unified HUD */
-        #top-hud {
-            top: 0; left: 0; right: 0;
-            padding: max(1rem, env(safe-area-inset-top)) 1rem 1rem 1rem;
-            display: flex; justify-content: space-between; align-items: flex-start;
-            background: linear-gradient(to bottom, rgba(2,6,23,0.9) 0%, rgba(2,6,23,0) 100%);
-        }
-
-        /* Bottom Controls */
-        #bottom-left-hud {
-            bottom: max(1.5rem, env(safe-area-inset-bottom));
-            left: max(1.5rem, env(safe-area-inset-left));
-        }
-
-        #controls-container {
-            bottom: max(1.5rem, env(safe-area-inset-bottom));
-            right: max(1.5rem, env(safe-area-inset-right));
-            transform-origin: bottom right;
-        }
-
-        .d-pad {
-            display: grid;
-            grid-template-columns: repeat(3, 65px);
-            grid-template-rows: repeat(3, 65px);
-            gap: 6px;
-            padding: 10px;
-            border-radius: 50%;
-        }
-
-        .d-btn {
-            background: linear-gradient(145deg, rgba(51,65,85,0.8), rgba(30,41,59,0.9));
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            color: rgba(255,255,255,0.8);
-            font-size: 24px;
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.1);
-            transition: all 0.1s ease;
-            cursor: pointer;
-        }
-
-        .d-btn:active, .d-btn.active-press {
-            transform: scale(0.85);
-            background: var(--neon-blue);
-            color: white;
-            box-shadow: 0 0 20px rgba(59,130,246,0.6), inset 0 4px 8px rgba(0,0,0,0.3);
-            border-color: var(--neon-cyan);
-        }
-
-        .btn-up { grid-column: 2; grid-row: 1; border-radius: 16px 16px 6px 6px; }
-        .btn-left { grid-column: 1; grid-row: 2; border-radius: 16px 6px 6px 16px; }
-        .btn-right { grid-column: 3; grid-row: 2; border-radius: 6px 16px 16px 6px; }
-        .btn-down { grid-column: 2; grid-row: 3; border-radius: 6px 6px 16px 16px; }
-
-        /* Map Radar UI */
-        #map-overlay {
-            display: none;
-            position: absolute; /* FIXED: Map was rendering out of bounds */
-            top: 5%; bottom: 5%; left: 5%; right: 5%;
-            z-index: 50;
-            flex-direction: column;
-            border: 1px solid var(--neon-cyan);
-            box-shadow: 0 0 50px rgba(6, 182, 212, 0.2), inset 0 0 30px rgba(6, 182, 212, 0.1);
-            border-radius: 24px;
-        }
-
-        .radar-container {
-            position: relative;
-            width: 100%; height: 100%;
-            overflow: hidden;
-            background: #000;
-            border-radius: 16px;
-        }
-
-        #minimap-canvas { width: 100%; height: 100%; object-fit: contain; position: relative; z-index: 2; }
-        
-        .radar-scan {
+        .radar-sweep {
             position: absolute;
-            inset: -50%;
-            background: conic-gradient(from 0deg, transparent 70%, rgba(6, 182, 212, 0.4) 100%);
-            animation: radar 4s infinite linear;
-            z-index: 3;
+            top: 50%;
+            left: 50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent 70%, rgba(56, 189, 248, 0.4) 100%);
+            transform-origin: center;
+            animation: sweep 4s linear infinite;
             pointer-events: none;
         }
 
-        @keyframes radar { 100% { transform: rotate(360deg); } }
-
-        /* Prominent close button */
-        #close-map {
-            position: absolute;
-            top: -15px;
-            right: -15px;
-            width: 50px;
-            height: 50px;
-            background: var(--neon-red);
-            border: 4px solid #0f172a;
-            color: white;
-            border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 24px;
-            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.6);
-            z-index: 100;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        #close-map:active { transform: scale(0.85); }
-
-        /* Animations */
-        @keyframes pulse-glow {
-            0% { text-shadow: 0 0 15px rgba(59,130,246,0.5); transform: translateY(0px); }
-            50% { text-shadow: 0 0 30px rgba(59,130,246,0.8); transform: translateY(-5px); }
-            100% { text-shadow: 0 0 15px rgba(59,130,246,0.5); transform: translateY(0px); }
-        }
-        .animate-pulse-glow { animation: pulse-glow 3s infinite ease-in-out; }
-        
-        .active-option {
-            background: var(--neon-blue) !important;
-            color: white !important;
-            border-color: var(--neon-cyan) !important;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        @keyframes sweep {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        body.desktop-mode #controls-container { display: none !important; }
-
-        /* 3D Target Reticle */
-        #reticle {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 6px; height: 6px;
-            background: rgba(255,255,255,0.5);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 5;
+        /* Portrait Mode Enforcement */
+        #landscape-warning {
             display: none;
         }
-
+        
+        @media (orientation: landscape) and (max-height: 600px), (orientation: landscape) and (hover: none) and (pointer: coarse) {
+            #landscape-warning {
+                display: flex !important;
+            }
+        }
     </style>
 </head>
-<body>
-    <div id="game-container">
+<body class="text-slate-200">
+
+    <div id="landscape-warning" class="fixed inset-0 z-[999999] bg-slate-950 flex flex-col items-center justify-center text-center p-8">
+        <i class="fa-solid fa-mobile-screen text-6xl text-cyan-400 mb-6 animate-pulse" style="transform: rotate(-90deg);"></i>
+        <h1 class="text-3xl font-black text-white mb-4 tracking-wider uppercase">Rotate Device</h1>
+        <p class="text-slate-400 text-lg max-w-md">Please rotate your device to portrait mode to continue exploring.</p>
+    </div>
+
+    <div id="menu" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 p-6">
+        <div class="glass-panel p-8 rounded-3xl max-w-md w-full shadow-2xl flex flex-col items-center">
+            <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2 text-center">MAZE EXPLORER</h1>
+            <p class="text-sm text-slate-400 mb-8 text-center">Navigate procedural sectors. Use dynamic controls to escape.</p>
+            
+            <div class="w-full space-y-6">
+                <!-- Device Selection -->
+                <div>
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-gamepad mr-2"></i>Primary Platform</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="menu-btn device-btn active glass-panel py-3 rounded-xl border border-cyan-500 bg-cyan-900/30 text-cyan-300 font-bold" data-val="mobile"><i class="fa-solid fa-mobile-screen mr-2"></i>Mobile</button>
+                        <button class="menu-btn device-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="desktop"><i class="fa-solid fa-desktop mr-2"></i>Desktop</button>
+                    </div>
+                </div>
+
+                <!-- Size Selection -->
+                <div>
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-expand mr-2"></i>Initial Sector Size</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="menu-btn size-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="10">Small</button>
+                        <button class="menu-btn size-btn active glass-panel py-3 rounded-xl border border-cyan-500 bg-cyan-900/30 text-cyan-300 font-bold" data-val="15">Medium</button>
+                        <button class="menu-btn size-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="20">Large</button>
+                    </div>
+                </div>
+
+                <!-- Engine Selection -->
+                <div>
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-vr-cardboard mr-2"></i>Visual Engine</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="menu-btn engine-btn active glass-panel py-3 rounded-xl border border-cyan-500 bg-cyan-900/30 text-cyan-300 font-bold text-xs" data-val="auto">Auto Mix</button>
+                        <button class="menu-btn engine-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800 text-xs" data-val="2d">2D Only</button>
+                        <button class="menu-btn engine-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800 text-xs" data-val="3d">3D Only</button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="start-btn" class="mt-8 w-full py-4 rounded-xl font-black text-lg bg-gradient-to-r from-cyan-500 to-blue-600 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 transition-transform text-white">INITIATE LINK</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="relative w-full h-full hidden">
+        <canvas id="game-canvas"></canvas>
+        <div id="three-canvas" class="hidden"></div>
         
-        <!-- Core Game Canvas Layer -->
-        <div id="canvas-container" class="interactive">
-            <canvas id="game-canvas"></canvas>
-            <canvas id="three-canvas"></canvas>
-            <div id="reticle"></div>
+        <div id="reticle" class="hidden absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-white/50 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+
+        <div id="ui-chevrons" class="hidden absolute inset-0 pointer-events-none text-white/30 text-4xl font-black z-30">
+            <div class="absolute top-4 left-1/2 -translate-x-1/2 animate-pulse"><i class="fa-solid fa-chevron-up"></i></div>
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 animate-pulse"><i class="fa-solid fa-chevron-down"></i></div>
+            <div class="absolute left-4 top-1/2 -translate-y-1/2 animate-pulse"><i class="fa-solid fa-chevron-left"></i></div>
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 animate-pulse"><i class="fa-solid fa-chevron-right"></i></div>
+        </div>
+
+        <!-- Top HUD -->
+        <div class="absolute top-6 left-6 right-6 flex justify-between items-start pointer-events-none z-50">
+            <div class="flex gap-2 pointer-events-auto">
+                <button id="quit-btn" class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center text-red-400 hover:bg-red-500/20 shadow-lg border border-red-500/30 transition-colors">
+                    <i class="fa-solid fa-right-from-bracket text-xl"></i>
+                </button>
+                <button id="settings-btn" class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700/50 shadow-lg border border-slate-600 transition-colors">
+                    <i class="fa-solid fa-gear text-xl"></i>
+                </button>
+            </div>
             
-            <!-- 3D Tap Zone Hints (FIXED: Visible when 3D is active) -->
-            <div id="tap-hints" style="display: none;" class="ui-layer inset-0 pointer-events-none flex justify-between items-center px-4 md:px-12 z-10">
-                <div class="text-white/20 text-5xl md:text-7xl drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] transition-opacity"><i class="fa-solid fa-angle-left"></i></div>
-                <div class="absolute top-28 left-1/2 -translate-x-1/2 text-white/20 text-5xl md:text-7xl drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] transition-opacity"><i class="fa-solid fa-angle-up"></i></div>
-                <div class="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/20 text-5xl md:text-7xl drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] transition-opacity"><i class="fa-solid fa-angle-down"></i></div>
-                <div class="text-white/20 text-5xl md:text-7xl drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] transition-opacity"><i class="fa-solid fa-angle-right"></i></div>
+            <div class="glass-panel px-6 py-2 rounded-2xl text-center shadow-lg pointer-events-auto">
+                <div id="level-display" class="text-xl font-black tracking-widest text-white">SECTOR 1</div>
+                <div id="mode-display" class="text-[10px] font-black tracking-widest uppercase text-cyan-400 mt-0.5">2D TACTICAL VIEW</div>
+            </div>
+
+            <div class="glass-panel px-4 py-2 rounded-xl border border-yellow-500/30 shadow-lg flex flex-col items-end pointer-events-auto">
+                <span class="text-[9px] font-bold text-yellow-500 uppercase tracking-widest">Score</span>
+                <span id="score-display" class="text-xl font-black text-white leading-none">0</span>
             </div>
         </div>
 
-        <!-- Top Status HUD -->
-        <div id="top-hud" class="ui-layer">
-            <button id="btn-quit" title="Abort Mission" class="glass-panel text-red-400 p-3 rounded-2xl interactive w-14 h-14 flex justify-center items-center group shadow-lg transition-transform active:scale-90 hover:bg-red-500/10 border-red-500/30">
-                <i class="fa-solid fa-right-from-bracket text-2xl group-hover:-translate-x-1 transition-transform"></i>
-            </button>
-            
-            <div class="glass-panel px-6 py-2 rounded-2xl flex flex-col items-center justify-center interactive">
-                <h1 class="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">SECTOR <span id="level-display">1</span></h1>
-                <div class="text-[10px] font-bold tracking-widest uppercase mt-0.5" id="mode-display">2D Tactical View</div>
-            </div>
-
-            <div class="glass-panel px-5 py-2 rounded-2xl interactive min-w-[100px] text-right border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.05)] flex flex-col justify-center">
-                <div class="text-[9px] font-bold tracking-widest uppercase text-yellow-500/70">SCORE</div>
-                <div class="text-2xl font-black text-yellow-400 leading-none" id="score-display">0</div>
-            </div>
-        </div>
-
-        <!-- Powerups Display -->
-        <div id="active-powerups" class="ui-layer right-4 top-24 flex flex-col gap-2 items-end"></div>
-
-        <!-- Bottom Left: Map/Scanner -->
-        <div id="bottom-left-hud" class="ui-layer interactive">
-            <button id="btn-map" class="glass-panel bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-500/50 text-cyan-400 p-4 rounded-full shadow-[0_0_20px_rgba(6,182,212,0.2)] transition-transform active:scale-90 flex items-center justify-center w-16 h-16 relative overflow-hidden group">
-                <div class="absolute inset-0 bg-cyan-500/20 opacity-0 group-active:opacity-100 transition-opacity"></div>
-                <i class="fa-solid fa-satellite-dish text-2xl z-10"></i>
+        <div class="absolute bottom-6 right-6 pointer-events-none z-50 flex items-center justify-center w-14 h-14" style="z-index: 60;">
+            <button id="map-btn" class="pointer-events-auto glass-panel w-14 h-14 rounded-full flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] border border-cyan-500/50 hover:scale-110 transition-transform bg-[#010510]">
+                <i class="fa-solid fa-satellite-dish text-2xl"></i>
             </button>
         </div>
 
-        <!-- Bottom Right: Movement -->
-        <div id="controls-container" class="ui-layer interactive glass-panel rounded-full">
-            <div class="d-pad">
-                <div class="d-btn btn-up" id="btn-up"><i class="fa-solid fa-chevron-up"></i></div>
-                <div class="d-btn btn-left" id="btn-left"><i class="fa-solid fa-chevron-left"></i></div>
-                <div class="d-btn btn-down" id="btn-down"><i class="fa-solid fa-chevron-down"></i></div>
-                <div class="d-btn btn-right" id="btn-right"><i class="fa-solid fa-chevron-right"></i></div>
-            </div>
+        <!-- Unified D-Pad Cross Shape (Opacity 0.4 applied to parent) -->
+        <div id="dpad" class="absolute bottom-6 right-6 w-40 h-40 opacity-40 grid grid-cols-3 grid-rows-3 gap-1 shadow-2xl pointer-events-auto transition-all duration-300 z-40">
+            <div></div>
+            <button class="dpad-btn rounded-t-2xl bg-slate-800 hover:bg-cyan-600 flex items-center justify-center text-white border border-slate-600 shadow-md" id="btn-up"><i class="fa-solid fa-angles-up"></i></button>
+            <div></div>
+            <button class="dpad-btn rounded-l-2xl bg-slate-800 hover:bg-cyan-600 flex items-center justify-center text-white border border-slate-600 shadow-md" id="btn-left"><i class="fa-solid fa-angle-left"></i></button>
+            <button class="dpad-btn rounded-md bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white shadow-md" id="btn-action"><i class="fa-solid fa-rotate-right"></i></button>
+            <button class="dpad-btn rounded-r-2xl bg-slate-800 hover:bg-cyan-600 flex items-center justify-center text-white border border-slate-600 shadow-md" id="btn-right"><i class="fa-solid fa-angle-right"></i></button>
+            <div></div>
+            <button class="dpad-btn rounded-b-2xl bg-slate-800 hover:bg-cyan-600 flex items-center justify-center text-white border border-slate-600 shadow-md" id="btn-down"><i class="fa-solid fa-angles-down"></i></button>
+            <div></div>
         </div>
 
-        <!-- Radar Map Overlay -->
-        <div id="map-overlay" class="glass-panel interactive">
-            <button id="close-map"><i class="fa-solid fa-xmark"></i></button>
-            <div class="flex justify-between items-center mb-3 px-5 pt-4 border-b border-slate-700/50 pb-3">
-                <h2 class="text-xl font-black text-cyan-300 tracking-widest uppercase"><i class="fa-solid fa-radar mr-2"></i> Area Scan <span class="text-[10px] text-red-400 font-bold ml-2 bg-red-500/10 px-2 py-1 rounded">- SCORE PENALTY</span></h2>
-            </div>
-            <div class="flex-grow radar-container m-4 mt-0 shadow-inner border border-slate-800">
-                <div class="radar-scan"></div>
-                <canvas id="minimap-canvas"></canvas>
-            </div>
-            <p class="text-center text-sm font-bold text-yellow-400 mb-4 tracking-wider"><i class="fa-solid fa-route mr-2"></i>PARTIAL GOLDEN PATH REVEALED</p>
+        <!-- Dynamic Virtual Joystick -->
+        <div id="joystick-base" class="absolute bottom-6 right-6 w-32 h-32 rounded-full border-2 border-cyan-500/50 bg-cyan-950/40 opacity-40 pointer-events-none transition-all duration-300 z-40 hidden">
+            <div id="joystick-knob" class="absolute top-1/2 left-1/2 w-12 h-12 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.8)] transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"></div>
         </div>
 
-        <!-- Start Menu -->
-        <div id="main-menu" class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#020617] to-black z-[100] flex flex-col justify-center items-center p-6 text-center overflow-y-auto interactive">
-            
-            <div class="mb-4 mt-8 relative">
-                <i class="fa-solid fa-cube text-7xl text-blue-500 absolute -left-1 opacity-40 blur-md"></i>
-                <i class="fa-solid fa-cube text-8xl text-cyan-400 animate-pulse-glow relative z-10"></i>
-            </div>
-            
-            <h1 class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 mb-3 drop-shadow-2xl tracking-tighter uppercase">Maze<br>Explorer</h1>
-            <p class="text-slate-400 mb-8 max-w-sm text-sm font-medium leading-relaxed">Navigate the procedural sectors. Tap the 3D arrows or use the D-Pad to move.</p>
-            
-            <div class="glass-panel p-6 rounded-3xl mb-8 w-full max-w-md">
-                
-                <!-- Settings Groups -->
-                <h3 class="text-[10px] font-black text-cyan-500/80 mb-2 text-left uppercase tracking-widest"><i class="fa-solid fa-gamepad mr-2"></i>Control Layout</h3>
-                <div class="flex gap-2 mb-6">
-                    <button class="dev-btn active-option flex-1 py-3 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold transition-all text-sm flex flex-col items-center gap-1" data-dev="mobile">
-                        <i class="fa-solid fa-mobile-screen text-xl mb-1"></i> Mobile
-                    </button>
-                    <button class="dev-btn flex-1 py-3 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold hover:bg-slate-700 transition-all text-sm flex flex-col items-center gap-1" data-dev="desktop">
-                        <i class="fa-solid fa-keyboard text-xl mb-1"></i> Desktop
-                    </button>
-                </div>
+        <div id="hit-flash" class="absolute inset-0 bg-red-500 opacity-0 pointer-events-none transition-opacity duration-100 z-30"></div>
+    </div>
 
-                <h3 class="text-[10px] font-black text-cyan-500/80 mb-2 text-left uppercase tracking-widest"><i class="fa-solid fa-gauge-high mr-2"></i>Initial Sector Size</h3>
-                <div class="flex gap-2 mb-6">
-                    <button class="diff-btn active-option flex-1 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold transition-all text-xs uppercase" data-diff="1">Small</button>
-                    <button class="diff-btn flex-1 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold hover:bg-slate-700 transition-all text-xs uppercase" data-diff="10">Medium</button>
-                    <button class="diff-btn flex-1 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold hover:bg-slate-700 transition-all text-xs uppercase" data-diff="25">Large</button>
-                </div>
-
-                <h3 class="text-[10px] font-black text-cyan-500/80 mb-2 text-left uppercase tracking-widest"><i class="fa-solid fa-vr-cardboard mr-2"></i>Visual Engine</h3>
-                <div class="flex gap-2">
-                    <button class="mode-btn active-option flex-1 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold transition-all text-xs uppercase" data-mode="mixed">Auto Mix</button>
-                    <button class="mode-btn flex-1 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold hover:bg-slate-700 transition-all text-xs uppercase" data-mode="2d">2D Only</button>
-                    <button class="mode-btn flex-1 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-gray-300 font-bold hover:bg-slate-700 transition-all text-xs uppercase" data-mode="3d">3D Only</button>
+    <div id="settings-modal" class="absolute inset-0 z-[100] bg-slate-950/90 backdrop-blur-md hidden items-center justify-center">
+        <button id="close-settings-btn" class="absolute top-8 right-8 w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-slate-600 hover:scale-110 transition-transform z-10">
+            <i class="fa-solid fa-xmark text-2xl"></i>
+        </button>
+        
+        <div class="glass-panel p-8 rounded-3xl max-w-sm w-full shadow-2xl flex flex-col items-center" onclick="event.stopPropagation()">
+            <h2 id="settings-title" class="text-xl font-black text-cyan-400 mb-6 uppercase tracking-widest flex items-center"><i class="fa-solid fa-sliders mr-3 text-2xl"></i>Controls</h2>
+            
+            <!-- 2D Controls -->
+            <div id="settings-2d-container" class="w-full mb-6">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-800 pb-1">2D Control Scheme</p>
+                <div class="flex flex-col gap-2 mt-3">
+                    <button class="settings-scheme-btn active glass-panel py-3 rounded-xl border border-cyan-500 bg-cyan-900/30 text-cyan-300 font-bold" data-val="dpad"><i class="fa-solid fa-gamepad mr-2"></i>Unified D-Pad</button>
+                    <button class="settings-scheme-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="swipe"><i class="fa-solid fa-hand-pointer mr-2"></i>Swipe Gestures</button>
+                    <button class="settings-scheme-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="joystick"><i class="fa-solid fa-circle-dot mr-2"></i>Virtual Joystick</button>
                 </div>
             </div>
 
-            <button id="btn-start" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border border-cyan-300 text-white font-black py-4 px-16 rounded-full text-xl shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-transform active:scale-95 mb-8 tracking-widest uppercase">
-                Initiate Link
-            </button>
-        </div>
-
-        <!-- Level Secured Modal -->
-        <div id="level-complete" class="absolute inset-0 bg-slate-900/90 backdrop-blur-xl z-40 hidden flex-col justify-center items-center p-6 text-center interactive">
-            <i class="fa-solid fa-door-open text-7xl text-green-400 mb-6 drop-shadow-[0_0_25px_rgba(74,222,128,0.8)]"></i>
-            <h2 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-emerald-600 mb-8 tracking-widest">SECTOR SECURED</h2>
-            
-            <div class="glass-panel p-6 rounded-3xl mb-10 shadow-2xl w-full max-w-sm border-green-500/30">
-                <div id="level-stats" class="flex flex-col gap-4"></div>
+            <!-- 3D Controls -->
+            <div id="settings-3d-container" class="w-full mb-6 hidden">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-800 pb-1">3D Control Scheme</p>
+                <div class="flex flex-col gap-2 mt-3">
+                    <button class="settings-scheme-3d-btn active glass-panel py-3 rounded-xl border border-cyan-500 bg-cyan-900/30 text-cyan-300 font-bold" data-val="waypoints"><i class="fa-solid fa-location-dot mr-2"></i>In-World Waypoints</button>
+                    <button class="settings-scheme-3d-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="tapzones"><i class="fa-solid fa-mobile-screen mr-2"></i>Invisible Tap Zones</button>
+                    <button class="settings-scheme-3d-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="dpad"><i class="fa-solid fa-gamepad mr-2"></i>Unified D-Pad</button>
+                    <button class="settings-scheme-3d-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800" data-val="joystick"><i class="fa-solid fa-circle-dot mr-2"></i>Virtual Joystick</button>
+                </div>
             </div>
-            
-            <button id="btn-next" class="bg-gradient-to-r from-green-500 to-emerald-600 border border-green-400 text-white font-black py-4 px-12 rounded-full text-xl shadow-[0_0_30px_rgba(34,197,94,0.4)] transition-transform active:scale-95 tracking-widest uppercase">
-                Descend Deeper
-            </button>
+
+            <!-- Common Alignment -->
+            <div id="settings-align-container" class="w-full">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-800 pb-1">Anchor Alignment</p>
+                <div class="grid grid-cols-3 gap-2 mt-3">
+                    <button class="settings-align-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800 text-xs uppercase" data-val="left">Left</button>
+                    <button class="settings-align-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800 text-xs uppercase" data-val="center">Center</button>
+                    <button class="settings-align-btn active glass-panel py-3 rounded-xl border border-cyan-500 bg-cyan-900/30 text-cyan-300 font-bold text-xs uppercase" data-val="right">Right</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="map-modal" class="absolute inset-0 z-[100] bg-slate-950/90 backdrop-blur-md hidden items-center justify-center">
+        <button id="close-map-btn" class="absolute top-8 right-8 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(239,68,68,0.6)] hover:scale-110 transition-transform z-10 border-2 border-white/20">
+            <i class="fa-solid fa-xmark text-4xl"></i>
+        </button>
+        
+        <div class="relative w-11/12 h-5/6 max-w-2xl max-h-[800px] glass-panel rounded-3xl border border-cyan-500/30 overflow-hidden shadow-2xl flex flex-col" onclick="event.stopPropagation()">
+            <div class="bg-cyan-950/50 p-4 border-b border-cyan-500/30 text-center relative z-10 flex flex-col items-center">
+                <h2 class="text-cyan-400 font-black tracking-widest text-lg"><i class="fa-solid fa-satellite-dish mr-2"></i>TACTICAL SCANNER</h2>
+                <p class="text-xs text-slate-400 mt-1 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700/50">Routing next optimal segment...</p>
+            </div>
+            <div class="flex-1 relative overflow-hidden flex items-center justify-center p-4 bg-[#010510]" id="map-canvas-container">
+                <canvas id="map-canvas"></canvas>
+                <div class="radar-sweep"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- STREAMING_CHUNK:Audio Engine Setup... ---
-        // Audio safely wrapped. Won't break execution if blocked by browser.
-        let sfx = { init: false };
-        function playSound(type, note, duration) {
-            if (!sfx.init || !sfx[type]) return;
-            try {
-                if (note) sfx[type].triggerAttackRelease(note, duration || "16n");
-                else sfx[type].triggerAttackRelease(duration || "16n");
-            } catch(e) { console.warn("Audio exception safe caught:", e); }
-        }
-
-        const GameSettings = { difficulty: 1, mode: 'mixed', device: 'mobile' };
         const GameState = {
-            level: 1, score: 0, is3D: false, gridSize: 5, grid: [],
-            player: { x: 0, y: 0, dir: 1 }, exit: { x: 0, y: 0 },
-            powerups: [], activePowerups: { ghost: 0, sprint: 0 },
-            cellSize: 40, isMoving: false, hintsUsed: 0, timeStart: 0
+            level: 1, size: 15, baseSize: 15,
+            grid: [], is3D: false,
+            player: { x: 1, y: 1, dir: 1, dx: 0, dy: 0 },
+            exit: { x: 0, y: 0 },
+            powerups: [],
+            camera: { x: 0, y: 0, rot: 0 },
+            settings: { 
+                device: 'mobile', 
+                engine: 'auto',
+                controlScheme2D: 'dpad', 
+                controlScheme3D: 'waypoints',
+                controlAlign: 'right' 
+            },
+            score: 0, timeStart: 0,
+            hasUsedHint: false,
+            activeEffects: { sprint: 0, ghost: 0, eagleEye: 0 }
         };
 
-        const POWERUP_GHOST = 1; const POWERUP_VISION = 2; const POWERUP_SPRINT = 3;
-
-        const canvas = document.getElementById('game-canvas'); const ctx = canvas.getContext('2d');
-        const threeCanvas = document.getElementById('three-canvas');
-        const minimapCanvas = document.getElementById('minimap-canvas'); const minimapCtx = minimapCanvas.getContext('2d');
-        const containerLayer = document.getElementById('canvas-container');
-
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const mapCanvas = document.getElementById('map-canvas');
+        const mapCtx = mapCanvas.getContext('2d');
+        const threeContainer = document.getElementById('three-canvas');
+        
         const ui = {
-            level: document.getElementById('level-display'), score: document.getElementById('score-display'), mode: document.getElementById('mode-display'),
-            menu: document.getElementById('main-menu'), complete: document.getElementById('level-complete'), stats: document.getElementById('level-stats'),
-            mapBtn: document.getElementById('btn-map'), quitBtn: document.getElementById('btn-quit'), mapOverlay: document.getElementById('map-overlay'),
-            closeMap: document.getElementById('close-map'), activePowerups: document.getElementById('active-powerups'), reticle: document.getElementById('reticle'),
-            tapHints: document.getElementById('tap-hints')
+            menu: document.getElementById('menu'),
+            game: document.getElementById('game-container'),
+            level: document.getElementById('level-display'),
+            mode: document.getElementById('mode-display'),
+            score: document.getElementById('score-display'),
+            dpad: document.getElementById('dpad'),
+            joystick: document.getElementById('joystick-base'),
+            joystickKnob: document.getElementById('joystick-knob'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsModal: document.getElementById('settings-modal'),
+            mapModal: document.getElementById('map-modal'),
+            mapBtn: document.getElementById('map-btn'),
+            tapHints: document.getElementById('ui-chevrons'),
+            reticle: document.getElementById('reticle'),
+            hitFlash: document.getElementById('hit-flash')
         };
 
-        function triggerShake() {
-            containerLayer.classList.remove('shake');
-            void containerLayer.offsetWidth; // Trigger reflow
-            containerLayer.classList.add('shake');
-        }
+        const sfx = {
+            synth: null, membrane: null,
+            init: async () => {
+                try {
+                    await Tone.start();
+                    sfx.synth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: "triangle" },
+                        envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.5 }
+                    }).toDestination();
+                    sfx.synth.volume.value = -12;
 
-        // --- STREAMING_CHUNK:Custom 2D Icon Rendering... ---
-        function drawLightning(context, x, y, size) {
-            context.save(); context.translate(x, y); context.scale(size/20, size/20);
-            context.beginPath(); context.moveTo(2, -10); context.lineTo(-8, 2); context.lineTo(-1, 2); context.lineTo(-4, 12); context.lineTo(8, -2); context.lineTo(1, -2); context.closePath();
-            context.fillStyle = '#facc15'; context.shadowColor = '#facc15'; context.shadowBlur = 10; context.fill(); context.restore();
-        }
+                    sfx.membrane = new Tone.MembraneSynth({
+                        pitchDecay: 0.05, octaves: 2, oscillator: { type: "sine" }
+                    }).toDestination();
+                    sfx.membrane.volume.value = -8;
+                } catch(e) { console.warn("Audio disabled or error:", e); }
+            },
+            safePlay: (fn) => { try { if(Tone && Tone.context.state === 'running') fn(); } catch(e){} },
+            step: () => sfx.safePlay(() => { if(sfx.membrane) sfx.membrane.triggerAttackRelease("C1", "16n"); }),
+            bump: () => sfx.safePlay(() => { if(sfx.membrane) sfx.membrane.triggerAttackRelease("G0", "8n"); }),
+            pickup: () => sfx.safePlay(() => { if(sfx.synth) sfx.synth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "8n"); }),
+            win: () => sfx.safePlay(() => { if(sfx.synth) sfx.synth.triggerAttackRelease(["C4", "E4", "G4", "C5", "E5"], "2n"); }),
+            turn: () => sfx.safePlay(() => { if(sfx.synth) sfx.synth.triggerAttackRelease("C6", "64n", "+0", 0.05); })
+        };
 
-        function drawGhost(context, x, y, size) {
-            context.save(); context.translate(x, y); context.scale(size/20, size/20);
-            context.beginPath(); context.arc(0, -2, 7, Math.PI, 0); context.lineTo(7, 8); context.lineTo(4, 5); context.lineTo(0, 8); context.lineTo(-4, 5); context.lineTo(-7, 8); context.closePath();
-            context.fillStyle = '#c084fc'; context.shadowColor = '#c084fc'; context.shadowBlur = 10; context.fill();
-            context.fillStyle = 'white'; context.shadowBlur = 0;
-            context.beginPath(); context.arc(-3, -2, 2, 0, Math.PI*2); context.fill(); context.beginPath(); context.arc(3, -2, 2, 0, Math.PI*2); context.fill();
-            context.fillStyle = 'black'; context.beginPath(); context.arc(-3, -2, 1, 0, Math.PI*2); context.fill(); context.beginPath(); context.arc(3, -2, 1, 0, Math.PI*2); context.fill(); context.restore();
-        }
+        document.querySelectorAll('.menu-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const t = e.currentTarget;
+                if (t.classList.contains('device-btn')) {
+                    document.querySelectorAll('.device-btn').forEach(b => b.className = "menu-btn device-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800");
+                    GameState.settings.device = t.dataset.val;
+                } else if (t.classList.contains('size-btn')) {
+                    document.querySelectorAll('.size-btn').forEach(b => b.className = "menu-btn size-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800");
+                    GameState.baseSize = parseInt(t.dataset.val);
+                } else if (t.classList.contains('engine-btn')) {
+                    document.querySelectorAll('.engine-btn').forEach(b => b.className = "menu-btn engine-btn glass-panel py-3 rounded-xl font-bold hover:bg-slate-800 text-xs");
+                    GameState.settings.engine = t.dataset.val;
+                }
+                t.classList.remove('hover:bg-slate-800');
+                t.classList.add('active', 'border-cyan-500', 'bg-cyan-900/30', 'text-cyan-300');
+            });
+        });
 
-        function drawEye(context, x, y, size) {
-            context.save(); context.translate(x, y); context.scale(size/20, size/20);
-            context.beginPath(); context.ellipse(0, 0, 9, 5, 0, 0, Math.PI*2);
-            context.fillStyle = '#0f172a'; context.fill(); context.lineWidth = 2; context.strokeStyle = '#22d3ee'; context.shadowColor = '#22d3ee'; context.shadowBlur = 10; context.stroke();
-            context.beginPath(); context.arc(0, 0, 3, 0, Math.PI*2); context.fillStyle = '#22d3ee'; context.fill(); context.restore();
-        }
+        document.querySelectorAll('.settings-scheme-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.settings-scheme-btn').forEach(b => { b.classList.remove('active', 'border-cyan-500', 'bg-cyan-900/30', 'text-cyan-300'); b.classList.add('hover:bg-slate-800');});
+                const t = e.currentTarget;
+                t.classList.remove('hover:bg-slate-800'); t.classList.add('active', 'border-cyan-500', 'bg-cyan-900/30', 'text-cyan-300');
+                GameState.settings.controlScheme2D = t.dataset.val;
+                applyControlsUI();
+            });
+        });
 
-        function drawPlayerArrow(context, x, y, size, dir) {
-            context.save(); context.translate(x, y); context.rotate((dir * Math.PI / 2) - Math.PI/2); 
-            const s = size * 0.6;
-            const glowRadius = Math.max(0.1, Math.abs(s*0.4));
+        document.querySelectorAll('.settings-scheme-3d-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.settings-scheme-3d-btn').forEach(b => { b.classList.remove('active', 'border-cyan-500', 'bg-cyan-900/30', 'text-cyan-300'); b.classList.add('hover:bg-slate-800');});
+                const t = e.currentTarget;
+                t.classList.remove('hover:bg-slate-800'); t.classList.add('active', 'border-cyan-500', 'bg-cyan-900/30', 'text-cyan-300');
+                GameState.settings.controlScheme3D = t.dataset.val;
+                createFloorArrows(); // Refresh 3D waypoints dynamically
+                applyControlsUI();
+            });
+        });
+
+        document.querySelectorAll('.settings-align-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.settings-align-btn').forEach(b => { b.classList.remove('active', 'border-cyan-500', 'bg-cyan-900/30', 'text-cyan-300'); b.classList.add('hover:bg-slate-800');});
+                const t = e.currentTarget;
+                t.classList.remove('hover:bg-slate-800'); t.classList.add('active', 'border-cyan-500', 'bg-cyan-900/30', 'text-cyan-300');
+                GameState.settings.controlAlign = t.dataset.val;
+                applyControlsUI();
+            });
+        });
+
+        function applyControlsUI() {
+            ui.settingsBtn.style.display = 'flex';
             
-            context.beginPath(); context.arc(-s*0.4, 0, glowRadius, 0, Math.PI*2); 
-            context.fillStyle = '#0ea5e9'; context.shadowColor = '#0ea5e9'; context.shadowBlur = 15; context.fill();
+            const is3D = GameState.is3D;
+            const align = GameState.settings.controlAlign;
+            const scheme2D = GameState.settings.controlScheme2D;
+            const scheme3D = GameState.settings.controlScheme3D;
+            const activeScheme = is3D ? scheme3D : scheme2D;
+
+            // Manage Modal Headers and Containers dynamically
+            const title = document.getElementById('settings-title');
+            const c2d = document.getElementById('settings-2d-container');
+            const c3d = document.getElementById('settings-3d-container');
+            const calign = document.getElementById('settings-align-container');
+
+            if (title) title.innerHTML = `<i class="fa-solid fa-sliders mr-3 text-2xl"></i>${is3D ? '3D' : '2D'} Controls`;
+            if (c2d) c2d.style.display = is3D ? 'none' : 'block';
+            if (c3d) c3d.style.display = is3D ? 'block' : 'none';
+            if (calign) calign.style.display = (activeScheme === 'dpad' || activeScheme === 'joystick') ? 'block' : 'none';
+
+            // Desktop overrides all on-screen controls
+            if (GameState.settings.device === 'desktop') {
+                ui.dpad.style.display = 'none';
+                ui.joystick.style.display = 'none';
+                ui.tapHints.style.display = 'none';
+                return;
+            }
+
+            // Apply Alignment
+            [ui.dpad, ui.joystick].forEach(el => {
+                el.classList.remove('left-6', 'right-6', 'left-1/2', '-translate-x-1/2');
+                if (align === 'left') el.classList.add('left-6');
+                else if (align === 'center') el.classList.add('left-1/2', '-translate-x-1/2');
+                else if (align === 'right') el.classList.add('right-6');
+            });
+
+            // Toggle D-Pad and Joystick Base
+            ui.dpad.style.display = (activeScheme === 'dpad') ? 'grid' : 'none';
+            ui.joystick.style.display = (activeScheme === 'joystick') ? 'block' : 'none';
             
-            context.beginPath(); context.moveTo(s, 0); context.lineTo(-s*0.6, s*0.6); context.lineTo(-s*0.2, 0); context.lineTo(-s*0.6, -s*0.6); context.closePath();
-            context.shadowBlur = 0; context.fillStyle = '#f8fafc'; context.fill(); context.lineWidth = 2; context.strokeStyle = '#94a3b8'; context.stroke();
-            
-            context.beginPath(); context.moveTo(s*0.2, 0); context.lineTo(-s*0.1, s*0.2); context.lineTo(-s*0.1, -s*0.2); context.closePath(); context.fillStyle = '#38bdf8'; context.fill();
-            context.restore();
+            if (activeScheme === 'joystick') {
+                ui.joystickKnob.style.transform = `translate(-50%, -50%)`;
+                ui.joystick.style.opacity = '0.4';
+            }
+
+            // Show Tap Guides only for 3D TapZones scheme
+            ui.tapHints.style.display = (is3D && scheme3D === 'tapzones') ? 'flex' : 'none';
         }
 
-        // --- STREAMING_CHUNK:Three.js Texture & Scene Generation... ---
-        function createProceduralTexture(type) {
-            const size = 512; const c = document.createElement('canvas'); c.width = size; c.height = size; const cx = c.getContext('2d');
-            if (type === 'brick') {
-                cx.fillStyle = '#0f172a'; cx.fillRect(0,0,size,size);
-                const brickW = 128; const brickH = 64;
-                for(let y=0; y<size; y+=brickH) {
-                    const offset = (y/brickH)%2===0 ? 0 : brickW/2;
-                    for(let x=-brickW; x<size; x+=brickW) {
-                        cx.fillStyle = `hsl(215, 25%, ${20 + Math.random()*10}%)`;
-                        cx.fillRect(x+offset+3, y+3, brickW-6, brickH-6);
-                        for(let n=0; n<40; n++) { cx.fillStyle = Math.random()>0.5 ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.05)'; cx.fillRect(x+offset+3+Math.random()*(brickW-6), y+3+Math.random()*(brickH-6), 2, 2); }
+        ui.settingsBtn.addEventListener('click', () => { ui.settingsModal.style.display = 'flex'; applyControlsUI(); });
+        document.getElementById('close-settings-btn').addEventListener('click', () => { ui.settingsModal.style.display = 'none'; });
+
+        // Phase 4: Background Tap-to-Close for Settings Modal
+        ui.settingsModal.addEventListener('click', (e) => {
+            if (e.target === ui.settingsModal) {
+                ui.settingsModal.style.display = 'none';
+            }
+        });
+
+        // Phase 4: Background Tap-to-Close for Map Modal
+        ui.mapModal.addEventListener('click', (e) => {
+            if (e.target === ui.mapModal) {
+                ui.mapModal.style.display = 'none';
+            }
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            setTimeout(sfx.init, 50); // Delay audio to prevent thread blocking
+            GameState.score = 0; GameState.level = 1;
+            ui.menu.style.display = 'none'; ui.game.style.display = 'block';
+            resizeCanvas(); startLevel();
+        });
+
+        document.getElementById('quit-btn').addEventListener('click', () => {
+            ui.game.style.display = 'none'; ui.menu.style.display = 'flex';
+            if(threeScene) { while(threeScene.children.length > 0) threeScene.remove(threeScene.children[0]); }
+        });
+
+        const DIRS = [ {x:0,y:-1}, {x:1,y:0}, {x:0,y:1}, {x:-1,y:0} ]; // N, E, S, W
+        
+        function generateMaze(size) {
+            const width = size | 1; const height = size | 1;
+            let grid = Array(height).fill().map(() => Array(width).fill(1));
+            
+            function carve(x, y) {
+                grid[y][x] = 0;
+                let dirs = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+                for (let d of dirs) {
+                    let nx = x + DIRS[d].x * 2; let ny = y + DIRS[d].y * 2;
+                    if (nx > 0 && nx < width - 1 && ny > 0 && ny < height - 1 && grid[ny][nx] === 1) {
+                        grid[y + DIRS[d].y][x + DIRS[d].x] = 0;
+                        carve(nx, ny);
                     }
                 }
-            } else if (type === 'stone') {
-                cx.fillStyle = '#020617'; cx.fillRect(0,0,size,size);
-                for(let i=0; i<40000; i++) { cx.fillStyle = Math.random()>0.5 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.3)'; cx.fillRect(Math.random()*size, Math.random()*size, 2, 2); }
-                for(let i=0; i<60; i++) { cx.fillStyle = 'rgba(0,0,0,0.4)'; cx.beginPath(); cx.arc(Math.random()*size, Math.random()*size, 10+Math.random()*40, 0, Math.PI*2); cx.fill(); }
             }
-            const texture = new THREE.CanvasTexture(c); texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; return texture;
+            carve(1, 1);
+            let ex = width - 2; let ey = height - 2;
+            grid[ey][ex] = 0; grid[ey-1][ex] = 0; grid[ey][ex-1] = 0;
+            return { grid, width, height, ex, ey };
         }
 
-        function createChevronTexture() {
-            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d');
-            ctx.clearRect(0,0,256,256);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.shadowColor = '#06b6d4'; ctx.shadowBlur = 30;
-            ctx.beginPath(); ctx.moveTo(128, 40); ctx.lineTo(220, 160); ctx.lineTo(180, 160); ctx.lineTo(128, 90); ctx.lineTo(76, 160); ctx.lineTo(36, 160); ctx.closePath(); ctx.fill();
-            return new THREE.CanvasTexture(canvas);
-        }
+        function startLevel() {
+            GameState.size = GameState.baseSize + Math.floor(GameState.level * 1.5);
+            if(GameState.size > 55) GameState.size = 55;
 
-        const wallTexture = createProceduralTexture('brick');
-        const floorTexture = createProceduralTexture('stone');
-        const chevronMat = new THREE.MeshBasicMaterial({ map: createChevronTexture(), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
-
-        const scene = new THREE.Scene(); scene.background = new THREE.Color(0x02040a); scene.fog = new THREE.FogExp2(0x02040a, 0.22);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-        const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true, alpha: false });
-        renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        scene.add(camera);
-
-        const flashLight = new THREE.SpotLight(0xffffff, 3.5, 12, Math.PI / 4, 0.8, 1.5);
-        flashLight.castShadow = true; flashLight.shadow.mapSize.width = 1024; flashLight.shadow.mapSize.height = 1024; flashLight.shadow.bias = -0.001;
-        camera.add(flashLight); camera.add(flashLight.target); flashLight.position.set(0,0,0); flashLight.target.position.set(0,0,-1);
-        scene.add(new THREE.AmbientLight(0x0f172a, 0.8));
-
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.8, metalness: 0.2 });
-        const floorMat = new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 0.9, metalness: 0.1 });
-        const exitMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, emissive: 0x22c55e, emissiveIntensity: 1.5, wireframe: true, transparent: true, opacity: 0.9 });
-
-        let walls3D = []; let exit3DGroup = null; let powerups3D = []; let arrows3DGroup = new THREE.Group(); scene.add(arrows3DGroup);
-        let bobTime = 0; let targetCamPos = new THREE.Vector3(0, 0, 0); let targetCamRotY = 0;
-        const raycaster = new THREE.Raycaster(); const mouseVector = new THREE.Vector2();
-
-        function resizeCanvas() {
-            const container = document.getElementById('canvas-container'); if(!container) return;
-            canvas.width = container.clientWidth; canvas.height = container.clientHeight;
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix();
-            if (!GameState.is3D && GameState.grid && GameState.grid.length > 0) draw2D();
-        }
-        window.addEventListener('resize', resizeCanvas);
-
-        // --- STREAMING_CHUNK:Maze Algorithms & Level Loading... ---
-        function generateMaze(size) {
-            const grid = [];
-            for (let y = 0; y < size; y++) {
-                const row = []; for (let x = 0; x < size; x++) row.push({ x, y, walls: [true, true, true, true], visited: false });
-                grid.push(row);
-            }
-            const stack = []; let current = grid[0][0]; current.visited = true; let unvisitedCount = size * size - 1;
-            while (unvisitedCount > 0) {
-                const neighbors = []; const { x, y } = current;
-                if (y > 0 && !grid[y - 1][x].visited) neighbors.push({ cell: grid[y - 1][x], dir: 0 });
-                if (x < size - 1 && !grid[y][x + 1].visited) neighbors.push({ cell: grid[y][x + 1], dir: 1 });
-                if (y < size - 1 && !grid[y + 1][x].visited) neighbors.push({ cell: grid[y + 1][x], dir: 2 });
-                if (x > 0 && !grid[y][x - 1].visited) neighbors.push({ cell: grid[y][x - 1], dir: 3 });
-                if (neighbors.length > 0) {
-                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
-                    stack.push(current); current.walls[next.dir] = false; next.cell.walls[(next.dir + 2) % 4] = false;
-                    current = next.cell; current.visited = true; unvisitedCount--;
-                } else if (stack.length > 0) current = stack.pop();
-            }
-            return grid;
-        }
-
-        function loadLevel() {
-            GameState.gridSize = 4 + GameState.level + Math.floor(GameState.level / 1.5); 
-            if (GameState.gridSize > 30) GameState.gridSize = 30; 
-
-            GameState.grid = generateMaze(GameState.gridSize);
-            const pCount = Math.max(2, Math.floor(GameState.gridSize / 5));
+            const maze = generateMaze(GameState.size);
+            GameState.grid = maze.grid;
+            GameState.exit = { x: maze.ex, y: maze.ey };
+            GameState.player = { x: 1, y: 1, dir: 1, dx: 1, dy: 1 };
+            GameState.hasUsedHint = false;
+            GameState.timeStart = Date.now();
+            GameState.activeEffects = { sprint: 0, ghost: 0, eagleEye: 0 };
+            
             GameState.powerups = [];
-            for(let i=0; i<pCount; i++) {
-                let px, py; do { px = Math.floor(Math.random() * GameState.gridSize); py = Math.floor(Math.random() * GameState.gridSize);
-                } while ((px===0 && py===0) || (px===GameState.gridSize-1 && py===GameState.gridSize-1));
-                GameState.powerups.push({x: px, y: py, type: Math.floor(Math.random() * 3) + 1});
+            let placed = 0; let count = Math.floor(GameState.size / 5);
+            while(placed < count) {
+                let px = Math.floor(Math.random() * (GameState.grid[0].length - 2)) + 1;
+                let py = Math.floor(Math.random() * (GameState.grid.length - 2)) + 1;
+                if(GameState.grid[py][px] === 0 && (px !== 1 || py !== 1) && (px !== GameState.exit.x || py !== GameState.exit.y)) {
+                    let type = Math.random() < 0.4 ? 'sprint' : (Math.random() < 0.7 ? 'ghost' : 'eagleEye');
+                    GameState.powerups.push({x: px, y: py, type: type, active: true});
+                    placed++;
+                }
             }
-            
-            GameState.player.x = 0; GameState.player.y = 0; GameState.player.dir = 2; // Start facing South (+Z) to match 3D view down
-            GameState.exit.x = GameState.gridSize - 1; GameState.exit.y = GameState.gridSize - 1;
-            GameState.hintsUsed = 0; GameState.timeStart = Date.now();
-            ui.level.innerText = GameState.level; ui.score.innerText = GameState.score.toLocaleString();
 
-            if (GameSettings.mode === '3d') GameState.is3D = true;
-            else if (GameSettings.mode === '2d') GameState.is3D = false;
-            else GameState.is3D = (GameState.level % 3 === 0);
-            
+            ui.level.innerText = `SECTOR ${GameState.level}`;
+            if (GameState.settings.engine === 'auto') GameState.is3D = GameState.level % 3 === 0;
+            else GameState.is3D = GameState.settings.engine === '3d';
+
             if (GameState.is3D) {
-                ui.mode.innerText = "3D Immersive Scan"; ui.mode.className = "text-[10px] font-black tracking-widest uppercase text-purple-400 mt-0.5";
-                canvas.style.display = 'none'; threeCanvas.style.display = 'block'; ui.reticle.style.display = 'block';
-                ui.tapHints.style.display = 'flex'; // Turn ON touch hints
+                ui.mode.innerText = "3D IMMERSIVE SCAN"; ui.mode.className = "text-[10px] font-black tracking-widest uppercase text-purple-400 mt-0.5";
+                canvas.style.display = 'none'; threeContainer.style.display = 'block';
+                ui.reticle.style.display = 'block';
                 build3DScene(); updateCamera3DTarget();
-                camera.rotation.y = targetCamRotY;
+                camera.rotation.y = targetCamRotY; // Snap to stop spinning bug
                 camera.position.set(targetCamPos.x, 0, targetCamPos.z);
             } else {
-                ui.mode.innerText = "2D Tactical View"; ui.mode.className = "text-[10px] font-black tracking-widest uppercase text-cyan-400 mt-0.5";
-                canvas.style.display = 'block'; threeCanvas.style.display = 'none'; ui.reticle.style.display = 'none';
-                ui.tapHints.style.display = 'none'; // Turn OFF touch hints
-                resizeCanvas(); 
+                ui.mode.innerText = "2D TACTICAL VIEW"; ui.mode.className = "text-[10px] font-black tracking-widest uppercase text-cyan-400 mt-0.5";
+                canvas.style.display = 'block'; threeContainer.style.display = 'none';
+                ui.reticle.style.display = 'none';
+                if(threeScene) { while(threeScene.children.length > 0) threeScene.remove(threeScene.children[0]); }
+                draw2D();
             }
-            updatePowerupUI(); updateDpadIcons();
+            
+            applyControlsUI(); // Update controls dynamically for new mode
         }
 
-        // --- STREAMING_CHUNK:2D & 3D Renderers... ---
-        let pulseTime = 0;
-        function draw2D() {
-            if (GameState.is3D || !GameState.grid || GameState.grid.length === 0) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const pX = window.innerWidth > 800 ? 100 : 40; const pY = window.innerHeight > 800 ? 150 : 80;
-            let sizeW = (canvas.width - pX*2) / GameState.gridSize; let sizeH = (canvas.height - pY*2) / GameState.gridSize;
-            GameState.cellSize = Math.max(5, Math.min(sizeW, sizeH)); 
-            const oX = (canvas.width - (GameState.cellSize * GameState.gridSize)) / 2; const oY = (canvas.height - (GameState.cellSize * GameState.gridSize)) / 2;
-
-            ctx.save(); ctx.translate(oX, oY);
-
-            // Exit
-            pulseTime += 0.05; const ex = GameState.exit.x * GameState.cellSize + GameState.cellSize/2; const ey = GameState.exit.y * GameState.cellSize + GameState.cellSize/2;
-            ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 15 + Math.sin(pulseTime)*5; ctx.strokeStyle = '#22c55e'; ctx.lineWidth = Math.max(1, GameState.cellSize * 0.08);
-            
-            // Protected Radiuses
-            const rad1 = Math.max(0.1, (GameState.cellSize*0.35) + Math.sin(pulseTime*2)*2);
-            const rad2 = Math.max(0.1, (GameState.cellSize*0.2) + Math.cos(pulseTime*2)*2);
-            
-            ctx.beginPath(); ctx.arc(ex, ey, rad1, 0, Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.arc(ex, ey, rad2, 0, Math.PI*2); ctx.stroke(); ctx.shadowBlur = 0;
-
-            // Powerups
-            GameState.powerups.forEach(p => {
-                const px = p.x * GameState.cellSize + GameState.cellSize/2; const py = p.y * GameState.cellSize + GameState.cellSize/2; const sz = Math.max(1, GameState.cellSize * 0.7);
-                if(p.type === POWERUP_GHOST) drawGhost(ctx, px, py, sz); if(p.type === POWERUP_VISION) drawEye(ctx, px, py, sz); if(p.type === POWERUP_SPRINT) drawLightning(ctx, px, py, sz);
-            });
-
-            // Walls
-            ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = Math.max(2, GameState.cellSize * 0.15); ctx.lineCap = 'round'; ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 4;
-            for (let y = 0; y < GameState.gridSize; y++) {
-                for (let x = 0; x < GameState.gridSize; x++) {
-                    const c = GameState.grid[y][x]; const cx = x * GameState.cellSize; const cy = y * GameState.cellSize;
-                    if (c.walls[0]) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + GameState.cellSize, cy); ctx.stroke(); } 
-                    if (c.walls[1]) { ctx.beginPath(); ctx.moveTo(cx + GameState.cellSize, cy); ctx.lineTo(cx + GameState.cellSize, cy + GameState.cellSize); ctx.stroke(); } 
-                    if (c.walls[2]) { ctx.beginPath(); ctx.moveTo(cx, cy + GameState.cellSize); ctx.lineTo(cx + GameState.cellSize, cy + GameState.cellSize); ctx.stroke(); } 
-                    if (c.walls[3]) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + GameState.cellSize); ctx.stroke(); } 
+        function getPathBFS() {
+            let queue = [{x: GameState.player.x, y: GameState.player.y, path: []}];
+            let visited = new Set([`${GameState.player.x},${GameState.player.y}`]);
+            while(queue.length > 0) {
+                let curr = queue.shift();
+                if(curr.x === GameState.exit.x && curr.y === GameState.exit.y) return curr.path;
+                for(let d=0; d<4; d++) {
+                    let nx = curr.x + DIRS[d].x; let ny = curr.y + DIRS[d].y;
+                    if(GameState.grid[ny] && GameState.grid[ny][nx] === 0 && !visited.has(`${nx},${ny}`)) {
+                        visited.add(`${nx},${ny}`);
+                        queue.push({x: nx, y: ny, path: [...curr.path, {x:nx, y:ny}]});
+                    }
                 }
             }
+            return [];
+        }
 
-            // Player
-            const px = GameState.player.x * GameState.cellSize + GameState.cellSize/2; const py = GameState.player.y * GameState.cellSize + GameState.cellSize/2;
-            drawPlayerArrow(ctx, px, py, GameState.cellSize, GameState.player.dir);
+        function drawIcon(ctx, type, x, y, size) {
+            ctx.save(); ctx.translate(x, y);
+            if(type === 'sprint') {
+                ctx.fillStyle = '#facc15'; ctx.shadowColor = '#facc15'; ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.moveTo(0, -size*0.4); ctx.lineTo(size*0.3, size*0.1); ctx.lineTo(0, size*0.1); ctx.lineTo(0, size*0.5); ctx.lineTo(-size*0.3, -size*0.1); ctx.lineTo(0, -size*0.1); ctx.fill();
+            } else if(type === 'ghost') {
+                ctx.fillStyle = '#c084fc'; ctx.shadowColor = '#c084fc'; ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.arc(0, -size*0.1, size*0.3, Math.PI, 0); ctx.lineTo(size*0.3, size*0.4); ctx.lineTo(size*0.1, size*0.2); ctx.lineTo(-size*0.1, size*0.4); ctx.lineTo(-size*0.3, size*0.2); ctx.fill();
+            } else if(type === 'eagleEye') {
+                ctx.fillStyle = '#22d3ee'; ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.ellipse(0, 0, size*0.4, size*0.2, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#020617'; ctx.beginPath(); ctx.arc(0, 0, size*0.1, 0, Math.PI*2); ctx.fill();
+            }
             ctx.restore();
-            
-            if(!GameState.is3D && ui.menu.style.display !== 'flex') requestAnimationFrame(draw2D); 
         }
 
-        function createPowerupSpriteMat(type) {
-            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d');
-            ctx.beginPath(); ctx.arc(64, 64, 50, 0, Math.PI*2); let grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 50);
-            if(type===POWERUP_GHOST){ grad.addColorStop(0,'rgba(192,132,252,0.5)'); grad.addColorStop(1,'rgba(192,132,252,0)'); ctx.fillStyle=grad; ctx.fill(); drawGhost(ctx, 64, 64, 60); }
-            else if(type===POWERUP_VISION){ grad.addColorStop(0,'rgba(34,211,238,0.5)'); grad.addColorStop(1,'rgba(34,211,238,0)'); ctx.fillStyle=grad; ctx.fill(); drawEye(ctx, 64, 64, 60); }
-            else if(type===POWERUP_SPRINT){ grad.addColorStop(0,'rgba(250,204,21,0.5)'); grad.addColorStop(1,'rgba(250,204,21,0)'); ctx.fillStyle=grad; ctx.fill(); drawLightning(ctx, 64, 64, 60); }
-            return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, blending: THREE.AdditiveBlending });
+        function draw2D() {
+            if(GameState.is3D || !GameState.grid || !GameState.grid.length || ui.game.style.display === 'none') return;
+            
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const gridW = GameState.grid[0].length; const gridH = GameState.grid.length;
+            const cellW = (canvas.width - 40) / gridW; const cellH = (canvas.height - 40) / gridH;
+            const cellSize = Math.max(1, Math.min(cellW, cellH)); 
+            
+            const offsetX = (canvas.width - (cellSize * gridW)) / 2;
+            const offsetY = (canvas.height - (cellSize * gridH)) / 2;
+
+            ctx.fillStyle = '#1e293b'; ctx.shadowColor = '#0f172a'; ctx.shadowBlur = 10;
+            for(let y=0; y<gridH; y++) {
+                for(let x=0; x<gridW; x++) {
+                    if(GameState.grid[y][x] === 1) {
+                        ctx.fillRect(offsetX + x*cellSize, offsetY + y*cellSize, cellSize, cellSize);
+                        ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1;
+                        ctx.strokeRect(offsetX + x*cellSize, offsetY + y*cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+            ctx.shadowBlur = 0;
+
+            const t = Date.now() / 300;
+            const exPx = offsetX + GameState.exit.x * cellSize + cellSize/2;
+            const eyPx = offsetY + GameState.exit.y * cellSize + cellSize/2;
+            ctx.beginPath();
+            ctx.arc(exPx, eyPx, Math.max(0.1, cellSize * 0.4 + Math.sin(t)*3), 0, Math.PI*2);
+            ctx.fillStyle = 'transparent'; ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 20;
+            ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.beginPath(); ctx.arc(exPx, eyPx, Math.max(0.1, cellSize * 0.2 + Math.cos(t)*2), 0, Math.PI*2);
+            ctx.strokeStyle = '#22c55e'; ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            GameState.powerups.forEach(p => {
+                if(p.active) drawIcon(ctx, p.type, offsetX + p.x*cellSize + cellSize/2, offsetY + p.y*cellSize + cellSize/2, Math.max(1, cellSize));
+            });
+
+            GameState.player.dx += (GameState.player.x - GameState.player.dx) * 0.3;
+            GameState.player.dy += (GameState.player.y - GameState.player.dy) * 0.3;
+
+            const px = offsetX + GameState.player.dx * cellSize + cellSize/2;
+            const py = offsetY + GameState.player.dy * cellSize + cellSize/2;
+            
+            ctx.save(); ctx.translate(px, py);
+            let angles = [0, Math.PI/2, Math.PI, -Math.PI/2];
+            ctx.rotate(angles[GameState.player.dir]);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, -cellSize*0.4); ctx.lineTo(cellSize*0.3, cellSize*0.3);
+            ctx.lineTo(0, cellSize*0.1); ctx.lineTo(-cellSize*0.3, cellSize*0.3); ctx.closePath();
+            
+            ctx.fillStyle = GameState.activeEffects.ghost > 0 ? '#c084fc' : (GameState.activeEffects.sprint > 0 ? '#facc15' : '#38bdf8');
+            ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 15;
+            ctx.lineJoin = 'round'; ctx.fill(); ctx.restore();
+
+            requestAnimationFrame(draw2D);
         }
-        const matGhost = createPowerupSpriteMat(POWERUP_GHOST); const matVision = createPowerupSpriteMat(POWERUP_VISION); const matSprint = createPowerupSpriteMat(POWERUP_SPRINT);
+
+        let threeScene, camera, renderer, clock;
+        let pLight, exitMesh, mapArrows = [];
+        let targetCamPos = new THREE.Vector3(); let targetCamRotY = 0;
 
         function build3DScene() {
-            walls3D.forEach(w => scene.remove(w)); powerups3D.forEach(p => scene.remove(p.mesh)); if(exit3DGroup) scene.remove(exit3DGroup);
-            walls3D = []; powerups3D = [];
-            floorTexture.repeat.set(GameState.gridSize/2, GameState.gridSize/2);
+            if(!renderer) {
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                threeContainer.appendChild(renderer.domElement);
+                camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 100);
+                clock = new THREE.Clock();
+            }
+            
+            threeScene = new THREE.Scene();
+            threeScene.fog = new THREE.FogExp2(0x020617, 0.18);
+            threeScene.background = new THREE.Color(0x020617);
 
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(GameState.gridSize, GameState.gridSize), floorMat);
-            floor.rotation.x = -Math.PI / 2; floor.position.set((GameState.gridSize-1)/2, -0.5, (GameState.gridSize-1)/2); floor.receiveShadow = true; scene.add(floor); walls3D.push(floor);
+            function generateTex(type) {
+                const cv = document.createElement('canvas'); cv.width=256; cv.height=256; const c = cv.getContext('2d');
+                if(type === 'wall') {
+                    c.fillStyle = '#1e293b'; c.fillRect(0,0,256,256); c.strokeStyle = '#0f172a'; c.lineWidth = 6;
+                    for(let i=0; i<4; i++) { let y = i*64; c.beginPath(); c.moveTo(0,y); c.lineTo(256,y); c.stroke(); let o = i%2===0 ? 0 : 64; c.beginPath(); c.moveTo(o,y); c.lineTo(o,y+64); c.stroke(); c.beginPath(); c.moveTo(o+128,y); c.lineTo(o+128,y+64); c.stroke(); }
+                } else {
+                    c.fillStyle = '#0f172a'; c.fillRect(0,0,256,256);
+                    for(let i=0; i<8000; i++) { c.fillStyle=`rgba(255,255,255,${Math.random()*0.03})`; c.fillRect(Math.random()*256,Math.random()*256,2,2); }
+                }
+                let tex = new THREE.CanvasTexture(cv); if(type==='floor') { tex.wrapS=THREE.RepeatWrapping; tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(GameState.grid[0].length, GameState.grid.length); }
+                return tex;
+            }
 
-            const thick = 0.15; const hGeo = new THREE.BoxGeometry(1+thick, 1.2, thick); const vGeo = new THREE.BoxGeometry(thick, 1.2, 1+thick);
-
-            for (let y = 0; y < GameState.gridSize; y++) {
-                for (let x = 0; x < GameState.gridSize; x++) {
-                    const cell = GameState.grid[y][x];
-                    if (cell.walls[0]) { const w=new THREE.Mesh(hGeo, wallMat); w.position.set(x, 0.1, y-0.5); w.castShadow=true; w.receiveShadow=true; scene.add(w); walls3D.push(w); }
-                    if (cell.walls[3]) { const w=new THREE.Mesh(vGeo, wallMat); w.position.set(x-0.5, 0.1, y); w.castShadow=true; w.receiveShadow=true; scene.add(w); walls3D.push(w); }
-                    if (x === GameState.gridSize - 1 && cell.walls[1]) { const w=new THREE.Mesh(vGeo, wallMat); w.position.set(x+0.5, 0.1, y); w.castShadow=true; w.receiveShadow=true; scene.add(w); walls3D.push(w); }
-                    if (y === GameState.gridSize - 1 && cell.walls[2]) { const w=new THREE.Mesh(hGeo, wallMat); w.position.set(x, 0.1, y+0.5); w.castShadow=true; w.receiveShadow=true; scene.add(w); walls3D.push(w); }
+            const wMat = new THREE.MeshPhongMaterial({ map: generateTex('wall'), color: 0x94a3b8 });
+            const wGeo = new THREE.BoxGeometry(1, 1, 1);
+            for(let y=0; y<GameState.grid.length; y++) {
+                for(let x=0; x<GameState.grid[0].length; x++) {
+                    if(GameState.grid[y][x] === 1) {
+                        let m = new THREE.Mesh(wGeo, wMat); m.position.set(x, 0, y); threeScene.add(m);
+                    }
                 }
             }
 
-            exit3DGroup = new THREE.Group();
-            const portal = new THREE.Mesh(new THREE.TorusKnotGeometry(0.25, 0.08, 100, 16), exitMat); exit3DGroup.add(portal);
-            exit3DGroup.add(new THREE.PointLight(0x4ade80, 2, 4));
-            exit3DGroup.position.set(GameState.exit.x, 0, GameState.exit.y); scene.add(exit3DGroup);
+            const fMat = new THREE.MeshPhongMaterial({ map: generateTex('floor') });
+            const fGeo = new THREE.PlaneGeometry(GameState.grid[0].length, GameState.grid.length);
+            const floor = new THREE.Mesh(fGeo, fMat); floor.rotation.x = -Math.PI/2; floor.position.set(GameState.grid[0].length/2 - 0.5, -0.5, GameState.grid.length/2 - 0.5); threeScene.add(floor);
+
+            const cGeo = new THREE.PlaneGeometry(GameState.grid[0].length, GameState.grid.length);
+            const ceil = new THREE.Mesh(cGeo, new THREE.MeshBasicMaterial({color: 0x020617})); ceil.rotation.x = Math.PI/2; ceil.position.set(GameState.grid[0].length/2 - 0.5, 0.5, GameState.grid.length/2 - 0.5); threeScene.add(ceil);
+
+            exitMesh = new THREE.Mesh(new THREE.TorusKnotGeometry(0.2, 0.05, 100, 16), new THREE.MeshBasicMaterial({ color: 0x4ade80, wireframe: true }));
+            exitMesh.position.set(GameState.exit.x, 0, GameState.exit.y); threeScene.add(exitMesh);
+            const xLight = new THREE.PointLight(0x4ade80, 2, 4); xLight.position.set(GameState.exit.x, 0, GameState.exit.y); threeScene.add(xLight);
+
+            pLight = new THREE.PointLight(0xffffff, 1.2, 6); threeScene.add(pLight);
 
             GameState.powerups.forEach(p => {
-                let mat = null; let color = 0xffffff;
-                if(p.type === POWERUP_GHOST) { mat = matGhost; color=0xc084fc; } if(p.type === POWERUP_VISION) { mat = matVision; color=0x22d3ee; } if(p.type === POWERUP_SPRINT) { mat = matSprint; color=0xfacc15; }
-                const sprite = new THREE.Sprite(mat); sprite.scale.set(0.6, 0.6, 0.6); sprite.position.set(p.x, 0, p.y);
-                sprite.add(new THREE.PointLight(color, 1, 2)); scene.add(sprite); powerups3D.push({mesh: sprite, data: p});
+                if(!p.active) return;
+                const cv = document.createElement('canvas'); cv.width=64; cv.height=64; const c = cv.getContext('2d');
+                drawIcon(c, p.type, 32, 32, 40);
+                let sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), color: 0xffffff, transparent: true }));
+                sprite.position.set(p.x, 0, p.y); sprite.scale.set(0.4, 0.4, 0.4); p.mesh = sprite; threeScene.add(sprite);
             });
 
-            updateStreetviewArrows();
+            createFloorArrows(); animate3D();
         }
 
-        function updateStreetviewArrows() {
-            if (!GameState.is3D) return;
-            while(arrows3DGroup.children.length > 0) arrows3DGroup.remove(arrows3DGroup.children[0]);
+        function createFloorArrows() {
+            mapArrows.forEach(a => threeScene.remove(a)); mapArrows = [];
             
-            const px = GameState.player.x; const py = GameState.player.y;
-            if(!GameState.grid[py]) return; const cell = GameState.grid[py][px];
-            
-            for (let d = 0; d < 4; d++) {
-                if (!cell.walls[d]) {
-                    const offset = 0.6; 
-                    let ax = px, az = py, rotY = 0;
-                    if (d === 0) { az -= offset; rotY = 0; } // North (-Z)
-                    if (d === 1) { ax += offset; rotY = -Math.PI/2; } // East (+X)
-                    if (d === 2) { az += offset; rotY = Math.PI; } // South (+Z)
-                    if (d === 3) { ax -= offset; rotY = Math.PI/2; } // West (-X)
-                    
-                    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), chevronMat);
-                    arrow.position.set(ax, -0.45, az); // Hover just above -0.5 floor
-                    arrow.rotation.x = -Math.PI/2;
-                    arrow.rotation.z = rotY;
-                    arrow.userData = { dir: d, phase: Math.random() * Math.PI * 2 };
-                    arrows3DGroup.add(arrow);
+            // Only generate and show clickable floor arrows if the waypoints scheme is explicitly active.
+            if (!GameState.is3D || GameState.settings.controlScheme3D !== 'waypoints') return;
+
+            const shape = new THREE.Shape(); shape.moveTo(0,0.3); shape.lineTo(0.3,-0.3); shape.lineTo(0,-0.15); shape.lineTo(-0.3,-0.3); shape.closePath();
+            const geom = new THREE.ShapeGeometry(shape); geom.rotateX(-Math.PI/2);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
+
+            for(let d=0; d<4; d++) {
+                let nx = GameState.player.x + DIRS[d].x; let ny = GameState.player.y + DIRS[d].y;
+                if(GameState.grid[ny] && GameState.grid[ny][nx] === 0) {
+                    let mesh = new THREE.Mesh(geom, mat);
+                    mesh.position.set(GameState.player.x + DIRS[d].x*0.6, -0.45, GameState.player.y + DIRS[d].y*0.6); 
+                    mesh.rotation.y = [0, -Math.PI/2, Math.PI, Math.PI/2][d];
+                    mesh.userData = { dir: d }; threeScene.add(mesh); mapArrows.push(mesh);
                 }
             }
         }
 
         function updateCamera3DTarget() {
             targetCamPos.set(GameState.player.x, 0, GameState.player.y);
+            // Reverse camera math to face correctly: 0=N(-Z), 1=E(+X), 2=S(+Z), 3=W(-X)
             switch(GameState.player.dir) {
-                case 0: targetCamRotY = 0; break; // Facing N (-Z)
-                case 1: targetCamRotY = -Math.PI / 2; break; // E (+X)
-                case 2: targetCamRotY = Math.PI; break; // S (+Z)
-                case 3: targetCamRotY = Math.PI / 2; break; // W (-X)
+                case 0: targetCamRotY = 0; break; 
+                case 1: targetCamRotY = -Math.PI / 2; break; 
+                case 2: targetCamRotY = Math.PI; break; 
+                case 3: targetCamRotY = Math.PI / 2; break; 
             }
         }
 
         function animate3D() {
-            if (GameState.is3D && ui.menu.style.display !== 'flex') {
-                let diff = targetCamRotY - camera.rotation.y;
-                while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
-                camera.rotation.y += diff * 0.15;
-                camera.position.x += (targetCamPos.x - camera.position.x) * 0.15;
-                camera.position.z += (targetCamPos.z - camera.position.z) * 0.15;
-
-                const dist = Math.abs(targetCamPos.x - camera.position.x) + Math.abs(targetCamPos.z - camera.position.z);
-                if (dist > 0.05) { bobTime += 0.25; camera.position.y = Math.sin(bobTime) * 0.05; } 
-                else camera.position.y += (0 - camera.position.y) * 0.1;
-
-                powerups3D.forEach(p => p.mesh.position.y = Math.sin(Date.now()*0.003 + p.data.x) * 0.15);
-                arrows3DGroup.children.forEach(a => {
-                    a.material.opacity = 0.5 + Math.sin(Date.now() * 0.005 + a.userData.phase) * 0.4;
-                });
-
-                if(exit3DGroup) {
-                    exit3DGroup.children[0].rotation.y += 0.02; exit3DGroup.children[0].rotation.x += 0.01;
-                    const scale = 1 + Math.sin(Date.now() * 0.005) * 0.1; exit3DGroup.scale.set(scale, scale, scale);
-                }
-                renderer.render(scene, camera);
-            }
+            if(!GameState.is3D || ui.game.style.display === 'none') return;
             requestAnimationFrame(animate3D);
-        }
-        animate3D();
 
-        // --- STREAMING_CHUNK:Game Logic & Audio... ---
-        function collectPowerup(x, y) {
-            const index = GameState.powerups.findIndex(p => p.x === x && p.y === y);
-            if (index > -1) {
-                const p = GameState.powerups[index];
-                if (p.type === POWERUP_GHOST) GameState.activePowerups.ghost++;
-                if (p.type === POWERUP_SPRINT) GameState.activePowerups.sprint += 10; 
-                if (p.type === POWERUP_VISION) showMap(true); 
-                GameState.powerups.splice(index, 1);
-                
-                if (GameState.is3D) {
-                    const p3Idx = powerups3D.findIndex(p3 => p3.data.x === x && p3.data.y === y);
-                    if(p3Idx > -1) { scene.remove(powerups3D[p3Idx].mesh); powerups3D.splice(p3Idx, 1); }
+            const time = clock.getElapsedTime();
+            camera.position.lerp(targetCamPos, 0.15);
+            
+            let diff = targetCamRotY - camera.rotation.y;
+            while(diff < -Math.PI) diff += Math.PI*2; while(diff > Math.PI) diff -= Math.PI*2;
+            camera.rotation.y += diff * 0.15;
+
+            if(camera.position.distanceToSquared(targetCamPos) > 0.001) camera.position.y = Math.sin(time * 15) * 0.05;
+            else camera.position.y += (0 - camera.position.y) * 0.1;
+
+            pLight.position.copy(camera.position);
+            if(exitMesh) { exitMesh.rotation.x += 0.02; exitMesh.rotation.y += 0.03; }
+
+            mapArrows.forEach(a => { a.position.y = -0.45 + Math.sin(time*4 + a.position.x)*0.03; a.material.opacity = 0.5 + Math.sin(time*5)*0.3; });
+            GameState.powerups.forEach(p => { if(p.active && p.mesh) p.mesh.position.y = Math.sin(time*4 + p.x)*0.1; });
+
+            renderer.render(threeScene, camera);
+        }
+
+        let moveCooldown = false;
+
+        function triggerFlash() {
+            ui.hitFlash.style.opacity = '0.5'; setTimeout(() => ui.hitFlash.style.opacity = '0', 100); sfx.bump();
+            ui.game.style.transform = `translate(${(Math.random()-0.5)*10}px, ${(Math.random()-0.5)*10}px)`;
+            setTimeout(() => ui.game.style.transform = 'none', 50);
+        }
+
+        function movePlayer(dDir) { 
+            if(moveCooldown || ui.mapModal.style.display === 'flex' || ui.settingsModal.style.display === 'flex') return;
+            
+            let moved = false; let turned = false;
+
+            if(GameState.is3D) {
+                if(dDir === -1 || dDir === 1) {
+                    GameState.player.dir = (GameState.player.dir + dDir + 4) % 4; turned = true;
+                } else {
+                    let moveAxis = (GameState.player.dir + (dDir === 2 ? 2 : 0)) % 4;
+                    let nx = GameState.player.x + DIRS[moveAxis].x; let ny = GameState.player.y + DIRS[moveAxis].y;
+                    if(GameState.grid[ny][nx] === 0 || GameState.activeEffects.ghost > 0) {
+                        if(GameState.grid[ny][nx] !== 0) GameState.activeEffects.ghost--;
+                        GameState.player.x = nx; GameState.player.y = ny; moved = true;
+                    } else triggerFlash();
                 }
-                updatePowerupUI();
-                playSound('powerup', 'C5', '16n');
-            }
-        }
-
-        function updatePowerupUI() {
-            let html = '';
-            if (GameState.activePowerups.ghost > 0) html += `<div class="bg-slate-800/90 border border-purple-500 rounded-xl px-4 py-2 text-sm text-purple-300 font-bold shadow-[0_0_15px_rgba(168,85,247,0.4)] backdrop-blur-md flex items-center gap-2"><i class="fa-solid fa-ghost"></i> Wall Breaker x${GameState.activePowerups.ghost}</div>`;
-            if (GameState.activePowerups.sprint > 0) html += `<div class="bg-slate-800/90 border border-yellow-500 rounded-xl px-4 py-2 text-sm text-yellow-300 font-bold shadow-[0_0_15px_rgba(234,179,8,0.4)] backdrop-blur-md flex items-center gap-2"><i class="fa-solid fa-bolt"></i> Sprint x${GameState.activePowerups.sprint}</div>`;
-            ui.activePowerups.innerHTML = html;
-        }
-
-        function attemptMove(dirCode) {
-            if (GameState.isMoving || ui.complete.style.display === 'flex' || !GameState.grid.length || ui.mapOverlay.style.display === 'flex') return;
-
-            let btnId = '';
-            if(dirCode === 0 || dirCode === 'FORWARD') btnId = 'btn-up';
-            if(dirCode === 1 || dirCode === 'TURN_RIGHT') btnId = 'btn-right';
-            if(dirCode === 2 || dirCode === 'BACKWARD') btnId = 'btn-down';
-            if(dirCode === 3 || dirCode === 'TURN_LEFT') btnId = 'btn-left';
-            if(btnId) { const btn = document.getElementById(btnId); if(btn) { btn.classList.add('active-press'); setTimeout(() => btn.classList.remove('active-press'), 100); } }
-
-            if (GameState.is3D) {
-                if (dirCode === 'TURN_LEFT') { GameState.player.dir = (GameState.player.dir + 3) % 4; updateCamera3DTarget(); playSound('step', null, '16n'); return; }
-                if (dirCode === 'TURN_RIGHT') { GameState.player.dir = (GameState.player.dir + 1) % 4; updateCamera3DTarget(); playSound('step', null, '16n'); return; }
-                let moveDir = GameState.player.dir; if (dirCode === 'BACKWARD') moveDir = (GameState.player.dir + 2) % 4;
-                processMovement(moveDir);
             } else {
-                GameState.player.dir = dirCode; processMovement(dirCode);
+                let nx = GameState.player.x + DIRS[dDir].x; let ny = GameState.player.y + DIRS[dDir].y;
+                GameState.player.dir = dDir;
+                if(GameState.grid[ny][nx] === 0 || GameState.activeEffects.ghost > 0) {
+                    if(GameState.grid[ny][nx] !== 0) GameState.activeEffects.ghost--;
+                    GameState.player.x = nx; GameState.player.y = ny; moved = true;
+                } else triggerFlash();
+            }
+
+            if(moved) sfx.step(); if(turned) sfx.turn();
+
+            if(moved || turned) {
+                if(GameState.is3D) { updateCamera3DTarget(); createFloorArrows(); }
+                checkInteractions();
+                if(GameState.activeEffects.sprint === 0) { moveCooldown = true; setTimeout(() => moveCooldown = false, 250); }
             }
         }
 
-        function processMovement(dir) {
-            if (GameState.isMoving || !GameState.grid.length) return;
-            const cell = GameState.grid[GameState.player.y][GameState.player.x];
-            let nx = GameState.player.x; let ny = GameState.player.y;
-            if (dir === 0) ny--; if (dir === 1) nx++; if (dir === 2) ny++; if (dir === 3) nx--;
+        function checkInteractions() {
+            GameState.powerups.forEach(p => {
+                if(p.active && p.x === GameState.player.x && p.y === GameState.player.y) {
+                    p.active = false; GameState.activeEffects[p.type] = (GameState.activeEffects[p.type] || 0) + 1;
+                    sfx.pickup(); if(p.mesh) threeScene.remove(p.mesh);
+                }
+            });
 
-            let canMove = false;
-            if (!cell.walls[dir]) canMove = true;
-            else if (GameState.activePowerups.ghost > 0 && nx >= 0 && nx < GameState.gridSize && ny >= 0 && ny < GameState.gridSize) {
-                canMove = true; GameState.activePowerups.ghost--;
-                cell.walls[dir] = false; GameState.grid[ny][nx].walls[(dir + 2) % 4] = false;
-                if (GameState.is3D) build3DScene(); updatePowerupUI();
+            if(GameState.player.x === GameState.exit.x && GameState.player.y === GameState.exit.y) {
+                sfx.win();
+                let timeBonus = Math.max(0, 100 - (Date.now() - GameState.timeStart)/1000) * 5;
+                let roundScore = Math.floor((GameState.size * 10) + timeBonus - (GameState.hasUsedHint ? GameState.size*5 : 0));
+                if(GameState.is3D) roundScore = Math.floor(roundScore * 1.5);
+                GameState.score += roundScore; ui.score.innerText = GameState.score;
+                GameState.level++; setTimeout(startLevel, 1000);
             }
-
-            if (canMove) {
-                GameState.player.x = nx; GameState.player.y = ny;
-                if (GameState.activePowerups.sprint > 0) { GameState.activePowerups.sprint--; updatePowerupUI(); }
-                GameState.isMoving = true; setTimeout(() => { GameState.isMoving = false; }, GameState.activePowerups.sprint > 0 ? 50 : 200);
-                
-                playSound('step', null, '16n');
-                collectPowerup(nx, ny);
-                if (GameState.is3D) { updateCamera3DTarget(); updateStreetviewArrows(); }
-                checkWin();
-            } else {
-                triggerShake();
-                playSound('bump', 'C2', '8n');
-            }
-        }
-
-        function checkWin() {
-            if (GameState.player.x === GameState.exit.x && GameState.player.y === GameState.exit.y) {
-                playSound('win', ["C4", "E4", "G4", "C5"], '2n');
-                const timeTaken = Math.floor((Date.now() - GameState.timeStart) / 1000);
-                const baseScore = GameState.gridSize * 15;
-                const timeBonus = Math.max(0, 150 - timeTaken) * 3;
-                const hintPenalty = GameState.hintsUsed * 50;
-                let levelScore = Math.max(25, baseScore + timeBonus - hintPenalty); 
-                if (GameState.is3D) levelScore = Math.floor(levelScore * 1.5);
-                
-                GameState.score += levelScore; ui.score.innerText = GameState.score.toLocaleString();
-
-                setTimeout(() => {
-                    ui.stats.innerHTML = `
-                        <div class="flex justify-between items-center border-b border-slate-700/50 pb-3">
-                            <span class="text-slate-400 text-sm font-bold uppercase tracking-widest">Sector Size</span>
-                            <span class="text-white font-black text-2xl">${GameState.gridSize}x${GameState.gridSize}</span>
-                        </div>
-                        <div class="flex justify-between items-center border-b border-slate-700/50 py-3">
-                            <span class="text-slate-400 text-sm font-bold uppercase tracking-widest">Time Elapsed</span>
-                            <span class="text-blue-400 font-black text-2xl">${timeTaken}s</span>
-                        </div>
-                        <div class="flex justify-between items-center border-b border-slate-700/50 py-3">
-                            <span class="text-slate-400 text-sm font-bold uppercase tracking-widest">Scans Used</span>
-                            <span class="text-red-400 font-black text-2xl">${GameState.hintsUsed}</span>
-                        </div>
-                        <div class="flex justify-between items-center pt-3">
-                            <span class="text-yellow-500 text-sm font-black uppercase tracking-widest">Points Earned</span>
-                            <span class="text-yellow-400 font-black text-3xl">+${levelScore} ${GameState.is3D ? '<span class="text-xs text-yellow-500/80 ml-1">(1.5x)</span>' : ''}</span>
-                        </div>
-                    `;
-                    ui.complete.style.display = 'flex';
-                }, 250);
-            }
-        }
-
-        // --- STREAMING_CHUNK:Hints & Interactive Systems... ---
-        function showMap(isFree = false) {
-            if (ui.mapOverlay.style.display === 'flex') return;
-            
-            ui.mapOverlay.style.display = 'flex';
-            if(!isFree) GameState.hintsUsed++;
-            
-            // Allow DOM to layout the absolute container to calculate proper size
-            setTimeout(() => {
-                try {
-                    const rect = ui.mapOverlay.getBoundingClientRect();
-                    const effW = rect.width > 0 ? rect.width : window.innerWidth * 0.9;
-                    const effH = rect.height > 0 ? rect.height : window.innerHeight * 0.9;
-                    
-                    // Failsafe calculations ensuring Canvas is never 0 or negative
-                    let size = Math.min(effW - 40, effH - 100, 600);
-                    size = Math.max(100, size); 
-                    
-                    minimapCanvas.width = size; minimapCanvas.height = size;
-                    
-                    const cellW = Math.max(1, size / GameState.gridSize);
-                    minimapCtx.clearRect(0, 0, size, size);
-                    
-                    minimapCtx.strokeStyle = '#0f172a'; minimapCtx.lineWidth = Math.max(1, cellW*0.1);
-                    for(let y=0; y<GameState.gridSize; y++){
-                        for(let x=0; x<GameState.gridSize; x++){
-                            minimapCtx.fillStyle = GameState.grid[y][x].visited ? '#1e293b' : '#020617';
-                            minimapCtx.fillRect(x*cellW, y*cellW, cellW, cellW);
-                            const cell = GameState.grid[y][x];
-                            if(cell.walls[0]) { minimapCtx.beginPath(); minimapCtx.moveTo(x*cellW, y*cellW); minimapCtx.lineTo((x+1)*cellW, y*cellW); minimapCtx.stroke(); }
-                            if(cell.walls[3]) { minimapCtx.beginPath(); minimapCtx.moveTo(x*cellW, y*cellW); minimapCtx.lineTo(x*cellW, (y+1)*cellW); minimapCtx.stroke(); }
-                            if(x===GameState.gridSize-1 && cell.walls[1]) { minimapCtx.beginPath(); minimapCtx.moveTo((x+1)*cellW, y*cellW); minimapCtx.lineTo((x+1)*cellW, (y+1)*cellW); minimapCtx.stroke(); }
-                            if(y===GameState.gridSize-1 && cell.walls[2]) { minimapCtx.beginPath(); minimapCtx.moveTo(x*cellW, (y+1)*cellW); minimapCtx.lineTo((x+1)*cellW, (y+1)*cellW); minimapCtx.stroke(); }
-                        }
-                    }
-                    
-                    // Show Uncollected Powerups
-                    GameState.powerups.forEach(p => {
-                        let color = '#fff';
-                        if(p.type === POWERUP_GHOST) color = '#c084fc'; if(p.type === POWERUP_VISION) color = '#22d3ee'; if(p.type === POWERUP_SPRINT) color = '#facc15';
-                        minimapCtx.fillStyle = color; minimapCtx.beginPath();
-                        minimapCtx.arc(p.x * cellW + cellW/2, p.y * cellW + cellW/2, Math.max(1, cellW*0.25), 0, Math.PI*2); minimapCtx.fill();
-                    });
-
-                    // BFS Pathing
-                    const queue = [{x: GameState.player.x, y: GameState.player.y, path: []}];
-                    const visited = new Set(); visited.add(`${GameState.player.x},${GameState.player.y}`);
-                    let finalPath = [];
-                    while(queue.length > 0) {
-                        const cur = queue.shift(); const cell = GameState.grid[cur.y][cur.x];
-                        if (cur.x === GameState.exit.x && cur.y === GameState.exit.y) { finalPath = cur.path; break; }
-                        const dirs = [ { dx: 0, dy: -1, w: 0 }, { dx: 1, dy: 0, w: 1 }, { dx: 0, dy: 1, w: 2 }, { dx: -1, dy: 0, w: 3 } ];
-                        for (let d of dirs) {
-                            if (!cell.walls[d.w]) {
-                                const nx = cur.x + d.dx; const ny = cur.y + d.dy; const key = `${nx},${ny}`;
-                                if (!visited.has(key)) { visited.add(key); queue.push({x: nx, y: ny, path: [...cur.path, {x: nx, y: ny}]}); }
-                            }
-                        }
-                    }
-                    
-                    // Reveal ~20% of path
-                    const hintPath = finalPath.slice(0, Math.max(4, Math.floor(finalPath.length * 0.2)));
-                    
-                    minimapCtx.strokeStyle = 'rgba(250, 204, 21, 0.7)'; minimapCtx.lineWidth = Math.max(2, cellW * 0.3);
-                    minimapCtx.lineCap = 'round'; minimapCtx.lineJoin = 'round';
-                    if(hintPath.length > 0) {
-                        minimapCtx.beginPath(); minimapCtx.moveTo(GameState.player.x * cellW + cellW/2, GameState.player.y * cellW + cellW/2);
-                        hintPath.forEach(p => minimapCtx.lineTo(p.x * cellW + cellW/2, p.y * cellW + cellW/2)); minimapCtx.stroke();
-                        const ep = hintPath[hintPath.length - 1];
-                        minimapCtx.fillStyle = '#facc15'; minimapCtx.beginPath(); minimapCtx.arc(ep.x * cellW + cellW/2, ep.y * cellW + cellW/2, Math.max(1, cellW*0.3), 0, Math.PI*2); minimapCtx.fill();
-                    }
-
-                    minimapCtx.fillStyle = '#3b82f6'; minimapCtx.beginPath(); minimapCtx.arc(GameState.player.x * cellW + cellW/2, GameState.player.y * cellW + cellW/2, Math.max(1, cellW*0.35), 0, Math.PI*2); minimapCtx.fill();
-                    minimapCtx.fillStyle = '#22c55e'; minimapCtx.fillRect(GameState.exit.x * cellW + 4, GameState.exit.y * cellW + 4, cellW - 8, cellW - 8);
-                    
-                } catch(e) { console.error("Map safe block:", e); }
-            }, 50);
-        }
-
-        ui.mapBtn.addEventListener('click', () => showMap(false));
-        ui.closeMap.addEventListener('click', () => { ui.mapOverlay.style.display = 'none'; });
-
-        // Inputs
-        const bindBtn = (id, a2, a3) => { const b = document.getElementById(id); if(b) { const t=(e)=>{e.preventDefault(); attemptMove(GameState.is3D?a3:a2);}; b.addEventListener('mousedown',t); b.addEventListener('touchstart',t,{passive:false}); } };
-        bindBtn('btn-up', 0, 'FORWARD'); bindBtn('btn-right', 1, 'TURN_RIGHT'); bindBtn('btn-down', 2, 'BACKWARD'); bindBtn('btn-left', 3, 'TURN_LEFT');
-
-        function updateDpadIcons() {
-            document.getElementById('btn-up').innerHTML = GameState.is3D ? '<i class="fa-solid fa-angles-up"></i>' : '<i class="fa-solid fa-chevron-up"></i>';
-            document.getElementById('btn-down').innerHTML = GameState.is3D ? '<i class="fa-solid fa-angles-down"></i>' : '<i class="fa-solid fa-chevron-down"></i>';
-            document.getElementById('btn-left').innerHTML = GameState.is3D ? '<i class="fa-solid fa-rotate-left"></i>' : '<i class="fa-solid fa-chevron-left"></i>';
-            document.getElementById('btn-right').innerHTML = GameState.is3D ? '<i class="fa-solid fa-rotate-right"></i>' : '<i class="fa-solid fa-chevron-right"></i>';
         }
 
         window.addEventListener('keydown', (e) => {
-            if (ui.mapOverlay.style.display === 'flex') { if(e.key === 'Escape') ui.mapOverlay.style.display = 'none'; return; }
-            if(!GameState.grid.length || ui.complete.style.display === 'flex') return;
-            if (GameState.is3D) {
-                if (e.key === 'ArrowUp' || e.key === 'w') attemptMove('FORWARD');
-                if (e.key === 'ArrowRight' || e.key === 'd') attemptMove('TURN_RIGHT');
-                if (e.key === 'ArrowDown' || e.key === 's') attemptMove('BACKWARD');
-                if (e.key === 'ArrowLeft' || e.key === 'a') attemptMove('TURN_LEFT');
+            if(ui.mapModal.style.display === 'flex' || ui.settingsModal.style.display === 'flex') return;
+            if(GameState.is3D) {
+                if(e.key==='ArrowUp' || e.key==='w') movePlayer(0); if(e.key==='ArrowDown' || e.key==='s') movePlayer(2);
+                if(e.key==='ArrowLeft' || e.key==='a') movePlayer(-1); if(e.key==='ArrowRight' || e.key==='d') movePlayer(1);
             } else {
-                if (e.key === 'ArrowUp' || e.key === 'w') attemptMove(0);
-                if (e.key === 'ArrowRight' || e.key === 'd') attemptMove(1);
-                if (e.key === 'ArrowDown' || e.key === 's') attemptMove(2);
-                if (e.key === 'ArrowLeft' || e.key === 'a') attemptMove(3);
+                if(e.key==='ArrowUp' || e.key==='w') movePlayer(0); if(e.key==='ArrowRight' || e.key==='d') movePlayer(1);
+                if(e.key==='ArrowDown' || e.key==='s') movePlayer(2); if(e.key==='ArrowLeft' || e.key==='a') movePlayer(3);
             }
-            if (e.key === 'm') showMap();
         });
 
-        // Tap Logic with Diagonal Quadrant Intersections
-        containerLayer.addEventListener('click', e => {
-            if(!GameState.grid.length || ui.complete.style.display === 'flex' || ui.mapOverlay.style.display === 'flex') return;
-            const rect = containerLayer.getBoundingClientRect();
+        const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+        canvas.addEventListener('pointerdown', handleTouch3D);
+        document.getElementById('ui-chevrons').parentElement.addEventListener('pointerdown', (e) => {
+             if(GameState.is3D && ui.game.style.display !== 'none' && !e.target.closest('button')) handleTouch3D(e);
+        });
+
+        function handleTouch3D(e) {
+            if(ui.mapModal.style.display === 'flex' || ui.settingsModal.style.display === 'flex' || !GameState.is3D) return;
             
-            if (GameState.is3D && !GameState.isMoving) {
-                // Check 3D arrow raycast
-                mouseVector.x = ((e.clientX - rect.left) / rect.width) * 2 - 1; mouseVector.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-                raycaster.setFromCamera(mouseVector, camera);
-                const intersects = raycaster.intersectObjects(arrows3DGroup.children);
-                if (intersects.length > 0) {
-                    const targetDir = intersects[0].object.userData.dir;
-                    GameState.player.dir = targetDir; processMovement(targetDir); return; 
+            const scheme = GameState.settings.controlScheme3D;
+
+            if (scheme === 'waypoints') {
+                const rect = document.body.getBoundingClientRect();
+                mouse.x = (e.clientX / rect.width) * 2 - 1; mouse.y = -(e.clientY / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(mapArrows);
+                
+                if(intersects.length > 0) {
+                    let targetDir = intersects[0].object.userData.dir;
+                    let relDir = (targetDir - GameState.player.dir + 4) % 4;
+                    if(relDir === 3) movePlayer(-1); else if(relDir === 1) movePlayer(1); else if(relDir === 2) movePlayer(2); else movePlayer(0);
+                }
+            } 
+            else if (scheme === 'tapzones') {
+                const rect = document.body.getBoundingClientRect();
+                const nx = (e.clientX - rect.left) / rect.width;
+                const ny = (e.clientY - rect.top) / rect.height;
+
+                if(nx < 0.25) movePlayer(-1); // Left 25% -> Turn Left
+                else if(nx > 0.75) movePlayer(1); // Right 25% -> Turn Right
+                else { 
+                    if(ny > 0.75) movePlayer(2); // Bottom 25% of Center -> Backward
+                    else movePlayer(0); // Top 75% of Center -> Forward
                 }
             }
+        }
 
-            // Diagonal Quadrants ensures corners resolve to Turning naturally
-            const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-            const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
-            if (Math.abs(nx) > Math.abs(ny)) {
-                if (nx > 0) attemptMove(GameState.is3D ? 'TURN_RIGHT' : 1);
-                else attemptMove(GameState.is3D ? 'TURN_LEFT' : 3);
-            } else {
-                if (ny > 0) attemptMove(GameState.is3D ? 'BACKWARD' : 2);
-                else attemptMove(GameState.is3D ? 'FORWARD' : 0);
+        let activeTouchId = null;
+        let swipeStart = { x: 0, y: 0 };
+        let vjActive = false;
+        let vjCenter = { x: 0, y: 0 };
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (ui.mapModal.style.display === 'flex' || ui.settingsModal.style.display === 'flex' || GameState.settings.device === 'desktop') return;
+            
+            const is3D = GameState.is3D;
+            const scheme = is3D ? GameState.settings.controlScheme3D : GameState.settings.controlScheme2D;
+            const touch = e.changedTouches[0];
+            activeTouchId = touch.identifier;
+
+            if (!is3D && scheme === 'swipe') {
+                swipeStart = { x: touch.clientX, y: touch.clientY };
+            } 
+            else if (scheme === 'joystick') {
+                vjActive = true;
+                vjCenter = { x: touch.clientX, y: touch.clientY };
+                
+                ui.joystick.classList.remove('bottom-6', 'left-6', 'right-6', 'left-1/2', '-translate-x-1/2');
+                ui.joystick.style.left = `${vjCenter.x - ui.joystick.offsetWidth/2}px`;
+                ui.joystick.style.top = `${vjCenter.y - ui.joystick.offsetHeight/2}px`;
+                ui.joystick.style.opacity = '0.8';
             }
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (ui.mapModal.style.display === 'flex' || ui.settingsModal.style.display === 'flex') return;
+            
+            const is3D = GameState.is3D;
+            const scheme = is3D ? GameState.settings.controlScheme3D : GameState.settings.controlScheme2D;
+
+            if (scheme === 'joystick' && vjActive) {
+                e.preventDefault(); 
+                let touch;
+                for(let i=0; i<e.changedTouches.length; i++) { if(e.changedTouches[i].identifier === activeTouchId) touch = e.changedTouches[i]; }
+                if(!touch) return;
+
+                let dx = touch.clientX - vjCenter.x;
+                let dy = touch.clientY - vjCenter.y;
+                let dist = Math.hypot(dx, dy);
+                let max = 40; 
+                
+                if (dist > max) { dx = (dx/dist)*max; dy = (dy/dist)*max; }
+                ui.joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                
+                if (dist > 20 && !moveCooldown) {
+                    if (Math.abs(dx) > Math.abs(dy)) movePlayer(dx > 0 ? 1 : (is3D ? -1 : 3));
+                    else movePlayer(dy > 0 ? 2 : 0);
+                }
+            }
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', (e) => {
+            if (ui.mapModal.style.display === 'flex' || ui.settingsModal.style.display === 'flex') return;
+            
+            let touch;
+            for(let i=0; i<e.changedTouches.length; i++) { if(e.changedTouches[i].identifier === activeTouchId) touch = e.changedTouches[i]; }
+            if(!touch) return;
+
+            const is3D = GameState.is3D;
+            const scheme = is3D ? GameState.settings.controlScheme3D : GameState.settings.controlScheme2D;
+
+            if (!is3D && scheme === 'swipe') {
+                let dx = touch.clientX - swipeStart.x;
+                let dy = touch.clientY - swipeStart.y;
+                if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
+                    if (Math.abs(dx) > Math.abs(dy)) movePlayer(dx > 0 ? 1 : 3);
+                    else movePlayer(dy > 0 ? 2 : 0);
+                }
+            } 
+            else if (scheme === 'joystick' && vjActive) {
+                vjActive = false;
+                ui.joystick.style.opacity = '0.4';
+                ui.joystick.style.left = ''; ui.joystick.style.top = '';
+                ui.joystick.classList.add('bottom-6'); 
+                applyControlsUI(); 
+            }
+            activeTouchId = null;
         });
 
-        // Menus
-        const setupBtnGrp = (sel, key, cAct, cInact) => {
-            document.querySelectorAll(sel).forEach(btn => btn.addEventListener('click', (e) => {
-                document.querySelectorAll(sel).forEach(b => { b.classList.remove(...cAct.split(' ')); b.classList.add(...cInact.split(' ')); });
-                const t = e.currentTarget; t.classList.add(...cAct.split(' ')); t.classList.remove(...cInact.split(' '));
-                if(key==='diff') GameSettings.difficulty = parseInt(t.dataset.diff);
-                if(key==='mode') GameSettings.mode = t.dataset.mode;
-                if(key==='dev') { GameSettings.device = t.dataset.dev; document.body.className = GameSettings.device === 'desktop' ? 'desktop-mode' : ''; }
-            }));
-        };
-        setupBtnGrp('.diff-btn', 'diff', 'active-option border-cyan-400', 'border-slate-700 bg-slate-800/80 hover:bg-slate-700');
-        setupBtnGrp('.mode-btn', 'mode', 'active-option border-cyan-400', 'border-slate-700 bg-slate-800/80 hover:bg-slate-700');
-        setupBtnGrp('.dev-btn', 'dev', 'active-option border-cyan-400', 'border-slate-700 bg-slate-800/80 hover:bg-slate-700');
+        document.getElementById('btn-up').onclick = () => movePlayer(0);
+        document.getElementById('btn-down').onclick = () => movePlayer(2);
+        document.getElementById('btn-left').onclick = () => movePlayer(GameState.is3D ? -1 : 3);
+        document.getElementById('btn-right').onclick = () => movePlayer(1);
+        document.getElementById('btn-action').onclick = () => { if(GameState.is3D) movePlayer(2); };
 
-        document.getElementById('btn-start').addEventListener('click', async () => {
-            // Audio successfully instantiated here securely avoids page crash on fail.
-            if(!sfx.init) { 
+        ui.mapBtn.addEventListener('click', () => {
+            ui.mapModal.style.display = 'flex';
+            ui.mapModal.style.position = 'absolute'; // Safely anchor focus
+            if(GameState.activeEffects.eagleEye === 0) GameState.hasUsedHint = true;
+            
+            setTimeout(() => {
                 try {
-                    await Tone.start();
-                    sfx.step = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0 }, volume: -15 }).toDestination();
-                    sfx.bump = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 2, envelope: { attack: 0.01, decay: 0.2, sustain: 0 }, volume: -5 }).toDestination();
-                    sfx.powerup = new Tone.FMSynth({ envelope: { attack: 0.01, decay: 0.3, sustain: 0 }, volume: -10 }).toDestination();
-                    sfx.win = new Tone.PolySynth(Tone.Synth, { envelope: { attack: 0.1, decay: 0.5, sustain: 0.3, release: 1 }, volume: -10 }).toDestination();
-                    sfx.init = true;
-                } catch(e) { console.warn("Audio Context init disabled securely", e); }
-            }
-            ui.menu.style.display = 'none'; GameState.level = GameSettings.difficulty; GameState.score = 0; GameState.activePowerups = { ghost: 0, sprint: 0 };
-            loadLevel();
+                    const cont = document.getElementById('map-canvas-container');
+                    const w = Math.max(100, cont.clientWidth - 32); const h = Math.max(100, cont.clientHeight - 32);
+                    mapCanvas.width = w; mapCanvas.height = h;
+                    mapCtx.fillStyle = '#010510'; mapCtx.fillRect(0,0,w,h);
+
+                    const gridW = GameState.grid[0].length; const gridH = GameState.grid.length;
+                    const cellW = w / gridW; const cellH = h / gridH;
+                    const cellSize = Math.max(1, Math.min(cellW, cellH));
+                    const offsetX = (w - (cellSize * gridW)) / 2; const offsetY = (h - (cellSize * gridH)) / 2;
+
+                    mapCtx.fillStyle = '#082f49'; 
+                    for(let y=0; y<gridH; y++) {
+                        for(let x=0; x<gridW; x++) {
+                            if(GameState.grid[y][x] === 1) mapCtx.fillRect(offsetX + x*cellSize, offsetY + y*cellSize, Math.max(1, cellSize-1), Math.max(1, cellSize-1));
+                        }
+                    }
+
+                    const path = getPathBFS();
+                    const stepsToReveal = Math.max(5, Math.floor(path.length * 0.2)); 
+                    const partialPath = path.slice(0, stepsToReveal);
+
+                    mapCtx.strokeStyle = '#38bdf8'; mapCtx.lineWidth = Math.max(1, cellSize * 0.4); mapCtx.lineCap = 'round'; mapCtx.lineJoin = 'round';
+                    if(partialPath.length > 0) {
+                        mapCtx.beginPath(); mapCtx.moveTo(offsetX + GameState.player.x*cellSize + cellSize/2, offsetY + GameState.player.y*cellSize + cellSize/2);
+                        partialPath.forEach(pt => mapCtx.lineTo(offsetX + pt.x*cellSize + cellSize/2, offsetY + pt.y*cellSize + cellSize/2));
+                        mapCtx.stroke();
+                        let lastPt = partialPath[partialPath.length-1];
+                        mapCtx.fillStyle = '#facc15'; mapCtx.beginPath();
+                        mapCtx.arc(offsetX + lastPt.x*cellSize + cellSize/2, offsetY + lastPt.y*cellSize + cellSize/2, Math.max(1, cellSize*0.4), 0, Math.PI*2); mapCtx.fill();
+                    }
+
+                    GameState.powerups.forEach(p => {
+                        if(p.active) {
+                            mapCtx.fillStyle = p.type === 'sprint' ? '#facc15' : (p.type==='ghost' ? '#c084fc' : '#22d3ee');
+                            mapCtx.beginPath(); mapCtx.arc(offsetX + p.x*cellSize + cellSize/2, offsetY + p.y*cellSize + cellSize/2, Math.max(1, cellSize*0.3), 0, Math.PI*2); mapCtx.fill();
+                        }
+                    });
+
+                    mapCtx.fillStyle = '#fff'; mapCtx.beginPath();
+                    mapCtx.arc(offsetX + GameState.player.x*cellSize + cellSize/2, offsetY + GameState.player.y*cellSize + cellSize/2, Math.max(1, cellSize*0.5), 0, Math.PI*2); mapCtx.fill();
+                } catch(e) { console.error("Map render safe-fail:", e); }
+            }, 50);
         });
 
-        document.getElementById('btn-next').addEventListener('click', () => { ui.complete.style.display = 'none'; GameState.level++; loadLevel(); });
+        document.getElementById('close-map-btn').addEventListener('click', () => { ui.mapModal.style.display = 'none'; });
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            if(camera && renderer) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        }
         
-        // Fully clear states upon quitting
-        ui.quitBtn.addEventListener('click', () => {
-            ui.menu.style.display = 'flex'; 
-            ui.mapOverlay.style.display = 'none'; 
-            ui.complete.style.display = 'none'; 
-            GameState.grid = []; 
-            ui.tapHints.style.display = 'none';
-            if(GameState.is3D) { walls3D.forEach(w=>scene.remove(w)); powerups3D.forEach(p=>scene.remove(p.mesh)); if(exit3DGroup) scene.remove(exit3DGroup); while(arrows3DGroup.children.length>0) arrows3DGroup.remove(arrows3DGroup.children[0]); }
-        });
+        function checkOrientation() {
+            const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+            const isMobileTouch = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+            if (isLandscape && isMobileTouch && window.innerHeight < 600) { sfx.safePlay(() => Tone.context.suspend()); } 
+            else { sfx.safePlay(() => Tone.context.resume()); }
+        }
 
+        window.addEventListener('resize', () => { resizeCanvas(); checkOrientation(); });
+        window.addEventListener('orientationchange', () => { setTimeout(() => { resizeCanvas(); checkOrientation(); }, 200); });
         resizeCanvas();
     </script>
 </body>
